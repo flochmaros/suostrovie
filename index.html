@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Súostrovie</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8cc8e0; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; text-shadow: 0 1px 3px #0008; }
+  #info { position: absolute; top: 12px; left: 14px; font-size: 14px; line-height: 1.5; }
+  #ostrov { position: absolute; top: 40px; width: 100%; text-align: center; font-size: 28px; font-weight: 600; opacity: 0; transition: opacity .8s; }
+  #napoveda { position: absolute; bottom: 16px; width: 100%; text-align: center; font-size: 15px; }
+  #kompas { position: absolute; top: 12px; right: 14px; font-size: 14px; text-align: right; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           background: #0006; color: #fff; cursor: pointer; text-align: center; }
+  #start h1 { margin: 0 0 8px; font-size: 44px; }
+  #start p { margin: 4px; opacity: .9; }
+  #nacitanie { position: fixed; bottom: 12px; right: 14px; color: #fff; font-size: 12px; opacity: .7; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hud">
+  <div id="info"></div>
+  <div id="kompas"></div>
+  <div id="ostrov"></div>
+  <div id="napoveda"></div>
+</div>
+<div id="start">
+  <h1>Súostrovie</h1>
+  <p>Klikni pre štart</p>
+  <p>WASD pohyb · Shift beh / silnejšie pádlovanie · Medzerník skok · myš kamera · koliesko zoom</p>
+  <p>E nastúpiť / vystúpiť z kanoe · Esc pauza</p>
+</div>
+<div id="nacitanie"></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
