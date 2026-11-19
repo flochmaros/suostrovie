@@ -1,208 +1,157 @@
-// Start hry, hlavna slucka, kamera, HUD, ukladanie
+// Start hry a hlavna slucka: spaja grafiku, svet, hraca, kanoe, kameru, inventar, zvuk a HUD.
 import * as THREE from 'three';
-import { Sky } from 'three/addons/objects/Sky.js';
-import { initVstup, mys, stlacene, koniecSnimku } from './vstup.js';
-import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate } from './svet.js';
+import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
+import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
+import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
-import { vytvorHraca, tlmUhol } from './hrac.js';
+import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor } from './kanoe.js';
-import { PREDMETY, sloty, pridaj, nacitaj, vyber, prepniBatoh, vykresli } from './inventar.js';
+import { vytvorKameru } from './kamera.js';
+import { vytvorCastice } from './castice.js';
+import { najdiCiel, poskod, aktualizujUzly } from './vegetacia.js';
+import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
+import { sloty, pridaj, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet } from './inventar.js';
+import { PREDMETY } from './obsah/predmety.js';
+import { ZDROJE } from './obsah/zdroje.js';
 
-const tlm = THREE.MathUtils.damp;
 const $ = id => document.getElementById(id);
-
-// ---------- scena ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.5;
-document.body.appendChild(renderer.domElement);
-
-const scena = new THREE.Scene();
-scena.fog = new THREE.Fog(0xa9d3e3, 250, 1000);
-const kamera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 12000);
-
-const slnkoSmer = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(55), THREE.MathUtils.degToRad(140));
-const obloha = new Sky();
-obloha.scale.setScalar(10000);
-obloha.material.uniforms.turbidity.value = 4;
-obloha.material.uniforms.rayleigh.value = 1.2;
-obloha.material.uniforms.sunPosition.value.copy(slnkoSmer);
-// odrazy: z oblohy spravime "prostredie", ktore odraza voda a mierne aj ostatne materialy
-const pmrem = new THREE.PMREMGenerator(renderer);
-const scenaOblohy = new THREE.Scene();
-scenaOblohy.add(obloha);
-scena.environment = pmrem.fromScene(scenaOblohy).texture;
-scena.add(obloha);
-
-// mraky: zhluky splostenych gul vysoko na oblohe, idu s hracom
-const mraky = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, fog: false, emissive: 0x8899aa }), 240);
-const mrakyPoz = [];
-for (let i = 0; i < 40; i++) {
-  const x = (Math.random() - 0.5) * 3000, z = (Math.random() - 0.5) * 3000, y = 220 + Math.random() * 80;
-  for (let j = 0; j < 6; j++) mrakyPoz.push([x + (Math.random() - 0.5) * 70, y + Math.random() * 12, z + (Math.random() - 0.5) * 35, 18 + Math.random() * 22]);
-}
-mraky.frustumCulled = false;
-scena.add(mraky);
-const m4 = new THREE.Matrix4();
-function aktualizujMraky(x, z, t) {
-  mrakyPoz.forEach(([mx, my, mz, r], i) => {
-    // posun vetrom + opakovanie v stvorci 3 km okolo hraca
-    const px = x + THREE.MathUtils.euclideanModulo(mx - x + t * 3, 3000) - 1500;
-    const pz = z + THREE.MathUtils.euclideanModulo(mz - z, 3000) - 1500;
-    mraky.setMatrixAt(i, m4.makeScale(r, r * 0.45, r * 0.8).setPosition(px, my, pz));
-  });
-  mraky.instanceMatrix.needsUpdate = true;
-}
-
-scena.add(new THREE.HemisphereLight(0xcfe8ff, 0x8a7a55, 0.8));
-const slnko = new THREE.DirectionalLight(0xfff1d6, 2.6);
-slnko.castShadow = true;
-slnko.shadow.mapSize.set(2048, 2048);
-Object.assign(slnko.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 400 });
-slnko.shadow.bias = -0.0005;
-scena.add(slnko, slnko.target);
+const g = vytvorGrafiku();
+const { scena, kamera } = g;
 
 initSvet(scena);
-const ocean = vytvorOcean(scena);
+const ocean = vytvorOcean(g);
+const pena = vytvorCastice(scena, { pocet: 700, velkost: 0.28, aditivne: true });
+const triesky = vytvorCastice(scena, { pocet: 300, velkost: 0.11 });
 const start = startovaciaPozicia();
 const hrac = vytvorHraca(scena);
-const kanoe = vytvorKanoe(scena, start.kanoe.x, start.kanoe.z);
+const kanoe = vytvorKanoe(scena, start.kanoe.x, start.kanoe.z, { pena, zvuky });
+const kam = vytvorKameru(kamera);
 hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z);
 
-// ---------- stav hry + ukladanie ----------
-let vKanoe = false;
+// ---------- stav + ukladanie ----------
+let vKanoe = false, cas = 0;
 const objavene = new Set();
-const KLUC = 'suostrovie-ulozenie-v1';
+const KLUC = 'suostrovie-ulozenie-v2';
 try {
   const u = JSON.parse(localStorage.getItem(KLUC));
   if (u) {
-    hrac.poz.set(u.hrac[0], u.hrac[1], u.hrac[2]);
-    kanoe.poz.set(u.kanoe[0], u.kanoe[1]);
-    kanoe.smer = u.kanoe[2];
+    hrac.poz.fromArray(u.hrac);
+    kanoe.poz.set(u.kanoe[0], u.kanoe[1]); kanoe.smer = u.kanoe[2];
     u.objavene.forEach(o => objavene.add(o));
-    (u.zobrate || []).forEach(id => zobrate.add(id));
+    u.zobrate.forEach(id => zobrate.add(id));
     nacitaj(u.inventar);
+    cas = u.cas || 0;
     if (u.vKanoe) nastup();
   }
-} catch (e) { /* bez ulozenia - nova hra */ }
-
+} catch (e) { /* nova hra */ }
 function uloz() {
   try {
-    localStorage.setItem(KLUC, JSON.stringify({
-      hrac: hrac.poz.toArray(), kanoe: [kanoe.poz.x, kanoe.poz.y, kanoe.smer], vKanoe, objavene: [...objavene],
-      zobrate: [...zobrate], inventar: sloty,
-    }));
+    localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(), kanoe: [kanoe.poz.x, kanoe.poz.y, kanoe.smer],
+      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
 addEventListener('beforeunload', uloz);
 
+function oznam(text) {
+  const d = document.createElement('div');
+  d.className = 'oznam panel'; d.textContent = text;
+  $('oznamy').appendChild(d);
+  setTimeout(() => d.remove(), 2700);
+}
+
+// ---------- kanoe: nastup / vystup ----------
 function nastup() {
   vKanoe = true;
   kanoe.model.add(hrac.model);
   hrac.model.position.copy(kanoe.SEDADLO);
   hrac.model.rotation.set(0, 0, 0);
-  hrac.telo.rotation.x = 0; hrac.telo.position.y = 0;
 }
-
-// hlada najblizsie suche miesto okolo kanoe
 function miestoNaVystup(t) {
-  for (let r = 1.5; r <= 10; r += 0.5) {
-    for (let i = 0; i < 24; i++) {
-      const a = i / 24 * Math.PI * 2;
-      const x = kanoe.poz.x + Math.cos(a) * r, z = kanoe.poz.y + Math.sin(a) * r;
-      if (vyskaTerenu(x, z) > vyskaVody(x, z, t) + 0.15) return [x, z];
-    }
+  for (let r = 1.5; r <= 9; r += 0.5) for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2, x = kanoe.poz.x + Math.cos(a) * r, z = kanoe.poz.y + Math.sin(a) * r;
+    if (vyskaTerenu(x, z) > vyskaVody(x, z, t) + 0.15) return [x, z];
   }
   return null;
 }
-
-function vystup(miesto) {
+function vystup([x, z]) {
   vKanoe = false;
   scena.add(hrac.model);
-  hrac.poz.set(miesto[0], vyskaTerenu(miesto[0], miesto[1]), miesto[1]);
+  hrac.poz.set(x, vyskaTerenu(x, z), z);
   hrac.rych.set(0, 0, 0); hrac.vy = 0;
 }
 
-// ---------- kamera ----------
-let yaw = -Math.PI / 2, pitch = 0.3, vzdialenost = 7;
-const ciel = new THREE.Vector3().copy(hrac.poz);
+// ---------- udalosti hraca ----------
+const FARBA_TRIESOK = { drevo: 0x8a6240, kamen: 0x9a978f, list: 0x4f8a35 };
+hrac.priUdere = () => {
+  const fx = -Math.sin(hrac.smer), fz = -Math.cos(hrac.smer);
+  const u = najdiCiel(uzlyPri(hrac.poz.x, hrac.poz.z), hrac.poz.x, hrac.poz.z, fx, fz);
+  if (!u) return;
+  const material = ZDROJE[u.typ].material;
+  zvuky.uder(material);
+  const d = Math.max(u.rKolizia, 0.3);
+  for (let i = 0; i < 14; i++) triesky.vypust(u.x - fx * d, hrac.poz.y + 1.1, u.z - fz * d,
+    -fx * 2 + (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 3, FARBA_TRIESOK[material], 0.9);
+  const vynos = poskod(u, fx, fz);
+  if (!vynos) return;
+  zobrate.add(u.id);
+  if (u.typ === 'palma' || u.typ === 'strom') setTimeout(() => zvuky.pad(), 1100);
+  for (const [id, n] of vynos) {
+    const navyse = pridaj(id, n);
+    if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
+    if (navyse) oznam('Batoh je plný');
+  }
+  vykresliInventar();
+};
+hrac.priKroku = () => zvuky.krok(vyskaTerenu(hrac.poz.x, hrac.poz.z) < 1.6);
+hrac.priSplachu = sila => {
+  zvuky.splach(sila);
+  const y = vyskaVody(hrac.poz.x, hrac.poz.z, cas);
+  for (let i = 0; i < 30 * sila + 8; i++) pena.vypust(hrac.poz.x, y, hrac.poz.z, (Math.random() - 0.5) * 4, 2 + Math.random() * 4 * sila, (Math.random() - 0.5) * 4, 0xffffff, 0.8);
+};
 
-function aktualizujKameru(dt, t) {
-  yaw -= mys.dx * 0.0025;
-  pitch = THREE.MathUtils.clamp(pitch + mys.dy * 0.0025, -0.25, 1.35);
-  vzdialenost = THREE.MathUtils.clamp(vzdialenost + mys.koliesko * 1.2, 3, 30);
-
-  const novyCiel = vKanoe
-    ? new THREE.Vector3(kanoe.poz.x, kanoe.y + 1.4, kanoe.poz.y)
-    : new THREE.Vector3(hrac.poz.x, hrac.poz.y + 1.6, hrac.poz.z);
-  // v kanoe sa kamera sama pomaly otoci za kanoe, ked sa nehybe mysou
-  if (vKanoe && performance.now() - mys.posledny > 1500) yaw = tlmUhol(yaw, kanoe.smer, 1.2, dt);
-  ciel.x = tlm(ciel.x, novyCiel.x, 14, dt);
-  ciel.y = tlm(ciel.y, novyCiel.y, 8, dt);
-  ciel.z = tlm(ciel.z, novyCiel.z, 14, dt);
-
-  const d = vKanoe ? vzdialenost + 3 : vzdialenost;
-  kamera.position.set(
-    ciel.x + Math.sin(yaw) * Math.cos(pitch) * d,
-    ciel.y + Math.sin(pitch) * d,
-    ciel.z + Math.cos(yaw) * Math.cos(pitch) * d);
-  // kamera nesmie ist pod teren ani pod vodu
-  // (pri potapani smie kamera ist pod hladinu)
-  const tx = kamera.position.x, tz = kamera.position.z;
-  const minY = (!vKanoe && hrac.potapa ? vyskaTerenu(tx, tz) : Math.max(vyskaTerenu(tx, tz), vyskaVody(tx, tz, t))) + 0.5;
-  if (kamera.position.y < minY) kamera.position.y = minY;
-  kamera.lookAt(ciel);
-}
+// ---------- vstup, inventar ----------
+const platno = g.renderer.domElement;
+const zamkni = () => platno.requestPointerLock()?.catch?.(() => {});
+initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() ? 'none' : 'flex'; });
+$('start').addEventListener('click', () => { initZvuk(); zamkni(); });
+initInventar(() => hrac.drz(vybranyPredmet()));
+vykresliInventar();
+hrac.drz(vybranyPredmet());
 
 // ---------- HUD ----------
 let poslednyOstrov = null, casNapisu = 0;
-function hud(dt) {
-  const p = vKanoe ? { x: kanoe.poz.x, z: kanoe.poz.y } : hrac.poz;
+const STRANY = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
+const BIOM = { palmovy: 'palmový ostrov', dzungla: 'džungľa', skalnaty: 'skalnatý ostrov' };
+const uhol = smer => ((Math.atan2(-Math.sin(smer), Math.cos(smer)) * 180 / Math.PI) + 360) % 360;
+function hud(dt, p) {
   const o = ostrovPri(p.x, p.z, 1.3);
   if (o && o !== poslednyOstrov) {
-    const kluc = o.bx + ',' + o.bz;
-    const novy = !objavene.has(kluc);
+    const kluc = o.bx + ',' + o.bz, novy = !objavene.has(kluc);
     objavene.add(kluc);
-    $('ostrov').innerHTML = o.meno + (novy ? '<div style="font-size:15px">Nový ostrov objavený!</div>' : '');
+    $('ostrov').innerHTML = o.meno + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom]}</small>`;
     $('ostrov').style.opacity = 1;
     casNapisu = 4;
   }
   poslednyOstrov = o;
-  casNapisu -= dt;
-  if (casNapisu < 0) $('ostrov').style.opacity = 0;
+  if ((casNapisu -= dt) < 0) $('ostrov').style.opacity = 0;
 
-  const smer = ((Math.atan2(-Math.sin(yaw), Math.cos(yaw)) * 180 / Math.PI) + 360) % 360;
-  const strany = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
-  $('kompas').innerHTML = `${strany[Math.round(smer / 45) % 8]} ${Math.round(smer)}°<br>x ${Math.round(p.x)} · z ${Math.round(p.z)}`;
-  const vSmer = ((Math.atan2(-Math.sin(vietor.smer), Math.cos(vietor.smer)) * 180 / Math.PI) + 360) % 360;
-  $('kompas').innerHTML += `<br>Vietor do ${strany[Math.round(vSmer / 45) % 8]} · ${'▮'.repeat(Math.round(vietor.sila * 5))}`
-    + `<br>${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} (${priliv(cas) >= 0 ? '+' : ''}${priliv(cas).toFixed(1)} m)`;
+  const s = uhol(kam.yaw), v = uhol(vietor.smer), pr = priliv(cas);
+  $('kompas').innerHTML = `<span class="smer">${STRANY[Math.round(s / 45) % 8]} ${Math.round(s)}°</span><br>`
+    + `Vietor → ${STRANY[Math.round(v / 45) % 8]} ${'▮'.repeat(Math.round(vietor.sila * 5))}<br>`
+    + `${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} ${pr >= 0 ? '+' : ''}${pr.toFixed(1)} m`;
+  const stav = vKanoe ? `Kanoe · <b>${(kanoe.rychlost() * 1.944).toFixed(0)}</b> uzlov` + (kanoe.plachtaV > 0.5 ? ` · plachta ${Math.round(kanoe.ucinnost * 100)} %` : '')
+    : hrac.potapa ? 'Potápaš sa' : hrac.plava ? 'Plávaš' : 'Pešo';
+  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b><br>${stav}<br>Objavené ostrovy: ${objavene.size}`;
   $('dych').style.display = hrac.dych < 1 && !vKanoe ? 'block' : 'none';
   $('dych').firstChild.style.width = hrac.dych * 100 + '%';
-  $('info').innerHTML = (vKanoe ? `Kanoe · ${(kanoe.rychlost() * 1.944).toFixed(1)} uzlov` + (kanoe.plachtaV > 0.5 ? ` · plachta ${Math.round(kanoe.ucinnost * 100)} %` : '')
-    : (hrac.potapa ? 'Potápaš sa' : hrac.plava ? 'Plávaš' : 'Pešo'))
-    + `<br>Objavené ostrovy: ${objavene.size}` + (o ? `<br>Ostrov: ${o.meno}` : '<br>Otvorené more');
 }
 
 // ---------- hlavna slucka ----------
-initVstup(renderer.domElement, zamknuta => { $('start').style.display = zamknuta ? 'none' : 'flex'; });
-$('start').addEventListener('click', () => renderer.domElement.requestPointerLock()?.catch?.(() => {}));
-
-const hodiny = new THREE.Clock();
-let cas = 0;
-function slucka() {
-  requestAnimationFrame(slucka);
-  const dt = Math.min(hodiny.getDelta(), 0.05);
+function aktualizuj(dt) {
   cas += dt;
-
   aktualizujVietor(cas);
-  if (stlacene('Tab')) prepniBatoh();
+  if (stlacene('Tab')) { if (prepniBatoh()) document.exitPointerLock(); else zamkni(); }
   for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
 
   let napoveda = '';
@@ -210,50 +159,66 @@ function slucka() {
     kanoe.aktualizuj(dt, cas, true);
     hrac.animuj(dt, 'sedi', 0, kanoe.faza);
     const miesto = miestoNaVystup(cas);
-    if (miesto) napoveda = 'E – vystúpiť na breh';
+    if (miesto) napoveda = '<kbd>E</kbd> vystúpiť na breh';
     if (miesto && stlacene('KeyE')) vystup(miesto);
   } else {
-    hrac.aktualizuj(dt, yaw, cas);
+    hrac.aktualizuj(dt, kam.yaw, cas);
     kanoe.aktualizuj(dt, cas, false);
+    if (stlacene('Mys0')) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < 4.5;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
-    if (blizko) napoveda = 'E – nastúpiť do kanoe';
-    else if (predmet) napoveda = `E – zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
+    if (blizko) napoveda = '<kbd>E</kbd> nastúpiť do kanoe';
+    else if (predmet) napoveda = `<kbd>E</kbd> zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
     if (blizko && stlacene('KeyE')) nastup();
     else if (predmet && stlacene('KeyE')) {
-      if (pridaj(predmet.userData.typ)) { zober(predmet); hrac.zdvihni(); vykresli(); }
-      else napoveda = 'Batoh je plný';
+      const typ = predmet.userData.typ;
+      if (pridaj(typ) === 0) { zober(predmet); hrac.zdvihni(); zvuky.zober(); oznam(`+1 ${PREDMETY[typ].ikona} ${PREDMETY[typ].meno}`); vykresliInventar(); }
+      else oznam('Batoh je plný');
     }
   }
-  $('napoveda').textContent = napoveda;
+  $('napoveda').innerHTML = napoveda;
 
-  aktualizujKameru(dt, cas);
-  // pod vodou: modra hmla nablizko
-  const podVodou = kamera.position.y < vyskaVody(kamera.position.x, kamera.position.z, cas) - 0.1;
-  scena.fog.color.set(podVodou ? 0x0e5a72 : 0xa9d3e3);
-  scena.fog.near = podVodou ? 1 : 250;
-  scena.fog.far = podVodou ? 45 : 1000;
   const stred = vKanoe ? kanoe.model.position : hrac.poz;
+  const cielKamery = vKanoe ? new THREE.Vector3(kanoe.poz.x, kanoe.y + 1.5, kanoe.poz.y) : new THREE.Vector3(hrac.poz.x, hrac.poz.y + 1.55, hrac.poz.z);
+  kam.aktualizuj(dt, cas, cielKamery, { vKanoe, smerKanoe: kanoe.smer, rychlost: vKanoe ? kanoe.rychlost() : 0, podVodu: hrac.potapa });
+
+  // pod vodou: modra hmla nablizko
+  const podVodou = kamera.position.y < vyskaVody(kamera.position.x, kamera.position.z, cas) - 0.05;
+  scena.fog.color.set(podVodou ? 0x0d5468 : FARBA_HMLY);
+  scena.fog.near = podVodou ? 0.5 : 220;
+  scena.fog.far = podVodou ? 40 : 1300;
+
   ocean.aktualizuj(stred.x, stred.z, cas);
-  const nahrate = aktualizujSvet(stred.x, stred.z);
-  $('nacitanie').textContent = nahrate < 25 ? 'Načítavam ostrovy…' : '';
+  const hotovo = aktualizujSvet(stred.x, stred.z);
+  $('nacitanie').textContent = hotovo ? '' : 'Načítavam ostrovy…';
+  aktualizujUzly(dt);
+  pena.aktualizuj(dt);
+  triesky.aktualizuj(dt);
+  g.sledujSlnkom(stred);
+  const zem = vyskaTerenu(stred.x, stred.z);
+  aktualizujZvuk(cas, { silaVetra: vietor.sila, rychlost: vKanoe ? kanoe.rychlost() : 0, pobrezie: THREE.MathUtils.clamp(1 - Math.abs(zem + 1) / 5, 0, 1), podVodou });
+  hud(dt, stred);
+}
 
-  // slnko a tiene idu za hracom
-  slnko.position.copy(stred).addScaledVector(slnkoSmer, 200);
-  slnko.target.position.copy(stred);
-  aktualizujMraky(stred.x, stred.z, cas);
-
-  hud(dt);
-  renderer.render(scena, kamera);
+const hodiny = new THREE.Clock();
+function snimok() {
+  requestAnimationFrame(snimok);
+  aktualizuj(Math.min(hodiny.getDelta(), 0.05));
+  g.vykresli();
   koniecSnimku();
 }
-vykresli();
-slucka();
+snimok();
 
-addEventListener('resize', () => {
-  kamera.aspect = innerWidth / innerHeight;
-  kamera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-window.hra = { hrac, kanoe, kamera, vyskaTerenu };   // pre ladenie v konzole
+// ---------- ladenie z konzoly: hra.sim(sekundy, ['KeyW'], ['Mys0']) odohra cas bez cakania na snimky ----------
+window.hra = {
+  g, hrac, kanoe, kam, scena, zobrate, sloty,
+  get vKanoe() { return vKanoe; },
+  sim(sekundy, drz = [], stlac1 = []) {
+    drz.forEach(k => klavesy.add(k));
+    stlac1.forEach(stlac);
+    for (let i = 0; i < sekundy * 60; i++) { aktualizuj(1 / 60); koniecSnimku(); }
+    drz.forEach(k => klavesy.delete(k));
+    g.vykresli();
+  },
+  otoc(yaw, pitch) { kam.yaw = yaw; if (pitch !== undefined) kam.pitch = pitch; mys.posledny = performance.now(); },
+};

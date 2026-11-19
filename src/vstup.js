@@ -20,6 +20,7 @@ export function initVstup(platno, onZamknutie) {
     mys.posledny = performance.now();
   });
   addEventListener('wheel', e => { mys.koliesko += Math.sign(e.deltaY); });
+  addEventListener('mousedown', e => { if (mys.zamknuta) jednorazove.add('Mys' + e.button); });
 
   document.addEventListener('pointerlockchange', () => {
     mys.zamknuta = document.pointerLockElement === platno;
@@ -27,7 +28,10 @@ export function initVstup(platno, onZamknutie) {
   });
 }
 
-// true len v snimku, ked bola klavesa stlacena
+// pre testy: simulovane stlacenie
+export function stlac(kod) { jednorazove.add(kod); }
+
+// true len v snimku, ked bola klavesa stlacena (mys: 'Mys0' = lave tlacidlo)
 export function stlacene(kod) { return jednorazove.has(kod); }
 
 // volat na konci kazdeho snimku

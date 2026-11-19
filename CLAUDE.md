@@ -18,18 +18,33 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 
 ## Technika
 - Bez buildu: `index.html` + ES moduly v `src/`, Three.js 0.160.0 cez importmap z jsDelivr.
-- Spustenie: `python -m http.server 8125` v tomto priečinku → http://localhost:8125 (alebo `.claude/launch.json` „hra“).
+- Spustenie: `python server.py` v tomto priečinku (server bez cache) → http://localhost:8125 (alebo `.claude/launch.json` „hra“).
 - Komentáre v kóde po slovensky bez diakritiky; názvy premenných môžu byť slovensky.
 - Svet je deterministický zo `SEED` (`src/svet.js`): rovnaký seed = rovnaké ostrovy.
 
 ## Štruktúra
 | Cesta | Obsah |
 |---|---|
-| `src/main.js` | štart, hlavná slučka, kamera, HUD |
-| `src/svet.js` | generovanie ostrovov po bunkách (nekonečný svet), `vyskaTerenu(x,z)` |
-| `src/ocean.js` | oceán s vlnami (shader) + `vyskaVody(x,z,t)` – rovnaký vzorec v JS aj GLSL |
-| `src/hrac.js` | hráč pešo (chôdza, skok, plávanie, potápanie) + procedurálne animácie |
-| `src/kanoe.js` | fyzika kanoe, plachta + vietor, brázda |
-| `src/vstup.js` | klávesnica a myš |
-| `src/inventar.js` | batoh 24 políčok, lišta 1–8 (Tab) |
+| `src/main.js` | štart, hlavná slučka, HUD, udalosti (úder, zber), ukladanie, `window.hra.sim()` na testy |
+| `src/grafika.js` | renderer, obloha, slnko + tiene, bloom; 2 prechody (svet bez vody → textúra pre vodu) |
+| `src/ocean.js` | shader vody (vlny, lom, hĺbka, pena, odlesky) + `vyskaVody(x,z,t)` (rovnaký vzorec v JS aj GLSL), príliv |
+| `src/svet.js` | bunky 520 m, ostrovy + biómy, terén (kaustiky, mokrý piesok), predmety na zemi |
+| `src/vegetacia.js` | modely rastlín kódom, rozmiestnenie podľa biómu, vietor v shaderi, uzly (hitbox, životy, pád) |
+| `src/hrac.js` | postava s kĺbmi, procedurálne animácie, pohyb, kolízie, potápanie, úder |
+| `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
+| `src/kanoe.js` | kanoe: model, fyzika, plachta + vietor, brázda, sprej |
+| `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
+| `src/inventar.js` | batoh 24 políčok, ťahanie myšou, výroba podľa receptov |
+| `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva strom/kameň), `recepty.js` |
+| `server.py` | lokálny server bez cache |
 | `dennik/` | denník vývoja |
+
+## Ako pridávať obsah
+- Nový predmet: `predmet('id', {...})` v `src/obsah/predmety.js` (ikona, model).
+- Nový recept: `recept({...})` v `src/obsah/recepty.js` – zobrazí sa v batohu sám.
+- Nový zdroj (strom, kameň…): `src/obsah/zdroje.js` + druh a hustota v `src/vegetacia.js` (`DRUHY`, `BIOMY`).
+- Testovanie bez hrania: v konzole `hra.sim(sekundy, ['KeyW'], ['Mys0'])`, `hra.otoc(yaw, pitch)`.
+
+## Pracovný štýl (spätná väzba 19. 11. 2026)
+- Nezastavuj po malých úlohách – rob väčšie celky poriadne a sám ich vyskúšaj v hre (screenshot), kým to nevyzerá dobre.
+- Cieľ: imerzívne, trochu realistické, „satisfying“ (voda, kanoe, pocit z ovládania).

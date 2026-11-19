@@ -4,32 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Súostrovie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #8cc8e0; font-family: system-ui, sans-serif; }
+  :root { --sklo: rgba(20, 45, 60, .42); --okraj: rgba(255, 255, 255, .28); --zlta: #ffd27a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc7da; font-family: Nunito, system-ui, sans-serif; }
   canvas { display: block; }
-  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; text-shadow: 0 1px 3px #0008; }
-  #info { position: absolute; top: 12px; left: 14px; font-size: 14px; line-height: 1.5; }
-  #ostrov { position: absolute; top: 40px; width: 100%; text-align: center; font-size: 28px; font-weight: 600; opacity: 0; transition: opacity .8s; }
-  #napoveda { position: absolute; bottom: 16px; width: 100%; text-align: center; font-size: 15px; }
-  #kompas { position: absolute; top: 12px; right: 14px; font-size: 14px; text-align: right; }
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-           background: #0006; color: #fff; cursor: pointer; text-align: center; }
-  #start h1 { margin: 0 0 8px; font-size: 44px; }
-  #start p { margin: 4px; opacity: .9; }
-  #lista { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
-  .slot { position: relative; width: 52px; height: 52px; border-radius: 10px; background: #fff3; border: 2px solid #fff6;
-          display: flex; align-items: center; justify-content: center; font-size: 28px; backdrop-filter: blur(4px); }
-  .slot.vybrany { border-color: #ffe08a; background: #fff5; }
-  .slot .cislo { position: absolute; top: 2px; left: 5px; font-size: 11px; opacity: .8; }
-  .slot .pocet { position: absolute; bottom: 2px; right: 5px; font-size: 13px; font-weight: 700; }
-  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 14px 18px 18px;
-           background: #2a4a5acc; border-radius: 16px; backdrop-filter: blur(6px); }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; text-shadow: 0 1px 4px #0007; user-select: none; }
+  .panel { background: var(--sklo); border: 1px solid var(--okraj); border-radius: 14px; backdrop-filter: blur(8px); }
+  #info { position: absolute; top: 14px; left: 14px; padding: 8px 14px; font-size: 14px; line-height: 1.5; }
+  #info b { font-size: 16px; }
+  #kompas { position: absolute; top: 14px; right: 14px; padding: 8px 14px; font-size: 13px; text-align: right; line-height: 1.5; }
+  #kompas .smer { font-size: 18px; font-weight: 800; }
+  #ostrov { position: absolute; top: 70px; width: 100%; text-align: center; font-size: 34px; font-weight: 800; letter-spacing: 1px; opacity: 0; transition: opacity 1s; }
+  #ostrov small { display: block; font-size: 15px; font-weight: 600; opacity: .9; letter-spacing: 0; }
+  #napoveda { position: absolute; bottom: 104px; width: 100%; text-align: center; font-size: 15px; font-weight: 700; }
+  kbd { display: inline-block; min-width: 18px; padding: 1px 6px; margin-right: 4px; border-radius: 6px; background: #fff; color: #234; text-shadow: none; font-family: inherit; font-weight: 800; }
+  #lista { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; }
+  .slot { position: relative; width: 56px; height: 56px; border-radius: 10px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.25);
+          display: flex; align-items: center; justify-content: center; box-sizing: border-box; pointer-events: auto; }
+  .slot.vybrany { border-color: var(--zlta); background: rgba(255,210,122,.22); }
+  .slot .ikona { font-size: 30px; line-height: 1; }
+  .slot .cislo { position: absolute; top: 2px; left: 6px; font-size: 11px; opacity: .75; }
+  .slot .pocet { position: absolute; bottom: 1px; right: 6px; font-size: 14px; font-weight: 800; }
+  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 18px; padding: 18px 20px; pointer-events: auto; }
   #batoh h2 { margin: 0 0 10px; font-size: 20px; }
-  #batoh .mriezka { display: grid; grid-template-columns: repeat(8, 52px); gap: 6px; }
-  #dych { position: absolute; bottom: 110px; left: 50%; width: 160px; height: 8px; margin-left: -80px; border-radius: 4px;
-          background: #0005; overflow: hidden; display: none; }
+  #batoh-mriezka { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; }
+  #batoh-mriezka .slot { cursor: grab; }
+  #batoh .stlpec2 { width: 240px; border-left: 1px solid var(--okraj); padding-left: 18px; }
+  .recept { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.1); margin-bottom: 6px; cursor: pointer; font-size: 13px; }
+  .recept:hover { background: rgba(255,255,255,.2); }
+  .recept.nedostupny { opacity: .5; cursor: default; }
+  .recept .ikona { font-size: 28px; }
+  .recept .chyba { color: #ffb3a8; }
+  .prazdne { opacity: .8; font-size: 14px; line-height: 1.5; }
+  code { word-break: break-all; font-size: 12px; background: rgba(0,0,0,.25); padding: 1px 4px; border-radius: 4px; }
+  #duch { display: none; position: fixed; font-size: 34px; transform: translate(-50%, -50%); pointer-events: none; z-index: 10; }
+  #oznamy { position: absolute; bottom: 110px; right: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .oznam { padding: 4px 12px; font-size: 15px; font-weight: 700; animation: oznam 2.6s forwards; }
+  @keyframes oznam { 0% { opacity: 0; transform: translateX(20px); } 10%, 75% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+  #dych { position: absolute; bottom: 140px; left: 50%; width: 180px; height: 8px; margin-left: -90px; border-radius: 4px; background: #0005; overflow: hidden; display: none; }
   #dych div { height: 100%; background: #8be0ff; }
-  #nacitanie { position: fixed; bottom: 12px; right: 14px; color: #fff; font-size: 12px; opacity: .7; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           background: radial-gradient(ellipse at center, rgba(10,40,60,.35), rgba(10,30,45,.75)); color: #fff; cursor: pointer; text-align: center; }
+  #start h1 { margin: 0 0 6px; font-size: 64px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 4px 24px #0006; }
+  #start .hrat { margin: 18px 0 22px; padding: 12px 34px; border-radius: 30px; background: var(--zlta); color: #3a2a10; font-size: 20px; font-weight: 800; }
+  #start p { margin: 3px; opacity: .9; font-size: 14px; }
+  #nacitanie { position: fixed; bottom: 12px; left: 14px; color: #fff; font-size: 12px; opacity: .7; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -40,20 +61,25 @@
 </head>
 <body>
 <div id="hud">
-  <div id="info"></div>
-  <div id="kompas"></div>
+  <div id="info" class="panel"></div>
+  <div id="kompas" class="panel"></div>
   <div id="ostrov"></div>
   <div id="napoveda"></div>
   <div id="dych"><div></div></div>
-  <div id="lista"></div>
-  <div id="batoh"></div>
+  <div id="oznamy"></div>
+  <div id="lista" class="panel"></div>
+  <div id="batoh" class="panel">
+    <div><h2>Batoh</h2><div id="batoh-mriezka"></div></div>
+    <div class="stlpec2"><h2>Výroba</h2><div id="vyroba"></div></div>
+  </div>
 </div>
+<div id="duch"></div>
 <div id="start">
   <h1>Súostrovie</h1>
-  <p>Klikni pre štart</p>
-  <p>WASD pohyb · Shift beh · Medzerník skok · C potápanie · myš kamera · koliesko zoom</p>
-  <p>E zdvihnúť / nastúpiť / vystúpiť · Tab batoh · 1–8 výber · Esc pauza</p>
-  <p>Na kanoe: W/S pádlo · A/D zatáčanie · Shift plachta (najlepšie po vetre)</p>
+  <div class="hrat">Klikni a hraj</div>
+  <p><kbd>WASD</kbd> pohyb · <kbd>Shift</kbd> beh · <kbd>Medzerník</kbd> skok · <kbd>C</kbd> potápanie · myš = kamera, koliesko = zoom</p>
+  <p><kbd>Ľavé tlačidlo</kbd> úder (stromy, kríky, kamene) · <kbd>E</kbd> zdvihnúť / nastúpiť / vystúpiť · <kbd>Tab</kbd> batoh · <kbd>1–8</kbd> výber</p>
+  <p>Na kanoe: <kbd>W</kbd>/<kbd>S</kbd> pádlo · <kbd>A</kbd>/<kbd>D</kbd> zatáčanie · <kbd>Shift</kbd> plachta (najlepšie po vetre)</p>
 </div>
 <div id="nacitanie"></div>
 <script type="module" src="src/main.js"></script>
