@@ -27,16 +27,31 @@
   .slot .ikona { font-size: 30px; line-height: 1; }
   .slot .cislo { position: absolute; top: 2px; left: 6px; font-size: 11px; opacity: .75; }
   .slot .pocet { position: absolute; bottom: 1px; right: 6px; font-size: 14px; font-weight: 800; }
-  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 18px; padding: 18px 20px; pointer-events: auto; }
-  #batoh h2 { margin: 0 0 10px; font-size: 20px; }
-  #batoh-mriezka { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; }
-  #batoh-mriezka .slot { cursor: grab; }
-  #batoh .stlpec2 { width: 240px; border-left: 1px solid var(--okraj); padding-left: 18px; }
-  .recept { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.1); margin-bottom: 6px; cursor: pointer; font-size: 13px; }
-  .recept:hover { background: rgba(255,255,255,.2); }
-  .recept.nedostupny { opacity: .5; cursor: default; }
-  .recept .ikona { font-size: 28px; }
-  .recept .chyba { color: #ffb3a8; }
+  .slot .trv { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 4px; border-radius: 2px; background: rgba(0,0,0,.45); overflow: hidden; }
+  .slot .trv i { display: block; height: 100%; border-radius: 2px; }
+  .slot .pocet { text-shadow: 0 1px 3px #000a; }
+  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 20px; padding: 20px 22px; pointer-events: auto;
+           max-height: 86vh; box-sizing: border-box; background: rgba(18, 38, 50, .62); box-shadow: 0 12px 40px #0006; }
+  #batoh h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: .5px; }
+  #batoh h3 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--zlta); opacity: .95; }
+  #batoh h3:first-child { margin-top: 0; }
+  #batoh-mriezka { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; padding: 8px; border-radius: 12px; background: rgba(0,0,0,.18); }
+  #batoh-mriezka .slot { cursor: grab; transition: background .12s, border-color .12s; }
+  #batoh-mriezka .slot:hover { background: rgba(255,255,255,.26); border-color: rgba(255,255,255,.5); }
+  #batoh .stlpec2 { width: 280px; border-left: 1px solid var(--okraj); padding-left: 20px; display: flex; flex-direction: column; min-height: 0; }
+  #vyroba { overflow-y: auto; padding-right: 6px; max-height: calc(86vh - 90px); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent; }
+  .recept { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.1); border: 1px solid transparent; margin-bottom: 6px; cursor: pointer; font-size: 13px; transition: background .12s, transform .08s; }
+  .recept.moze { border-color: rgba(255,210,122,.55); background: rgba(255,210,122,.14); }
+  .recept.moze:hover { background: rgba(255,210,122,.28); transform: translateX(2px); }
+  .recept.nedostupny { cursor: default; background: rgba(255,255,255,.06); }
+  .recept.nedostupny .ikona, .recept.nedostupny b { opacity: .6; }
+  .recept .ikona { font-size: 28px; flex: none; }
+  .recept .telo { min-width: 0; }
+  .recept .suroviny { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; }
+  .recept .ma { opacity: .95; }
+  .recept .chyba { color: #ffb3a8; font-weight: 800; }
+  .recept .stav { margin-top: 3px; font-size: 11.5px; color: var(--zlta); font-weight: 700; }
+  .recept .stav.chybaj { color: #ffb3a8; font-weight: 600; opacity: .9; }
   .prazdne { opacity: .8; font-size: 14px; line-height: 1.5; }
   code { word-break: break-all; font-size: 12px; background: rgba(0,0,0,.25); padding: 1px 4px; border-radius: 4px; }
   #duch { display: none; position: fixed; font-size: 34px; transform: translate(-50%, -50%); pointer-events: none; z-index: 10; }

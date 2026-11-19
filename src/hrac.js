@@ -5,60 +5,12 @@ import * as THREE from 'three';
 import { klavesy, stlacene } from './vstup.js';
 import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
+import { postavModel } from './postava.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
   const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
   return a + d * (1 - Math.exp(-lambda * dt));
-}
-
-const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, ...o });
-const KOZA = M(0xc68a62), TRIKO = M(0xd9573b), SORTKY = M(0xcbb488), VLASY = M(0x2b1d12, { roughness: 0.55 }), OCI = M(0x15110e, { roughness: 0.2 });
-
-function klb(x, y, z, ...deti) { const g = new THREE.Group(); g.position.set(x, y, z); if (deti.length) g.add(...deti); return g; }
-function kapsula(r, dlzka, mat, y0 = 0) {        // visi z klbu dole
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(dlzka - 2 * r, 0.01), 4, 10), mat);
-  m.position.y = y0 - dlzka / 2;
-  return m;
-}
-function mesh(geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) {
-  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); return m;
-}
-
-function postavModel() {
-  const J = {};
-  const nohy = [-1, 1].map(s => {
-    const chodidlo = mesh(new THREE.BoxGeometry(0.1, 0.07, 0.25), KOZA, 0, -0.44, -0.05);
-    const koleno = klb(0, -0.46, 0, kapsula(0.066, 0.44, KOZA), chodidlo);
-    const stehno = klb(0.1 * s, -0.02, 0, kapsula(0.082, 0.46, KOZA), kapsula(0.096, 0.27, SORTKY, 0.02), koleno);
-    return { stehno, koleno };
-  });
-  const ruky = [-1, 1].map(s => {
-    const dlan = mesh(new THREE.SphereGeometry(0.052, 8, 6), KOZA, 0, -0.29, 0, 0.9, 1.1, 0.8);
-    const drziak = klb(0, -0.31, -0.02);
-    const laket = klb(0, -0.3, 0, kapsula(0.047, 0.28, KOZA), dlan, drziak);
-    const rameno = klb(0.23 * s, 0.42, 0, kapsula(0.054, 0.3, KOZA), kapsula(0.066, 0.15, TRIKO, 0.03), laket);
-    return { rameno, laket, drziak };
-  });
-  const hlava = klb(0, 0.58, 0,
-    mesh(new THREE.SphereGeometry(0.125, 18, 14), KOZA, 0, 0.11, 0, 0.95, 1.1, 1),
-    mesh(new THREE.SphereGeometry(0.133, 18, 10, 0, Math.PI * 2, 0, 1.5), VLASY, 0, 0.13, 0.012),
-    mesh(new THREE.SphereGeometry(0.018, 8, 6), OCI, -0.045, 0.125, -0.112),
-    mesh(new THREE.SphereGeometry(0.018, 8, 6), OCI, 0.045, 0.125, -0.112),
-    mesh(new THREE.ConeGeometry(0.022, 0.05, 6).rotateX(-Math.PI / 2), KOZA, 0, 0.09, -0.13),
-    mesh(new THREE.SphereGeometry(0.03, 6, 6), KOZA, -0.122, 0.11, 0, 0.5, 1, 0.8),
-    mesh(new THREE.SphereGeometry(0.03, 6, 6), KOZA, 0.122, 0.11, 0, 0.5, 1, 0.8));
-  const chrbat = klb(0, 0.08, 0,
-    mesh(new THREE.CapsuleGeometry(0.17, 0.24, 4, 12), TRIKO, 0, 0.26, 0, 1.3, 1, 0.78),
-    mesh(new THREE.CylinderGeometry(0.052, 0.06, 0.14, 8), KOZA, 0, 0.52, 0),
-    hlava, ruky[0].rameno, ruky[1].rameno);
-  const telo = klb(0, 0.95, 0,
-    mesh(new THREE.CapsuleGeometry(0.15, 0.08, 4, 12), SORTKY, 0, 0.0, 0, 1.25, 1, 0.82),
-    chrbat, nohy[0].stehno, nohy[1].stehno);
-  telo.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  Object.assign(J, { telo, chrbat, hlava, sL: nohy[0].stehno, sP: nohy[1].stehno, kL: nohy[0].koleno, kP: nohy[1].koleno,
-    rL: ruky[0].rameno, rP: ruky[1].rameno, lL: ruky[0].laket, lP: ruky[1].laket, drziak: ruky[1].drziak });
-  return J;
 }
 
 export function vytvorHraca(scena) {
@@ -83,7 +35,8 @@ export function vytvorHraca(scena) {
       vRuke = null;
       if (predmet?.model) {
         vRuke = new THREE.Mesh(predmet.model[0], predmet.model[1]);
-        vRuke.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+        if (predmet.drzanie) { vRuke.position.set(...predmet.drzanie.poz); vRuke.rotation.set(...predmet.drzanie.rot); }
+        else vRuke.rotation.set(Math.PI / 2, 0, Math.PI / 2);
         vRuke.castShadow = true;
         J.drziak.add(vRuke);
       }

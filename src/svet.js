@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
 import { hash, rng } from './nahoda.js';
 import { uCas, uPriliv } from './ocean.js';
-import { postavVegetaciu } from './vegetacia.js';
+import { postavVegetaciu, uvolniVegetaciu } from './vegetacia.js';
 import { PREDMETY } from './obsah/predmety.js';
 
 export const SEED = 1337;
@@ -31,6 +31,20 @@ function meno(r) {
 }
 
 // ---------- data ostrova ----------
+// Typy ostrovov (biomy) a ich pravdepodobnost; kazdy ma vlastny tvar terenu (vyskaOstrova) a farby (TEREN)
+const TYPY = [['palmovy', 0.17], ['dzungla', 0.12], ['skalnaty', 0.08], ['atol', 0.11], ['sopecny', 0.07],
+  ['mangrovy', 0.09], ['bambusovy', 0.09], ['savana', 0.10], ['plytcina', 0.08], ['ovocny', 0.09]];
+export const BIOM_MENO = {
+  palmovy: 'Palmový ostrov', dzungla: 'Džungľa', skalnaty: 'Skalnatý ostrov', atol: 'Atol s lagúnou', sopecny: 'Sopečný ostrov',
+  mangrovy: 'Mangrovový močiar', bambusovy: 'Bambusový ostrov', savana: 'Savana', plytcina: 'Piesočná plytčina', ovocny: 'Ovocný ostrov',
+};
+
+function vyberBiom(b) {
+  let suma = 0;
+  for (const [biom, vaha] of TYPY) { suma += vaha; if (b < suma) return biom; }
+  return 'palmovy';
+}
+
 export function ostrovVBunke(bx, bz) {
   const kluc = bx + ',' + bz;
   if (ostrovy.has(kluc)) return ostrovy.get(kluc);
@@ -38,16 +52,27 @@ export function ostrovVBunke(bx, bz) {
   let o = null;
   const start = bx === 0 && bz === 0;
   if (start || r() < 0.72) {
-    const R = start ? 95 : 30 + 115 * r() * r();
+    const b = r();
+    const biom = start ? 'palmovy' : vyberBiom(b);
+    let R;
+    if (start) R = 95;
+    else if (biom === 'plytcina') R = 14 + 16 * r();
+    else if (biom === 'atol') R = 55 + 70 * r();
+    else if (biom === 'sopecny') R = 35 + 75 * r();
+    else if (biom === 'mangrovy') R = 40 + 80 * r();
+    else R = 30 + 115 * r() * r();
     const ext = R * 1.8;
     const volno = BUNKA - 2 * ext;
-    const b = r();
-    const biom = start ? 'palmovy' : b < 0.45 ? 'palmovy' : b < 0.8 ? 'dzungla' : 'skalnaty';
+    const v = r();                                        // nahodne cislo na vysku (volat vzdy)
+    const H = {
+      sopecny: 12 + R * (0.3 + 0.2 * v), atol: 2.6 + v, mangrovy: 3, plytcina: 2.2 + v, savana: 3.5 + R * 0.04 * (1 + v),
+      skalnaty: (5 + R * (0.08 + v * 0.2)) * 1.6, bambusovy: 6 + R * (0.08 + v * 0.15), ovocny: 5 + R * (0.06 + v * 0.1),
+    }[biom] ?? (5 + R * (0.08 + v * 0.2));
     o = {
       bx, bz, R, ext, biom,
       x: bx * BUNKA + ext + (start ? volno / 2 : r() * volno),
       z: bz * BUNKA + ext + (start ? volno / 2 : r() * volno),
-      H: (5 + R * (0.08 + r() * 0.2)) * (biom === 'skalnaty' ? 1.6 : 1),
+      H,
       seed: Math.floor(r() * 1000),
       meno: meno(r),
     };
@@ -56,13 +81,67 @@ export function ostrovVBunke(bx, bz) {
   return o;
 }
 
-function vyskaOstrova(o, x, z) {
-  const d = Math.hypot(x - o.x, z - o.z) / o.R;
-  if (d > 1.8) return DNO;
+// zakladny tvar: kopec s plazou, za okrajom plytka laguna a hlbka
+function tvarZaklad(o, x, z, d) {
   const t = 1 - d + 0.28 * fbm(x * 0.012, z * 0.012, o.seed);   // t > 0 = sucho
+  if (t >= 0) return o.H * Math.pow(t, 1.4) + fbm(x * 0.05, z * 0.05, o.seed + 7) * 1.5 * Math.min(1, t * 4);
+  return -(-t * 14 + t * t * 80);
+}
+
+function vyskaOstrova(o, x, z) {
+  const dx = x - o.x, dz = z - o.z;
+  let d = Math.hypot(dx, dz) / o.R;
   let h;
-  if (t >= 0) h = o.H * Math.pow(t, 1.4) + fbm(x * 0.05, z * 0.05, o.seed + 7) * 1.5 * Math.min(1, t * 4);
-  else h = -(-t * 14 + t * t * 80);                              // plytka laguna, potom hlbka
+  switch (o.biom) {
+    case 'plytcina': {                                    // pretiahnuta piesocna kosa
+      const a = o.seed * 0.0063, u = dx * Math.cos(a) + dz * Math.sin(a), v = -dx * Math.sin(a) + dz * Math.cos(a);
+      d = Math.hypot(u / 1.2, v * 1.15) / o.R;
+      if (d > 1.8) return DNO;
+      const t = 1 - d + 0.28 * fbm(x * 0.02, z * 0.02, o.seed);
+      h = t >= 0 ? o.H * Math.pow(Math.min(t * 2.2, 1), 0.9) + fbm(x * 0.08, z * 0.08, o.seed + 7) * 0.25 : -(-t * 12 + t * t * 80);
+      break;
+    }
+    case 'atol': {                                        // prstenec okolo plytkej lagúny
+      if (d > 1.8) return DNO;
+      const t = 1 - Math.abs(d - 0.72) / 0.26 + 0.22 * fbm(x * 0.012, z * 0.012, o.seed);
+      if (t >= 0) h = o.H * Math.pow(t, 1.1) + fbm(x * 0.05, z * 0.05, o.seed + 7) * 0.5 * Math.min(1, t * 4);
+      else if (d < 0.72) h = -Math.min(-t * 7, 1.7) + fbm(x * 0.04, z * 0.04, o.seed + 3) * 0.12;
+      else h = -(-t * 14 + t * t * 80);
+      break;
+    }
+    case 'sopecny': {                                     // kuzel s kraterom a ryhami po lave
+      if (d > 1.8) return DNO;
+      const t = 1 - d + 0.12 * fbm(x * 0.012, z * 0.012, o.seed);
+      if (t >= 0) {
+        const c = Math.max(0, 1 - d / 0.2);
+        const ryha = Math.max(0, 1 - Math.abs(perlin.noise(x * 0.03, z * 0.03, o.seed + 5)) * 5);
+        h = o.H * Math.pow(t, 1.5) - o.H * 0.5 * c * c - ryha * 2.0 * Math.min(1, t * 2) * t
+          + fbm(x * 0.06, z * 0.06, o.seed + 7) * 1.1 * Math.min(1, t * 4);
+      } else h = -(-t * 16 + t * t * 80);
+      break;
+    }
+    case 'mangrovy': {                                    // plocha blatnata zem s kanalmi
+      if (d > 1.8) return DNO;
+      const t = 1 - d + 0.3 * fbm(x * 0.012, z * 0.012, o.seed);
+      if (t >= 0) {
+        const kanal = Math.max(0, 1 - Math.abs(perlin.noise(x * 0.03, z * 0.03, o.seed + 9)) * 6) * Math.min(1, t * 3);
+        h = -0.7 + o.H * Math.pow(t, 0.9) + fbm(x * 0.06, z * 0.06, o.seed + 7) * 0.35 - kanal * 0.9;
+      } else h = -0.7 - (-t * 14 + t * t * 80);
+      break;
+    }
+    case 'savana': {                                      // siroka nizka plan s jemnymi kopcami
+      if (d > 1.8) return DNO;
+      const t = 1 - d + 0.22 * fbm(x * 0.01, z * 0.01, o.seed);
+      if (t >= 0) {
+        const p = Math.min(1, t * 3);
+        h = o.H * 0.8 * p * p * (3 - 2 * p) + fbm(x * 0.02, z * 0.02, o.seed + 9) * 0.9 * p;
+      } else h = -(-t * 14 + t * t * 80);
+      break;
+    }
+    default:
+      if (d > 1.8) return DNO;
+      h = tvarZaklad(o, x, z, d);
+  }
   return Math.max(h, DNO);
 }
 
@@ -108,9 +187,27 @@ matTeren.onBeforeCompile = sh => {
 
 const FARBY = {
   dno: C(0xcfb383), piesok: C(0xe0c48e), hlina: C(0x8a6c48), skala: C(0x87827a),
-  palmovy: [C(0x6aa83a), C(0x4f8f2e)], dzungla: [C(0x3f8a28), C(0x2a6320)], skalnaty: [C(0x7f9a48), C(0x63783e)],
 };
 function C(h) { return new THREE.Color(h); }
+// farby terenu podla biomu: tr = [nizsia, vyssia] trava, piesok (plaz), dno, skala (strme svahy), hl (flaky), hlPrah (kolko flakov),
+// plaz = vyska, od ktorej zacina vegetacia
+const TEREN = {
+  palmovy:   { tr: [0x6aa83a, 0x4f8f2e], plaz: 1.4 },
+  dzungla:   { tr: [0x3f8a28, 0x2a6320], plaz: 1.4 },
+  skalnaty:  { tr: [0x7f9a48, 0x63783e], plaz: 1.4 },
+  atol:      { tr: [0x86bf4e, 0x6aa83a], piesok: 0xf2e2b4, dno: 0xe6d6a6, skala: 0xa6a094, hl: 0xc9b27a, hlPrah: 0.2, plaz: 0.9 },
+  sopecny:   { tr: [0x4a5a38, 0x2e2a28], piesok: 0x2b2927, dno: 0x3a3835, skala: 0x34302e, hl: 0x5a3226, hlPrah: -0.15, plaz: 0.7 },
+  mangrovy:  { tr: [0x4d6b34, 0x3b5a2c], piesok: 0x6e5f45, dno: 0x5a5040, skala: 0x5f5a4c, hl: 0x4a4030, hlPrah: 0.1, plaz: 0.3 },
+  bambusovy: { tr: [0x79a83a, 0x5c8c2e], plaz: 1.4 },
+  savana:    { tr: [0xb2ad5c, 0x8fa23f], piesok: 0xe6cf98, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
+  plytcina:  { tr: [0x7ab548, 0x5f9a37], piesok: 0xf0dcaa, dno: 0xe0cc9a, plaz: 1.5 },
+  ovocny:    { tr: [0x7cb842, 0x5ea330], plaz: 1.4 },
+};
+for (const t of Object.values(TEREN)) {
+  t.tr = t.tr.map(C);
+  for (const k of ['piesok', 'dno', 'skala', 'hl']) t[k] = t[k] === undefined ? FARBY[k === 'hl' ? 'hlina' : k] : C(t[k]);
+  t.hlPrah ??= 0.35;
+}
 
 function postavTeren(o) {
   const seg = Math.round(THREE.MathUtils.clamp(o.R * 1.15, 70, 170));
@@ -121,16 +218,16 @@ function postavTeren(o) {
   geo.computeVertexNormals();
 
   const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), c = new THREE.Color(), t2 = new THREE.Color();
-  const [tr1, tr2] = FARBY[o.biom];
+  const T = TEREN[o.biom], [tr1, tr2] = T.tr;
   for (let i = 0; i < poz.count; i++) {
     const x = poz.getX(i) + o.x, z = poz.getZ(i) + o.z, h = poz.getY(i), strmost = 1 - nor.getY(i);
     const n = perlin.noise(x * 0.08, z * 0.08, o.seed + 1);
-    const hranica = 1.4 + n * 0.6;                       // kde konci plaz (nerovno)
+    const hranica = T.plaz + n * 0.6;                       // kde konci plaz (nerovno)
     t2.copy(tr1).lerp(tr2, THREE.MathUtils.clamp((h - 2) / (o.H * 0.8) + n * 0.4, 0, 1));
-    if (perlin.noise(x * 0.04, z * 0.04, o.seed + 5) > 0.35) t2.lerp(FARBY.hlina, 0.5);   // flaky hliny
-    c.copy(FARBY.dno).lerp(FARBY.piesok, THREE.MathUtils.smoothstep(h, -2, 0.3));
+    if (perlin.noise(x * 0.04, z * 0.04, o.seed + 5) > T.hlPrah) t2.lerp(T.hl, 0.5);   // flaky hliny
+    c.copy(T.dno).lerp(T.piesok, THREE.MathUtils.smoothstep(h, -2, 0.3));
     c.lerp(t2, THREE.MathUtils.smoothstep(h, hranica, hranica + 0.8));
-    c.lerp(FARBY.skala, THREE.MathUtils.smoothstep(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3));
+    c.lerp(T.skala, THREE.MathUtils.smoothstep(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3));
     c.offsetHSL(0, 0, n * 0.03);
     farby.set([c.r, c.g, c.b], i * 3);
   }
@@ -156,10 +253,13 @@ function postavPredmety(o, skupina, r) {
     m.userData = { id, typ };
     skupina.add(m);
   };
+  const inland = { palmovy: ['palica', 'kamen', 'kokos'], atol: ['palica', 'kokos', 'kamen'], plytcina: ['palica', 'kokos'],
+    bambusovy: ['bambus', 'palica', 'kamen'], sopecny: ['kamen', 'kamen', 'palica'], skalnaty: ['kamen', 'kamen', 'palica'] }[o.biom]
+    || ['palica', 'palica', 'kamen'];
   for (let k = 0; k < o.R * 0.6; k++) {
     const a = r() * 6.28, d = o.R * (0.45 + r() * 0.7);
     const x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d, h = vyskaOstrova(o, x, z);
-    const typ = h < 1.5 ? (r() < 0.4 ? 'musla' : r() < 0.6 ? 'palica' : 'kamen') : (r() < 0.5 ? 'palica' : r() < 0.6 ? 'kamen' : 'kokos');
+    const typ = h < 1.5 ? (r() < 0.4 ? 'musla' : r() < 0.6 ? 'palica' : 'kamen') : inland[Math.floor(r() * inland.length)];
     if (h > 0.25) pridaj(typ, x, z);
   }
 }
@@ -198,6 +298,7 @@ export function aktualizujSvet(x, z) {
     if (Math.abs(kx - bx) > POLOMER_NAHRAVANIA + 1 || Math.abs(kz - bz) > POLOMER_NAHRAVANIA + 1) {
       if (z) {
         scena.remove(z.skupina);
+        uvolniVegetaciu(kluc);
         z.teren.geometry.dispose();                      // ostatne geometrie su zdielane
         z.skupina.traverse(m => { if (m.isInstancedMesh) m.dispose(); });
       }

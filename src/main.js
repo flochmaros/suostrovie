@@ -2,15 +2,18 @@
 import * as THREE from 'three';
 import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
-import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri } from './svet.js';
+import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
-import { najdiCiel, poskod, aktualizujUzly } from './vegetacia.js';
+import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
+import { poskodenie, opotrebuj } from './nastroje.js';
+import { nastavKanoe } from './obsah/vylepsenia.js';
+import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
-import { sloty, pridaj, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet } from './inventar.js';
+import { sloty, pridaj, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { ZDROJE } from './obsah/zdroje.js';
 
@@ -25,13 +28,19 @@ const triesky = vytvorCastice(scena, { pocet: 300, velkost: 0.11 });
 const start = startovaciaPozicia();
 const hrac = vytvorHraca(scena);
 const kanoe = vytvorKanoe(scena, start.kanoe.x, start.kanoe.z, { pena, zvuky });
+nastavKanoe(kanoe);
+initZivocichy(scena);
+udalosti.priSplachu = (x, y, z, s) => {
+  zvuky.splach(Math.min(s, 1) * 0.6);
+  for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
+};
 const kam = vytvorKameru(kamera);
 hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z);
 
 // ---------- stav + ukladanie ----------
 let vKanoe = false, cas = 0;
 const objavene = new Set();
-const KLUC = 'suostrovie-ulozenie-v2';
+const KLUC = 'suostrovie-ulozenie-v3';
 try {
   const u = JSON.parse(localStorage.getItem(KLUC));
   if (u) {
@@ -41,13 +50,15 @@ try {
     u.zobrate.forEach(id => zobrate.add(id));
     nacitaj(u.inventar);
     cas = u.cas || 0;
+    nacitajStavRastlin(u.rastliny || {});
+    if (u.kanoeUroven) kanoe.nastavUroven(u.kanoeUroven);
     if (u.vKanoe) nastup();
   }
 } catch (e) { /* nova hra */ }
 function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(), kanoe: [kanoe.poz.x, kanoe.poz.y, kanoe.smer],
-      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas }));
+      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), kanoeUroven: kanoe.uroven }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -87,15 +98,19 @@ hrac.priUdere = () => {
   const fx = -Math.sin(hrac.smer), fz = -Math.cos(hrac.smer);
   const u = najdiCiel(uzlyPri(hrac.poz.x, hrac.poz.z), hrac.poz.x, hrac.poz.z, fx, fz);
   if (!u) return;
-  const material = ZDROJE[u.typ].material;
+  const zdroj = ZDROJE[u.typ], material = zdroj.material;
+  const nastroj = vybranyPredmet();
+  const dmg = poskodenie(nastroj?.nastroj ? nastroj : null, zdroj);
   zvuky.uder(material);
+  if (dmg <= 0.01) { oznam(zdroj.nastroj === 'krompac' ? 'Potrebuješ krompáč' : 'Potrebuješ nástroj'); return; }
+  if (nastroj?.nastroj && opotrebuj(vybranyIndex())) oznam(`${nastroj.ikona} ${nastroj.meno} sa zlomil(a)!`);
   const d = Math.max(u.rKolizia, 0.3);
   for (let i = 0; i < 14; i++) triesky.vypust(u.x - fx * d, hrac.poz.y + 1.1, u.z - fz * d,
     -fx * 2 + (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 3, FARBA_TRIESOK[material], 0.9);
-  const vynos = poskod(u, fx, fz);
-  if (!vynos) return;
+  const vynos = poskod(u, fx, fz, dmg);
+  if (!vynos) { if (zdroj.nastroj && !nastroj?.nastroj) oznam('Rukami to pôjde pomaly – vyrob si nástroj (Tab)'); return; }
   zobrate.add(u.id);
-  if (u.typ === 'palma' || u.typ === 'strom') setTimeout(() => zvuky.pad(), 1100);
+  if (material === 'drevo' && u.rKolizia > 0.2) setTimeout(() => zvuky.pad(), 1100);
   for (const [id, n] of vynos) {
     const navyse = pridaj(id, n);
     if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
@@ -122,7 +137,7 @@ hrac.drz(vybranyPredmet());
 // ---------- HUD ----------
 let poslednyOstrov = null, casNapisu = 0;
 const STRANY = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
-const BIOM = { palmovy: 'palmový ostrov', dzungla: 'džungľa', skalnaty: 'skalnatý ostrov' };
+const BIOM = BIOM_MENO;
 const uhol = smer => ((Math.atan2(-Math.sin(smer), Math.cos(smer)) * 180 / Math.PI) + 360) % 360;
 function hud(dt, p) {
   const o = ostrovPri(p.x, p.z, 1.3);
@@ -167,8 +182,20 @@ function aktualizuj(dt) {
     if (stlacene('Mys0')) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < 4.5;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
+    const ulovok = !blizko && !predmet && najdiUlovok(hrac.poz.x, hrac.poz.z);
+    const zber = !blizko && !predmet && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
     if (blizko) napoveda = '<kbd>E</kbd> nastúpiť do kanoe';
     else if (predmet) napoveda = `<kbd>E</kbd> zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
+    else if (ulovok) napoveda = `<kbd>E</kbd> ${ulovok.text}`;
+    else if (zber) napoveda = `<kbd>E</kbd> ${zber.text}`;
+    if ((ulovok || zber) && stlacene('KeyE')) {
+      for (const [id, n] of (ulovok || zber).akcia()) {
+        const navyse = pridaj(id, n);
+        if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
+        if (navyse) oznam('Batoh je plný');
+      }
+      hrac.zdvihni(); zvuky.zober(); vykresliInventar();
+    }
     if (blizko && stlacene('KeyE')) nastup();
     else if (predmet && stlacene('KeyE')) {
       const typ = predmet.userData.typ;
@@ -191,7 +218,8 @@ function aktualizuj(dt) {
   ocean.aktualizuj(stred.x, stred.z, cas);
   const hotovo = aktualizujSvet(stred.x, stred.z);
   $('nacitanie').textContent = hotovo ? '' : 'Načítavam ostrovy…';
-  aktualizujUzly(dt);
+  aktualizujUzly(dt, cas);
+  aktualizujZivocichy(dt, cas, hrac.poz, kanoe.poz, vKanoe);
   pena.aktualizuj(dt);
   triesky.aktualizuj(dt);
   g.sledujSlnkom(stred);

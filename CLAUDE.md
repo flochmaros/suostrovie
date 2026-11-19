@@ -29,13 +29,17 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/grafika.js` | renderer, obloha, slnko + tiene, bloom; 2 prechody (svet bez vody → textúra pre vodu) |
 | `src/ocean.js` | shader vody (vlny, lom, hĺbka, pena, odlesky) + `vyskaVody(x,z,t)` (rovnaký vzorec v JS aj GLSL), príliv |
 | `src/svet.js` | bunky 520 m, ostrovy + biómy, terén (kaustiky, mokrý piesok), predmety na zemi |
-| `src/vegetacia.js` | modely rastlín kódom, rozmiestnenie podľa biómu, vietor v shaderi, uzly (hitbox, životy, pád) |
+| `src/vegetacia.js` | rozmiestnenie rastlín podľa biómu, uzly (hitbox, životy, pád), zber plodov + dorastanie (`najdiZber`, `stavRastlin`) |
+| `src/svet/modely.js` | modely rastlín kódom + materiály s vetrom |
+| `src/zivocichy.js` | kraby, ryby, vtáky, motýle, korytnačka, delfín (`najdiUlovok`) |
+| `src/postava.js` | model postavy (kĺby `J` používa `hrac.js`) |
+| `src/nastroje.js` | poškodenie podľa nástroja, opotrebenie |
 | `src/hrac.js` | postava s kĺbmi, procedurálne animácie, pohyb, kolízie, potápanie, úder |
 | `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
-| `src/kanoe.js` | kanoe: model, fyzika, plachta + vietor, brázda, sprej |
+| `src/kanoe.js` | kanoe: 4 úrovne (`STATY`, `nastavUroven`), fyzika, plachta + vietor, brázda, sprej |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
 | `src/inventar.js` | batoh 24 políčok, ťahanie myšou, výroba podľa receptov |
-| `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva strom/kameň), `recepty.js` |
+| `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js` |
 | `server.py` | lokálny server bez cache |
 | `dennik/` | denník vývoja |
 
