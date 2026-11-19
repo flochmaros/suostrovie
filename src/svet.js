@@ -90,7 +90,7 @@ export function ostrovPri(x, z, faktor = 1.0) {
 }
 
 // ---------- 3D modely ----------
-const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
+const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, envMapIntensity: 0.35 });
 const matKmen = new THREE.MeshStandardMaterial({ color: 0x8a6a45, flatShading: true });
 const matListy = new THREE.MeshStandardMaterial({ color: 0x3f9a3a, flatShading: true, side: THREE.DoubleSide });
 const matKamen = new THREE.MeshStandardMaterial({ color: 0x8d8d86, flatShading: true });
@@ -107,9 +107,23 @@ const geoKoruna = (() => {
   return mergeGeometries(listy).translate(0, 6, 0);
 })();
 const geoKamen = new THREE.IcosahedronGeometry(1, 0);
+const matKer = new THREE.MeshStandardMaterial({ color: 0x2f7a32, flatShading: true });
+const geoKer = new THREE.IcosahedronGeometry(1, 1);
+const matTrava = new THREE.MeshStandardMaterial({ color: 0x6cb84a, flatShading: true, side: THREE.DoubleSide });
+const geoTrava = mergeGeometries([0, 1, 2].map(i =>
+  new THREE.ConeGeometry(0.06, 0.7, 3).translate(0.12 * Math.cos(i * 2.1), 0.35, 0.12 * Math.sin(i * 2.1)).rotateZ((i - 1) * 0.25)));
+const matKokos = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, flatShading: true });
+
+// predmety na zbieranie (typ -> model)
+const PREDMETY = {
+  drevo: { geo: new THREE.CylinderGeometry(0.07, 0.09, 1.3, 5).rotateZ(Math.PI / 2).translate(0, 0.08, 0), mat: matKmen },
+  kamen: { geo: new THREE.IcosahedronGeometry(0.2, 0).translate(0, 0.12, 0), mat: matKamen },
+  kokos: { geo: new THREE.IcosahedronGeometry(0.17, 1).translate(0, 0.15, 0), mat: matKokos },
+};
+export const zobrate = new Set();   // id predmetov, ktore uz hrac zobral (uklada sa)
 
 const FARBY = {
-  hlbka: new THREE.Color(0xc9b27a), piesok: new THREE.Color(0xf0dca0),
+  hlbka: new THREE.Color(0xc9b27a), piesok: new THREE.Color(0xe6cf94),
   trava: new THREE.Color(0x5daa45), trava2: new THREE.Color(0x3f8a3a), skala: new THREE.Color(0x8a8378),
 };
 
@@ -133,6 +147,7 @@ function postavOstrov(o) {
     else if (h < 1.4) c.copy(FARBY.piesok);
     else c.copy(FARBY.trava).lerp(FARBY.trava2, THREE.MathUtils.clamp((h - 2) / (o.H + 2), 0, 1));
     if (h > 1 && strmost > 0.28) c.copy(FARBY.skala);
+    c.offsetHSL(0, 0, perlin.noise(poz.getX(i) * 0.15, poz.getZ(i) * 0.15, o.seed) * 0.05);   // jemne flaky
     farby.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(farby, 3));
@@ -145,13 +160,40 @@ function postavOstrov(o) {
 
   // palmy a kamene na nahodnych miestach
   const r = rng(o.seed * 7919 + 1);
-  const palmy = [], kamene = [];
+  const palmy = [], kamene = [], kriky = [], trava = [];
   for (let i = 0; i < o.R * 0.6; i++) {
     const x = o.x + (r() * 2 - 1) * o.R * 1.1, z = o.z + (r() * 2 - 1) * o.R * 1.1;
     const h = vyskaOstrova(o, x, z);
     const sklon = Math.abs(vyskaOstrova(o, x + 1, z) - h) + Math.abs(vyskaOstrova(o, x, z + 1) - h);
     if (h > 0.7 && h < o.H * 0.8 && sklon < 0.8) palmy.push([x, h, z]);
     else if (h > 0.3 && r() < 0.3) kamene.push([x, h, z]);
+  }
+  for (let i = 0; i < o.R * 4; i++) {   // trava a kriky (len na trave, nie na piesku)
+    const x = o.x + (r() * 2 - 1) * o.R * 1.1, z = o.z + (r() * 2 - 1) * o.R * 1.1;
+    const h = vyskaOstrova(o, x, z);
+    if (h > 1.6 && h < o.H * 0.9) (r() < 0.15 ? kriky : trava).push([x, h, z]);
+  }
+
+  // predmety: kokosy pod palmami, drevo a kamene na plazi
+  const predmety = [];
+  const pridaj = (typ, x, z) => {
+    const id = `${o.bx},${o.bz},${predmety.length}`;
+    predmety.push(id);                           // aj zobrate drzia poradie -> id ostanu stale
+    const otocenie = r() * 6.28;                 // r() volat vzdy, inak by sa posunuli dalsie nahodne cisla
+    if (zobrate.has(id)) return;
+    const m = new THREE.Mesh(PREDMETY[typ].geo, PREDMETY[typ].mat);
+    m.position.set(x, vyskaOstrova(o, x, z), z);
+    m.rotation.y = otocenie;
+    m.castShadow = true;
+    m.userData = { id, typ };
+    skupina.add(m);
+  };
+  palmy.forEach(([x, , z]) => { if (r() < 0.5) pridaj('kokos', x + r() * 2 - 1, z + r() * 2 - 1); });
+  for (let i = 0; i < o.R * 0.5; i++) {
+    const a = r() * 6.28, d = o.R * (0.5 + r() * 0.6);
+    const x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d;
+    const typ = r() < 0.6 ? 'drevo' : 'kamen';
+    if (vyskaOstrova(o, x, z) > 0.3) pridaj(typ, x, z);
   }
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
   if (palmy.length) {
@@ -178,7 +220,40 @@ function postavOstrov(o) {
     km.castShadow = true;
     skupina.add(km);
   }
+  const instancie = (geo, mat, body, mierka) => {
+    if (!body.length) return;
+    const im = new THREE.InstancedMesh(geo, mat, body.length);
+    body.forEach(([x, h, z], i) => {
+      e.set(0, r() * 6.28, 0); q.setFromEuler(e);
+      s.setScalar(mierka * (0.6 + r() * 0.8));
+      m.compose(p.set(x, h, z), q, s);
+      im.setMatrixAt(i, m);
+    });
+    im.castShadow = mat === matKer;
+    skupina.add(im);
+  };
+  instancie(geoKer, matKer, kriky, 1.1);
+  instancie(geoTrava, matTrava, trava, 1);
   return skupina;
+}
+
+// Najblizsi predmet do vzdialenosti d (hlada len v nahratych ostrovoch)
+export function najblizsiPredmet(x, z, d = 2.2) {
+  let naj = null;
+  for (const g of nahrate.values()) {
+    if (!g) continue;
+    for (const m of g.children) {
+      if (!m.userData.typ) continue;
+      const v = Math.hypot(m.position.x - x, m.position.z - z);
+      if (v < d) { d = v; naj = m; }
+    }
+  }
+  return naj;
+}
+
+export function zober(m) {
+  zobrate.add(m.userData.id);
+  m.parent.remove(m);
 }
 
 export function initSvet(s) { scena = s; }
@@ -207,7 +282,7 @@ export function aktualizujSvet(x, z) {
     if (Math.abs(kx - bx) > POLOMER_NAHRAVANIA + 1 || Math.abs(kz - bz) > POLOMER_NAHRAVANIA + 1) {
       if (g) {
         scena.remove(g);
-        g.traverse(o => { if (o.isMesh && o.geometry !== geoKmen && o.geometry !== geoKoruna && o.geometry !== geoKamen) o.geometry.dispose(); });
+        g.traverse(o => { if (o.isMesh && !o.userData.typ && o.geometry !== geoKmen && o.geometry !== geoKoruna && o.geometry !== geoKamen && o.geometry !== geoKer && o.geometry !== geoTrava) o.geometry.dispose(); });
         g.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
       }
       nahrate.delete(kluc);

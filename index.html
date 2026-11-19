@@ -16,6 +16,19 @@
            background: #0006; color: #fff; cursor: pointer; text-align: center; }
   #start h1 { margin: 0 0 8px; font-size: 44px; }
   #start p { margin: 4px; opacity: .9; }
+  #lista { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+  .slot { position: relative; width: 52px; height: 52px; border-radius: 10px; background: #fff3; border: 2px solid #fff6;
+          display: flex; align-items: center; justify-content: center; font-size: 28px; backdrop-filter: blur(4px); }
+  .slot.vybrany { border-color: #ffe08a; background: #fff5; }
+  .slot .cislo { position: absolute; top: 2px; left: 5px; font-size: 11px; opacity: .8; }
+  .slot .pocet { position: absolute; bottom: 2px; right: 5px; font-size: 13px; font-weight: 700; }
+  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 14px 18px 18px;
+           background: #2a4a5acc; border-radius: 16px; backdrop-filter: blur(6px); }
+  #batoh h2 { margin: 0 0 10px; font-size: 20px; }
+  #batoh .mriezka { display: grid; grid-template-columns: repeat(8, 52px); gap: 6px; }
+  #dych { position: absolute; bottom: 110px; left: 50%; width: 160px; height: 8px; margin-left: -80px; border-radius: 4px;
+          background: #0005; overflow: hidden; display: none; }
+  #dych div { height: 100%; background: #8be0ff; }
   #nacitanie { position: fixed; bottom: 12px; right: 14px; color: #fff; font-size: 12px; opacity: .7; }
 </style>
 <script type="importmap">
@@ -31,12 +44,16 @@
   <div id="kompas"></div>
   <div id="ostrov"></div>
   <div id="napoveda"></div>
+  <div id="dych"><div></div></div>
+  <div id="lista"></div>
+  <div id="batoh"></div>
 </div>
 <div id="start">
   <h1>Súostrovie</h1>
   <p>Klikni pre štart</p>
-  <p>WASD pohyb · Shift beh / silnejšie pádlovanie · Medzerník skok · myš kamera · koliesko zoom</p>
-  <p>E nastúpiť / vystúpiť z kanoe · Esc pauza</p>
+  <p>WASD pohyb · Shift beh · Medzerník skok · C potápanie · myš kamera · koliesko zoom</p>
+  <p>E zdvihnúť / nastúpiť / vystúpiť · Tab batoh · 1–8 výber · Esc pauza</p>
+  <p>Na kanoe: W/S pádlo · A/D zatáčanie · Shift plachta (najlepšie po vetre)</p>
 </div>
 <div id="nacitanie"></div>
 <script type="module" src="src/main.js"></script>

@@ -28,7 +28,8 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/main.js` | štart, hlavná slučka, kamera, HUD |
 | `src/svet.js` | generovanie ostrovov po bunkách (nekonečný svet), `vyskaTerenu(x,z)` |
 | `src/ocean.js` | oceán s vlnami (shader) + `vyskaVody(x,z,t)` – rovnaký vzorec v JS aj GLSL |
-| `src/hrac.js` | hráč pešo (chôdza, skok, plávanie) |
-| `src/kanoe.js` | fyzika kanoe |
+| `src/hrac.js` | hráč pešo (chôdza, skok, plávanie, potápanie) + procedurálne animácie |
+| `src/kanoe.js` | fyzika kanoe, plachta + vietor, brázda |
 | `src/vstup.js` | klávesnica a myš |
+| `src/inventar.js` | batoh 24 políčok, lišta 1–8 (Tab) |
 | `dennik/` | denník vývoja |

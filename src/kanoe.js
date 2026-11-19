@@ -11,6 +11,13 @@ import { vyskaVody } from './ocean.js';
 const tlm = THREE.MathUtils.damp;
 const DLZKA = 5.2;
 
+// Vietor: smer (kam fuka, rovnaky uhol ako smer kanoe) a sila 0..1, pomaly sa meni
+export const vietor = { smer: 0.8, sila: 0.8 };
+export function aktualizujVietor(t) {
+  vietor.smer = 0.8 + Math.sin(t / 97) * 1.4;
+  vietor.sila = 0.65 + 0.35 * Math.sin(t / 41);
+}
+
 export function vytvorKanoe(scena, x, z) {
   const model = new THREE.Group();
   const drevo = new THREE.MeshStandardMaterial({ color: 0x9a6538, flatShading: true, side: THREE.DoubleSide });
@@ -40,6 +47,27 @@ export function vytvorKanoe(scena, x, z) {
   padlo.visible = false;
   model.add(padlo);
 
+  // stloznik a trojuholnikova plachta (otaca sa podla vetra, Shift ju roztiahne)
+  const stloznik = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 3.4, 6), tmave);
+  stloznik.position.set(0, 1.9, -0.9);
+  const plachta = new THREE.Group();
+  plachta.position.set(0, 0.45, -0.9);
+  const tvar = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0, 3.0), new THREE.Vector2(2.2, 0.2)]);
+  const platno = new THREE.Mesh(new THREE.ShapeGeometry(tvar).rotateY(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0xf2e6c9, side: THREE.DoubleSide, flatShading: true }));
+  plachta.add(platno);
+  model.add(stloznik, plachta);
+
+  // brazda: biele kruhy na hladine za kanoe, rastu a miznu
+  const POCET = 90;
+  const brazda = new THREE.InstancedMesh(new THREE.RingGeometry(0.25, 0.55, 12).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }), POCET);
+  brazda.frustumCulled = false;
+  scena.add(brazda);
+  const stopy = Array.from({ length: POCET }, () => ({ x: 0, z: 0, vek: 99 }));
+  let dalsia = 0, casStopy = 0;
+  const mat4 = new THREE.Matrix4();
+
   model.traverse(o => { if (o.isMesh) o.castShadow = true; });
   scena.add(model);
 
@@ -47,7 +75,7 @@ export function vytvorKanoe(scena, x, z) {
     model, padlo,
     poz: new THREE.Vector2(x, z),
     rych: new THREE.Vector2(),
-    y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0,
+    y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0,
     SEDADLO: new THREE.Vector3(0, -0.05, 0.3),
 
     rychlost() { return k.rych.length(); },
@@ -59,14 +87,17 @@ export function vytvorKanoe(scena, x, z) {
       let tah = 0, zatacanie = 0;
       if (ovladane) {
         tah = (klavesy.has('KeyW') ? 1 : 0) - (klavesy.has('KeyS') ? 0.5 : 0);
-        if (klavesy.has('ShiftLeft') && tah > 0) tah *= 1.6;
         zatacanie = (klavesy.has('KeyA') ? 1 : 0) - (klavesy.has('KeyD') ? 1 : 0);
       }
 
       // rychlost rozlozena na dopredu (vf) a do boku (vr)
       let vf = k.rych.x * fx + k.rych.y * fz;
       let vr = k.rych.x * rx + k.rych.y * rz;
-      vf += tah * 4.5 * dt;
+      // plachta: po vetre najviac, proti vetru nic
+      k.plachtaV = tlm(k.plachtaV, ovladane && klavesy.has('ShiftLeft') ? 1 : 0, 2, dt);
+      const rel = Math.atan2(Math.sin(vietor.smer - k.smer), Math.cos(vietor.smer - k.smer));
+      k.ucinnost = (1 + Math.cos(rel)) / 2;
+      vf += (tah * 4.5 + 4 * vietor.sila * k.ucinnost * k.plachtaV) * dt;
       vf -= (vf * Math.abs(vf) * 0.065 + vf * 0.12) * dt;     // odpor vody (max ~7 m/s, s Shift ~9.5), dlho dobieha
       vr *= Math.exp(-3.5 * dt);                              // kyl: bocny smyk rychlo zanikne
 
@@ -101,6 +132,27 @@ export function vytvorKanoe(scena, x, z) {
 
       model.position.set(k.poz.x, k.y, k.poz.y);
       model.rotation.set(k.pitch, k.smer, k.roll, 'YXZ');
+
+      // plachta sa natoci po vetre a roztiahne
+      plachta.rotation.y = tlm(plachta.rotation.y, THREE.MathUtils.clamp(rel * 0.6, -1.2, 1.2), 3, dt);
+      plachta.scale.set(1, 0.05 + 0.95 * k.plachtaV, 0.3 + 0.7 * k.plachtaV);
+
+      // brazda: kazdych 0.05 s nova stopa za zadou, ak sa kanoe hybe
+      casStopy -= dt;
+      const rychl = k.rych.length();
+      if (rychl > 1 && casStopy <= 0) {
+        casStopy = 0.05;
+        const st = stopy[dalsia]; dalsia = (dalsia + 1) % POCET;
+        st.x = k.poz.x - nfx * DLZKA * 0.45; st.z = k.poz.y - nfz * DLZKA * 0.45; st.vek = 0;
+      }
+      for (let i = 0; i < POCET; i++) {
+        const st = stopy[i];
+        st.vek += dt;
+        const m = st.vek < 2.5 ? 0.6 + st.vek * 1.6 : 0;
+        mat4.makeScale(m, 1, m).setPosition(st.x, vyskaVody(st.x, st.z, t) + 0.04, st.z);
+        brazda.setMatrixAt(i, mat4);
+      }
+      brazda.instanceMatrix.needsUpdate = true;
 
       // animacia padla
       padlo.visible = ovladane;
