@@ -276,6 +276,19 @@ function postavOstrov(o) {
 export function initSvet(s) { scena = s; }
 
 // Volat kazdy snimok: nahra najblizsiu chybajucu bunku (max 1 za snimok, aby hra nesekala)
+function uvolni(kluc, z) {
+  if (z) {
+    scena.remove(z.skupina);
+    uvolniVegetaciu(kluc);
+    z.teren.geometry.dispose();                      // ostatne geometrie su zdielane
+    z.skupina.traverse(m => { if (m.isInstancedMesh) m.dispose(); });
+  }
+  nahrate.delete(kluc);
+}
+
+// dev rezim: zahodi vsetky nahrate ostrovy, postupne sa postavia znova (napr. po zmene hustoty vegetacie)
+export function prestavSvet() { for (const [kluc, z] of [...nahrate]) uvolni(kluc, z); }
+
 export function aktualizujSvet(x, z) {
   const bx = Math.floor(x / BUNKA), bz = Math.floor(z / BUNKA);
   let najlepsia = null, najmenej = Infinity;
@@ -295,15 +308,7 @@ export function aktualizujSvet(x, z) {
   }
   for (const [kluc, z] of nahrate) {
     const [kx, kz] = kluc.split(',').map(Number);
-    if (Math.abs(kx - bx) > POLOMER_NAHRAVANIA + 1 || Math.abs(kz - bz) > POLOMER_NAHRAVANIA + 1) {
-      if (z) {
-        scena.remove(z.skupina);
-        uvolniVegetaciu(kluc);
-        z.teren.geometry.dispose();                      // ostatne geometrie su zdielane
-        z.skupina.traverse(m => { if (m.isInstancedMesh) m.dispose(); });
-      }
-      nahrate.delete(kluc);
-    }
+    if (Math.abs(kx - bx) > POLOMER_NAHRAVANIA + 1 || Math.abs(kz - bz) > POLOMER_NAHRAVANIA + 1) uvolni(kluc, z);
   }
   return najlepsia === null;                             // true = vsetko okolo je nahrate
 }

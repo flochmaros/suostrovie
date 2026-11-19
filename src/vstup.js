@@ -8,7 +8,7 @@ export function initVstup(platno, onZamknutie) {
   addEventListener('keydown', e => {
     if (!klavesy.has(e.code)) jednorazove.add(e.code);
     klavesy.add(e.code);
-    if (['Space', 'Tab'].includes(e.code)) e.preventDefault();
+    if (['Space', 'Tab', 'F2'].includes(e.code)) e.preventDefault();
   });
   addEventListener('keyup', e => klavesy.delete(e.code));
   addEventListener('blur', () => klavesy.clear());

@@ -91,10 +91,16 @@ function zobrazPlod(u) {
 // ---------- rozmiestnenie na ostrove ----------
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s3 = new V3(), p3 = new V3(), farba = new THREE.Color();
 
+// asi 40 % ostrovov je "bujnych" - vegetacia 2.5x hustejsia (nie sopky a plytciny)
+export const jeBujny = o => o.biom !== 'sopecny' && o.biom !== 'plytcina' && (o.seed % 100) < 40;
+export let nasobokHustoty = 1;                      // dev rezim: globalny nasobok hustoty
+export function nastavHustotu(n) { nasobokHustoty = n; }
+
 export function postavVegetaciu(o, skupina, r, h, zobrate) {
   const B = HUSTOTY[o.biom] || HUSTOTY.palmovy;
   const kl = o.bx + ',' + o.bz;
-  const plocha = Math.PI * o.R * o.R / 100 * 1.18 * (B.k || 1);
+  const bujnost = (jeBujny(o) ? 2.5 : 1) * nasobokHustoty;
+  const plocha = Math.PI * o.R * o.R / 100 * 1.18 * (B.k || 1) * bujnost;
   const rozsah = o.R * 1.25;
   const obsadene = new Map();          // jednoducha mriezka 2 m, aby stromy neboli v sebe
   const volne = (x, z, d) => {
@@ -135,7 +141,7 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
   for (const druh of PORADIE) {
     const hustota = B[druh];
     if (!hustota) continue;
-    const pokusov = Math.min(plocha * hustota, druh === 'trava' ? 12000 : 5000);
+    const pokusov = Math.min(plocha * hustota, druh === 'trava' ? (bujnost > 1 ? 18000 : 12000) : 9000);
     for (let i = 0; i < pokusov; i++) {
       const b = bod();
       if (druh === 'trava') {

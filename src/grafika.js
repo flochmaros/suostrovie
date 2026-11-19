@@ -20,7 +20,8 @@ export function vytvorGrafiku() {
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.shadowMap.autoUpdate = false;           // tiene pocitame raz za snimok (nie pri kazdom kresleni)
+  renderer.shadowMap.autoUpdate = false;
+  renderer.info.autoReset = false;                // statistiky za cely snimok (dev rezim), nuluje sa vo vykresli()           // tiene pocitame raz za snimok (nie pri kazdom kresleni)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.5;
   document.body.appendChild(renderer.domElement);
@@ -89,6 +90,7 @@ export function vytvorGrafiku() {
       slnko.position.set(x, stred.y, z).addScaledVector(SLNKO, 250);
     },
     vykresli() {
+      renderer.info.reset();
       renderer.shadowMap.needsUpdate = true;
       kamera.layers.disable(VRSTVA_VODA);
       renderer.setRenderTarget(podvod);

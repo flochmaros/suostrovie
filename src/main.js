@@ -12,6 +12,8 @@ import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavR
 import { poskodenie, opotrebuj } from './nastroje.js';
 import { nastavKanoe } from './obsah/vylepsenia.js';
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
+import { dev, initDev, aktualizujDev } from './dev.js';
+import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
 import { sloty, pridaj, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -100,10 +102,10 @@ hrac.priUdere = () => {
   if (!u) return;
   const zdroj = ZDROJE[u.typ], material = zdroj.material;
   const nastroj = vybranyPredmet();
-  const dmg = poskodenie(nastroj?.nastroj ? nastroj : null, zdroj);
+  const dmg = poskodenie(nastroj?.nastroj ? nastroj : null, zdroj) * dev.silaUderu;
   zvuky.uder(material);
   if (dmg <= 0.01) { oznam(zdroj.nastroj === 'krompac' ? 'Potrebuješ krompáč' : 'Potrebuješ nástroj'); return; }
-  if (nastroj?.nastroj && opotrebuj(vybranyIndex())) oznam(`${nastroj.ikona} ${nastroj.meno} sa zlomil(a)!`);
+  if (nastroj?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nastroj.ikona} ${nastroj.meno} sa zlomil(a)!`);
   const d = Math.max(u.rKolizia, 0.3);
   for (let i = 0; i < 14; i++) triesky.vypust(u.x - fx * d, hrac.poz.y + 1.1, u.z - fz * d,
     -fx * 2 + (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 3, FARBA_TRIESOK[material], 0.9);
@@ -128,7 +130,8 @@ hrac.priSplachu = sila => {
 // ---------- vstup, inventar ----------
 const platno = g.renderer.domElement;
 const zamkni = () => platno.requestPointerLock()?.catch?.(() => {});
-initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() ? 'none' : 'flex'; });
+initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || dev.zapnuty ? 'none' : 'flex'; });
+initDev({ hrac, kanoe, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initInventar(() => hrac.drz(vybranyPredmet()));
 vykresliInventar();
@@ -144,7 +147,7 @@ function hud(dt, p) {
   if (o && o !== poslednyOstrov) {
     const kluc = o.bx + ',' + o.bz, novy = !objavene.has(kluc);
     objavene.add(kluc);
-    $('ostrov').innerHTML = o.meno + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom]}</small>`;
+    $('ostrov').innerHTML = o.meno + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom] + (jeBujny(o) ? ' · bujný' : '')}</small>`;
     $('ostrov').style.opacity = 1;
     casNapisu = 4;
   }
@@ -166,6 +169,7 @@ function hud(dt, p) {
 function aktualizuj(dt) {
   cas += dt;
   aktualizujVietor(cas);
+  const letim = aktualizujDev(dt, g);
   if (stlacene('Tab')) { if (prepniBatoh()) document.exitPointerLock(); else zamkni(); }
   for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
 
@@ -177,7 +181,7 @@ function aktualizuj(dt) {
     if (miesto) napoveda = '<kbd>E</kbd> vystúpiť na breh';
     if (miesto && stlacene('KeyE')) vystup(miesto);
   } else {
-    hrac.aktualizuj(dt, kam.yaw, cas);
+    if (!letim) hrac.aktualizuj(dt, kam.yaw, cas);
     kanoe.aktualizuj(dt, cas, false);
     if (stlacene('Mys0')) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < 4.5;

@@ -34,6 +34,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/zivocichy.js` | kraby, ryby, vtáky, motýle, korytnačka, delfín (`najdiUlovok`) |
 | `src/postava.js` | model postavy (kĺby `J` používa `hrac.js`) |
 | `src/nastroje.js` | poškodenie podľa nástroja, opotrebenie |
+| `src/dev.js` | dev režim (F2): lietanie, teleport na biom, predmety, úroveň kanoe, hustota vegetácie, FPS |
 | `src/hrac.js` | postava s kĺbmi, procedurálne animácie, pohyb, kolízie, potápanie, úder |
 | `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
 | `src/kanoe.js` | kanoe: 4 úrovne (`STATY`, `nastavUroven`), fyzika, plachta + vietor, brázda, sprej |
@@ -47,6 +48,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 - Nový predmet: `predmet('id', {...})` v `src/obsah/predmety.js` (ikona, model).
 - Nový recept: `recept({...})` v `src/obsah/recepty.js` – zobrazí sa v batohu sám.
 - Nový zdroj (strom, kameň…): `src/obsah/zdroje.js` + druh a hustota v `src/vegetacia.js` (`DRUHY`, `BIOMY`).
+- Dev režim v hre: **F2**.
 - Testovanie bez hrania: v konzole `hra.sim(sekundy, ['KeyW'], ['Mys0'])`, `hra.otoc(yaw, pitch)`.
 
 ## Pracovný štýl (spätná väzba 19. 11. 2026)
