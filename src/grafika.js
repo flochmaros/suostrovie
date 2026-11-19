@@ -40,10 +40,24 @@ export function vytvorGrafiku() {
   // odrazy pre materialy: obloha prevedena na "prostredie"
   const pmrem = new THREE.PMREMGenerator(renderer);
   const sc = new THREE.Scene(); sc.add(obloha);
-  scena.environment = pmrem.fromScene(sc).texture;
+  let envCiel = pmrem.fromScene(sc);
+  scena.environment = envCiel.texture;
   scena.add(obloha);
+  // prepocet prostredia (odrazov) z aktualnej oblohy; vola ho pocasie.js zriedka (denny cyklus)
+  function obnovProstredie() {
+    const poz = obloha.position.clone();
+    obloha.position.set(0, 0, 0);
+    sc.add(obloha);                                 // sky nesmie byt naraz v dvoch scenach
+    const novy = pmrem.fromScene(sc);
+    scena.add(obloha);
+    obloha.position.copy(poz);
+    scena.environment = novy.texture;
+    envCiel.dispose();
+    envCiel = novy;
+  }
 
-  scena.add(new THREE.HemisphereLight(0xbfdcff, 0x9a8a63, 0.55));
+  const hemi = new THREE.HemisphereLight(0xbfdcff, 0x9a8a63, 0.55);
+  scena.add(hemi);
   const slnko = new THREE.DirectionalLight(0xfff0d8, 3.2);
   slnko.castShadow = true;
   slnko.shadow.mapSize.set(4096, 4096);
@@ -82,6 +96,7 @@ export function vytvorGrafiku() {
   const krokTiena = (2 * S) / 4096;
   return {
     renderer, scena, kamera, slnko,
+    obloha, hemi, obnovProstredie, bloom,
     podvod, uObrazovka,
     // slnko a tiene idu za hracom (po celych pixeloch tiena, aby tiene neblikali)
     sledujSlnkom(stred) {

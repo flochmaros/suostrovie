@@ -12,10 +12,14 @@ import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavR
 import { poskodenie, opotrebuj } from './nastroje.js';
 import { nastavKanoe } from './obsah/vylepsenia.js';
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
+import './obsah/jedlo.js';
+import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
+import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti } from './more.js';
+import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU } from './pocasie.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
-import { sloty, pridaj, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
+import { sloty, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { ZDROJE } from './obsah/zdroje.js';
 
@@ -36,6 +40,11 @@ udalosti.priSplachu = (x, y, z, s) => {
   zvuky.splach(Math.min(s, 1) * 0.6);
   for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
 };
+initMore(scena);
+moreUdalosti.priSplachu = udalosti.priSplachu;
+moreUdalosti.priZraneni = (dmg, pricina) => zran(dmg, pricina);
+initPocasie(g);
+let poc = null;                                   // posledny stav pocasia (hodina, svetlo, dazd...)
 const kam = vytvorKameru(kamera);
 hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z);
 
@@ -53,6 +62,8 @@ try {
     nacitaj(u.inventar);
     cas = u.cas || 0;
     nacitajStavRastlin(u.rastliny || {});
+    nacitajPreziti(u.preziti);
+    nacitajPocasie(u.pocasie);
     if (u.kanoeUroven) kanoe.nastavUroven(u.kanoeUroven);
     if (u.vKanoe) nastup();
   }
@@ -60,7 +71,7 @@ try {
 function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(), kanoe: [kanoe.poz.x, kanoe.poz.y, kanoe.smer],
-      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), kanoeUroven: kanoe.uroven }));
+      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), kanoeUroven: kanoe.uroven, preziti: ulozPreziti(), pocasie: ulozPocasie() }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -130,7 +141,16 @@ hrac.priSplachu = sila => {
 // ---------- vstup, inventar ----------
 const platno = g.renderer.domElement;
 const zamkni = () => platno.requestPointerLock()?.catch?.(() => {});
-initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || dev.zapnuty ? 'none' : 'flex'; });
+initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || dev.zapnuty || stavPreziti.mrtvy ? 'none' : 'flex'; });
+udalostiPreziti.priVarovani = t => oznam(t);
+udalostiPreziti.priSmrti = () => document.exitPointerLock();
+udalostiPreziti.priZobudeni = () => {
+  oziv();
+  const s = start.hrac;
+  if (vKanoe) vystup([s.x, s.z]);
+  hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
+  zamkni();
+};
 initDev({ hrac, kanoe, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initInventar(() => hrac.drz(vybranyPredmet()));
@@ -157,7 +177,7 @@ function hud(dt, p) {
   const s = uhol(kam.yaw), v = uhol(vietor.smer), pr = priliv(cas);
   $('kompas').innerHTML = `<span class="smer">${STRANY[Math.round(s / 45) % 8]} ${Math.round(s)}°</span><br>`
     + `Vietor → ${STRANY[Math.round(v / 45) % 8]} ${'▮'.repeat(Math.round(vietor.sila * 5))}<br>`
-    + `${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} ${pr >= 0 ? '+' : ''}${pr.toFixed(1)} m`;
+    + `${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} ${pr >= 0 ? '+' : ''}${pr.toFixed(1)} m<br>${casText(poc)}${poc.burka ? ' · ⛈' : poc.dazd > 0.3 ? ' · 🌧' : ''}`;
   const stav = vKanoe ? `Kanoe · <b>${(kanoe.rychlost() * 1.944).toFixed(0)}</b> uzlov` + (kanoe.plachtaV > 0.5 ? ` · plachta ${Math.round(kanoe.ucinnost * 100)} %` : '')
     : hrac.potapa ? 'Potápaš sa' : hrac.plava ? 'Plávaš' : 'Pešo';
   $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b><br>${stav}<br>Objavené ostrovy: ${objavene.size}`;
@@ -165,13 +185,32 @@ function hud(dt, p) {
   $('dych').firstChild.style.width = hrac.dych * 100 + '%';
 }
 
+// pridanie viacerych predmetov do batohu + oznamy
+function zoberVsetko(vynos) {
+  for (const [id, n] of vynos) {
+    const navyse = pridaj(id, n);
+    if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
+    if (navyse) oznam('Batoh je plný');
+  }
+  zvuky.zober(); vykresliInventar();
+}
+
 // ---------- hlavna slucka ----------
 function aktualizuj(dt) {
   cas += dt;
   aktualizujVietor(cas);
+  if (poc) vietor.sila = 0.3 + 0.7 * poc.vietorSila;
   const letim = aktualizujDev(dt, g);
   if (stlacene('Tab')) { if (prepniBatoh()) document.exitPointerLock(); else zamkni(); }
   for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
+  if (stlacene('KeyF') && !stavPreziti.mrtvy) {           // zjest / vypit vybrany predmet
+    const d = vybranyPredmet();
+    if (d?.jedlo) {
+      if (zjedz(d)) { odober(d.id, 1); vykresliInventar(); zvuky.zober(); oznam(`Zjedol si: ${d.ikona} ${d.meno}`); }
+      else oznam('Nie si hladný ani smädný');
+    }
+  }
+  const zivy = !stavPreziti.mrtvy;
 
   let napoveda = '';
   if (vKanoe) {
@@ -179,27 +218,26 @@ function aktualizuj(dt) {
     hrac.animuj(dt, 'sedi', 0, kanoe.faza);
     const miesto = miestoNaVystup(cas);
     if (miesto) napoveda = '<kbd>E</kbd> vystúpiť na breh';
+    const more = !miesto && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
+    if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
     if (miesto && stlacene('KeyE')) vystup(miesto);
+    else if (more && stlacene('KeyE')) zoberVsetko(more.akcia());
   } else {
-    if (!letim) hrac.aktualizuj(dt, kam.yaw, cas);
+    hrac.nasobok = rychlostNasobok();
+    if (!letim && zivy) hrac.aktualizuj(dt, kam.yaw, cas);
     kanoe.aktualizuj(dt, cas, false);
-    if (stlacene('Mys0')) hrac.uder();
+    if (stlacene('Mys0') && zivy) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < 4.5;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
     const ulovok = !blizko && !predmet && najdiUlovok(hrac.poz.x, hrac.poz.z);
     const zber = !blizko && !predmet && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
+    const more = !blizko && !predmet && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
     if (blizko) napoveda = '<kbd>E</kbd> nastúpiť do kanoe';
     else if (predmet) napoveda = `<kbd>E</kbd> zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
     else if (ulovok) napoveda = `<kbd>E</kbd> ${ulovok.text}`;
     else if (zber) napoveda = `<kbd>E</kbd> ${zber.text}`;
-    if ((ulovok || zber) && stlacene('KeyE')) {
-      for (const [id, n] of (ulovok || zber).akcia()) {
-        const navyse = pridaj(id, n);
-        if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
-        if (navyse) oznam('Batoh je plný');
-      }
-      hrac.zdvihni(); zvuky.zober(); vykresliInventar();
-    }
+    else if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
+    if ((ulovok || zber || more) && stlacene('KeyE')) { zoberVsetko((ulovok || zber || more).akcia()); hrac.zdvihni(); }
     if (blizko && stlacene('KeyE')) nastup();
     else if (predmet && stlacene('KeyE')) {
       const typ = predmet.userData.typ;
@@ -213,17 +251,22 @@ function aktualizuj(dt) {
   const cielKamery = vKanoe ? new THREE.Vector3(kanoe.poz.x, kanoe.y + 1.5, kanoe.poz.y) : new THREE.Vector3(hrac.poz.x, hrac.poz.y + 1.55, hrac.poz.z);
   kam.aktualizuj(dt, cas, cielKamery, { vKanoe, smerKanoe: kanoe.smer, rychlost: vKanoe ? kanoe.rychlost() : 0, podVodu: hrac.potapa });
 
+  poc = aktualizujPocasie(dt, cas, stred);
   // pod vodou: modra hmla nablizko
   const podVodou = kamera.position.y < vyskaVody(kamera.position.x, kamera.position.z, cas) - 0.05;
-  scena.fog.color.set(podVodou ? 0x0d5468 : FARBA_HMLY);
-  scena.fog.near = podVodou ? 0.5 : 220;
-  scena.fog.far = podVodou ? 40 : 1300;
+  scena.fog.color.set(podVodou ? POD_VODOU : FARBA_HMLY);
+  scena.fog.near = podVodou ? 0.5 : MLHA.near;
+  scena.fog.far = podVodou ? 40 : MLHA.far;
 
   ocean.aktualizuj(stred.x, stred.z, cas);
   const hotovo = aktualizujSvet(stred.x, stred.z);
   $('nacitanie').textContent = hotovo ? '' : 'Načítavam ostrovy…';
   aktualizujUzly(dt, cas);
   aktualizujZivocichy(dt, cas, hrac.poz, kanoe.poz, vKanoe);
+  aktualizujMore(dt, cas, hrac.poz, podVodou, kanoe.poz, vKanoe);
+  if (zivy) aktualizujPreziti(dt, { beh: !vKanoe && klavesy.has('ShiftLeft') && hrac.rych.length() > 5, plava: hrac.plava && !vKanoe,
+    vKanoe, padluje: vKanoe && (klavesy.has('KeyW') || klavesy.has('KeyS')), teplo: 0.6 + 0.8 * poc.svetlo });
+  vykresliPreziti();
   pena.aktualizuj(dt);
   triesky.aktualizuj(dt);
   g.sledujSlnkom(stred);

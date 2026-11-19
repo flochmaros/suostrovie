@@ -130,7 +130,7 @@ export function vytvorHraca(scena) {
       if (h.plava && !bolVoVode && h.vy < -2) h.priSplachu?.(Math.min(-h.vy / 8, 1));
       bolVoVode = h.plava;
       const sprint = klavesy.has('ShiftLeft');
-      const rychlost = h.plava ? (sprint ? 4.5 : 3) : (sprint ? 8.5 : 4.6);
+      const rychlost = (h.plava ? (sprint ? 4.5 : 3) : (sprint ? 8.5 : 4.6)) * (h.nasobok ?? 1);
       const zrychl = h.naZemi || h.plava ? 12 : 3;                    // vo vzduchu sa smer meni pomaly
       h.rych.x = tlm(h.rych.x, mx * rychlost, zrychl, dt);
       h.rych.z = tlm(h.rych.z, mz * rychlost, zrychl, dt);
@@ -148,7 +148,7 @@ export function vytvorHraca(scena) {
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
       h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / 20 : dt / 4), 0, 1);
       if (h.plava && zem < voda - 1.15) {
-        const ciel = h.potapa ? Math.max(zem + 0.8, voda - 7) : voda - 1.2;
+        const ciel = h.potapa ? Math.max(zem + 0.8, voda - 40) : voda - 1.2;
         h.poz.y = tlm(h.poz.y, ciel, h.potapa ? 1.5 : 5, dt);
         h.vy = 0; h.naZemi = false;
       } else {

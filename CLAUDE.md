@@ -34,13 +34,16 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/zivocichy.js` | kraby, ryby, vtáky, motýle, korytnačka, delfín (`najdiUlovok`) |
 | `src/postava.js` | model postavy (kĺby `J` používa `hrac.js`) |
 | `src/nastroje.js` | poškodenie podľa nástroja, opotrebenie |
+| `src/preziti.js` | hlad, smäd, zdravie, jedenie (F), omdletie |
+| `src/more.js` | morské dno, koraly, riasy, vraky s pokladom, žraloky, medúzy, sudy (`najdiMorskyZber`) |
+| `src/pocasie.js` | deň/noc (24 min), mesiac, hviezdy, oblaky, dážď, búrka |
 | `src/dev.js` | dev režim (F2): lietanie, teleport na biom, predmety, úroveň kanoe, hustota vegetácie, FPS |
 | `src/hrac.js` | postava s kĺbmi, procedurálne animácie, pohyb, kolízie, potápanie, úder |
 | `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
 | `src/kanoe.js` | kanoe: 4 úrovne (`STATY`, `nastavUroven`), fyzika, plachta + vietor, brázda, sprej |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
 | `src/inventar.js` | batoh 24 políčok, ťahanie myšou, výroba podľa receptov |
-| `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js` |
+| `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js`, `jedlo.js`, `more.js` |
 | `server.py` | lokálny server bez cache |
 | `dennik/` | denník vývoja |
 

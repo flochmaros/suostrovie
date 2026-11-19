@@ -42,6 +42,7 @@ for (const v of VLNY) {
 glsl += '  return r;\n}\n' + glslPosun + '  return r;\n}\n';
 
 export const uCas = { value: 0 };
+export const VODA = { u: null };           // uniformy materialu vody (plni sa vo vytvorOcean)
 export const uPriliv = { value: 0 };
 
 const VERTEX = /* glsl */`
@@ -78,6 +79,7 @@ uniform vec3 uSlnko;
 uniform vec3 uSlnkoFarba;
 uniform vec3 uObzor;
 uniform vec3 uZenit;
+uniform float uSvetlo;
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -110,7 +112,7 @@ void main() {
   float sumPeny = pena1 * pena2;
 
   if (!gl_FrontFacing) {                 // pohlad zospodu (pod vodou)
-    vec3 c = vec3(0.03, 0.28, 0.33) * (1.0 + sumPeny);
+    vec3 c = vec3(0.03, 0.28, 0.33) * (1.0 + sumPeny) * uSvetlo;
     gl_FragColor = vec4(c, 1.0);
     #include <fog_fragment>
     return;
@@ -127,11 +129,11 @@ void main() {
 
   // pohltenie svetla vo vode: cervena zmizne najskor
   vec3 prenos = exp(-hrubka * vec3(0.46, 0.085, 0.06));
-  vec3 hlbokaFarba = vec3(0.006, 0.05, 0.085);
+  vec3 hlbokaFarba = vec3(0.006, 0.05, 0.085) * uSvetlo;
   vec3 farba = dno * prenos + hlbokaFarba * (1.0 - prenos);
   // svetlo prechadzajuce hrebenmi vln (tyrkysovy nadych)
   float protiSlnku = pow(max(dot(-V, uSlnko) * 0.5 + 0.5, 0.0), 2.0);
-  farba += vec3(0.0, 0.11, 0.09) * smoothstep(-0.1, 0.7, vVyska) * (0.4 + protiSlnku);
+  farba += vec3(0.0, 0.11, 0.09) * smoothstep(-0.1, 0.7, vVyska) * (0.4 + protiSlnku) * uSvetlo;
 
   // odraz oblohy (Fresnel: pri pohlade naplocho vacsi)
   vec3 R = reflect(-V, N); R.y = abs(R.y);
@@ -147,7 +149,7 @@ void main() {
   float vlnenie = 0.5 + 0.5 * sin(uCas * 1.6 - hrubka * 9.0 + pena2 * 3.0);
   float pena = breh * smoothstep(0.35, 0.6, sumPeny + vlnenie * 0.3 + breh * 0.3);
   pena += smoothstep(0.55, 0.85, vVyska) * smoothstep(0.3, 0.6, sumPeny) * 0.7;
-  farba = mix(farba, vec3(0.92, 0.96, 0.97), clamp(pena, 0.0, 1.0) * 0.85);
+  farba = mix(farba, vec3(0.92, 0.96, 0.97) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.85);
 
   gl_FragColor = vec4(farba, 1.0);
   #include <fog_fragment>
@@ -171,11 +173,14 @@ export function vytvorOcean(g) {
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
       uSvet: { value: null }, uHlbka: { value: null }, uVlnky: { value: null },
       uObrazovka: { value: null }, uNear: { value: g.kamera.near }, uFar: { value: g.kamera.far },
+      uSvetlo: { value: 1 },
       uSlnko: { value: SLNKO }, uSlnkoFarba: { value: new THREE.Color(1.0, 0.92, 0.8) },
       uObzor: { value: new THREE.Color(0.62, 0.78, 0.9) }, uZenit: { value: new THREE.Color(0.16, 0.38, 0.72) },
     }]),
   });
   // spolocne objekty (merge ich kopiruje, preto ich priradime az teraz)
+  mat.uniforms.uSlnko.value = SLNKO;       // merge vyssie vytvoril kopiu - vratime zdielany vektor
+  VODA.u = mat.uniforms;                   // pre pocasie.js (farby oblohy, svetlo)
   mat.uniforms.uCas = uCas;
   mat.uniforms.uPriliv = uPriliv;
   mat.uniforms.uSvet.value = g.podvod.texture;

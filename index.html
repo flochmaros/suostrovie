@@ -18,7 +18,7 @@
   #kompas .smer { font-size: 18px; font-weight: 800; }
   #ostrov { position: absolute; top: 70px; width: 100%; text-align: center; font-size: 34px; font-weight: 800; letter-spacing: 1px; opacity: 0; transition: opacity 1s; }
   #ostrov small { display: block; font-size: 15px; font-weight: 600; opacity: .9; letter-spacing: 0; }
-  #napoveda { position: absolute; bottom: 104px; width: 100%; text-align: center; font-size: 15px; font-weight: 700; }
+  #napoveda { position: absolute; bottom: 126px; width: 100%; text-align: center; font-size: 15px; font-weight: 700; }
   kbd { display: inline-block; min-width: 18px; padding: 1px 6px; margin-right: 4px; border-radius: 6px; background: #fff; color: #234; text-shadow: none; font-family: inherit; font-weight: 800; }
   #lista { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; }
   .slot { position: relative; width: 56px; height: 56px; border-radius: 10px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.25);
@@ -58,8 +58,22 @@
   #oznamy { position: absolute; bottom: 110px; right: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
   .oznam { padding: 4px 12px; font-size: 15px; font-weight: 700; animation: oznam 2.6s forwards; }
   @keyframes oznam { 0% { opacity: 0; transform: translateX(20px); } 10%, 75% { opacity: 1; transform: none; } 100% { opacity: 0; } }
-  #dych { position: absolute; bottom: 140px; left: 50%; width: 180px; height: 8px; margin-left: -90px; border-radius: 4px; background: #0005; overflow: hidden; display: none; }
+  #dych { position: absolute; bottom: 156px; left: 50%; width: 180px; height: 8px; margin-left: -90px; border-radius: 4px; background: #0005; overflow: hidden; display: none; }
   #dych div { height: 100%; background: #8be0ff; }
+  #bary { position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 5px 8px; }
+  #bary .bar { position: relative; width: 120px; height: 16px; border-radius: 8px; background: rgba(0,0,0,.35); overflow: hidden; }
+  #bary .bar > div { height: 100%; border-radius: 8px; transition: width .3s; }
+  #bar-zdravie > div { background: linear-gradient(#ff7a7a, #d83a4a); }
+  #bar-hlad > div { background: linear-gradient(#ffc27a, #e0852a); }
+  #bar-smad > div { background: linear-gradient(#8be0ff, #3a9ad8); }
+  #bary .bar span { position: absolute; left: 5px; top: -1px; font-size: 12px; line-height: 17px; }
+  #bary .bar.nizke { animation: blik 1s infinite; }
+  @keyframes blik { 50% { box-shadow: 0 0 0 2px rgba(255,90,90,.9); } }
+  #zranenie { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s;
+              background: radial-gradient(ellipse at center, rgba(180,0,0,0) 45%, rgba(190,10,10,.75) 100%); }
+  #smrt { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+          background: rgba(10,15,20,.82); color: #fff; font-size: 44px; font-weight: 800; z-index: 20; pointer-events: auto; }
+  #smrt button { padding: 12px 30px; border: 0; border-radius: 30px; background: var(--zlta); color: #3a2a10; font: 800 20px Nunito, system-ui, sans-serif; cursor: pointer; }
   #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
            background: radial-gradient(ellipse at center, rgba(10,40,60,.35), rgba(10,30,45,.75)); color: #fff; cursor: pointer; text-align: center; }
   #start h1 { margin: 0 0 6px; font-size: 64px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 4px 24px #0006; }
@@ -82,18 +96,26 @@
   <div id="napoveda"></div>
   <div id="dych"><div></div></div>
   <div id="oznamy"></div>
+  <div id="bary" class="panel">
+    <div class="bar" id="bar-zdravie"><div style="width:100%"></div><span>❤</span></div>
+    <div class="bar" id="bar-hlad"><div style="width:100%"></div><span>🍖</span></div>
+    <div class="bar" id="bar-smad"><div style="width:100%"></div><span>💧</span></div>
+  </div>
   <div id="lista" class="panel"></div>
   <div id="batoh" class="panel">
     <div><h2>Batoh</h2><div id="batoh-mriezka"></div></div>
     <div class="stlpec2"><h2>Výroba</h2><div id="vyroba"></div></div>
   </div>
 </div>
+<div id="zranenie"></div>
+<div id="smrt"><div>Omdlel si…</div><button id="smrt-znova">Zobudiť sa na pláži</button></div>
 <div id="duch"></div>
 <div id="start">
   <h1>Súostrovie</h1>
   <div class="hrat">Klikni a hraj</div>
   <p><kbd>WASD</kbd> pohyb · <kbd>Shift</kbd> beh · <kbd>Medzerník</kbd> skok · <kbd>C</kbd> potápanie · myš = kamera, koliesko = zoom</p>
   <p><kbd>Ľavé tlačidlo</kbd> úder (stromy, kríky, kamene) · <kbd>E</kbd> zdvihnúť / nastúpiť / vystúpiť · <kbd>Tab</kbd> batoh · <kbd>1–8</kbd> výber</p>
+  <p><kbd>F</kbd> zjesť / vypiť vybraný predmet</p>
   <p><kbd>F2</kbd> dev režim</p>
   <p>Na kanoe: <kbd>W</kbd>/<kbd>S</kbd> pádlo · <kbd>A</kbd>/<kbd>D</kbd> zatáčanie · <kbd>Shift</kbd> plachta (najlepšie po vetre)</p>
 </div>

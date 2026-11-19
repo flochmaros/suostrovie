@@ -88,7 +88,7 @@ function tvarZaklad(o, x, z, d) {
   return -(-t * 14 + t * t * 80);
 }
 
-function vyskaOstrova(o, x, z) {
+function surovaVyska(o, x, z) {
   const dx = x - o.x, dz = z - o.z;
   let d = Math.hypot(dx, dz) / o.R;
   let h;
@@ -96,13 +96,13 @@ function vyskaOstrova(o, x, z) {
     case 'plytcina': {                                    // pretiahnuta piesocna kosa
       const a = o.seed * 0.0063, u = dx * Math.cos(a) + dz * Math.sin(a), v = -dx * Math.sin(a) + dz * Math.cos(a);
       d = Math.hypot(u / 1.2, v * 1.15) / o.R;
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       const t = 1 - d + 0.28 * fbm(x * 0.02, z * 0.02, o.seed);
       h = t >= 0 ? o.H * Math.pow(Math.min(t * 2.2, 1), 0.9) + fbm(x * 0.08, z * 0.08, o.seed + 7) * 0.25 : -(-t * 12 + t * t * 80);
       break;
     }
     case 'atol': {                                        // prstenec okolo plytkej lagúny
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       const t = 1 - Math.abs(d - 0.72) / 0.26 + 0.22 * fbm(x * 0.012, z * 0.012, o.seed);
       if (t >= 0) h = o.H * Math.pow(t, 1.1) + fbm(x * 0.05, z * 0.05, o.seed + 7) * 0.5 * Math.min(1, t * 4);
       else if (d < 0.72) h = -Math.min(-t * 7, 1.7) + fbm(x * 0.04, z * 0.04, o.seed + 3) * 0.12;
@@ -110,7 +110,7 @@ function vyskaOstrova(o, x, z) {
       break;
     }
     case 'sopecny': {                                     // kuzel s kraterom a ryhami po lave
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       const t = 1 - d + 0.12 * fbm(x * 0.012, z * 0.012, o.seed);
       if (t >= 0) {
         const c = Math.max(0, 1 - d / 0.2);
@@ -121,7 +121,7 @@ function vyskaOstrova(o, x, z) {
       break;
     }
     case 'mangrovy': {                                    // plocha blatnata zem s kanalmi
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       const t = 1 - d + 0.3 * fbm(x * 0.012, z * 0.012, o.seed);
       if (t >= 0) {
         const kanal = Math.max(0, 1 - Math.abs(perlin.noise(x * 0.03, z * 0.03, o.seed + 9)) * 6) * Math.min(1, t * 3);
@@ -130,7 +130,7 @@ function vyskaOstrova(o, x, z) {
       break;
     }
     case 'savana': {                                      // siroka nizka plan s jemnymi kopcami
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       const t = 1 - d + 0.22 * fbm(x * 0.01, z * 0.01, o.seed);
       if (t >= 0) {
         const p = Math.min(1, t * 3);
@@ -139,15 +139,55 @@ function vyskaOstrova(o, x, z) {
       break;
     }
     default:
-      if (d > 1.8) return DNO;
+      if (d > 1.8) return NIC;
       h = tvarZaklad(o, x, z, d);
   }
-  return Math.max(h, DNO);
+  _d = d;
+  return h;
+}
+
+// ---------- morske dno: duny, hlbka -12..-45 m, plytke lavice (-4..-9 m) ----------
+const NIC = -9999;                                       // znacka "mimo ostrova"
+let _d = 2;                                              // vzdialenost (v polomeroch) z poslednej surovaVyska
+function hladkyMax(a, b, k) {
+  const d = Math.abs(a - b), m = Math.max(a, b);
+  if (d >= k) return m;
+  const t = (k - d) / k;
+  return m + t * t * k * 0.25;
+}
+export function dnoMorske(x, z) {
+  const a = perlin.noise(x * 0.0042, z * 0.0042, 11.3);   // siroke panvy a vyvysenia
+  const b = perlin.noise(x * 0.017, z * 0.017, 4.1);      // duny
+  const c = perlin.noise(x * 0.06 + 13, z * 0.06, 9.9);   // drobne vlnenie
+  let h = THREE.MathUtils.clamp(-29 + a * 15 + b * 5 + c * 1.2, -46, -11);
+  const s = THREE.MathUtils.smoothstep(perlin.noise(x * 0.0065 + 50, z * 0.0065, 21.7), 0.22, 0.5);   // lavice
+  if (s > 0) h += (-5.2 - 3.6 * (0.5 + 0.5 * b) + c * 0.5 - h) * s;
+  return h;
+}
+const FD1 = C(0xdcc995), FD2 = C(0x7d8a86), FD3 = C(0x3e5260), FD4 = C(0x4f7048);
+// farba morskeho dna podla hlbky (+ tmavsie trávne laky); pouziva aj morske dno v more.js
+export function farbaDna(h, x, z, out) {
+  const g = perlin.noise(x * 0.03 + 7, z * 0.03, 2.2);
+  out.copy(FD1).lerp(FD2, 1 - THREE.MathUtils.smoothstep(h, -22, -4));
+  out.lerp(FD3, 1 - THREE.MathUtils.smoothstep(h, -46, -20));
+  if (g > 0.12) out.lerp(FD4, Math.min((g - 0.12) * 3, 0.7) * THREE.MathUtils.smoothstep(h, -20, -8));
+  const r = perlin.noise(x * 0.4, z * 0.4, 1.1);
+  out.multiplyScalar(0.94 + r * 0.08);
+  return out;
+}
+
+function vyskaOstrova(o, x, z) {
+  const f = dnoMorske(x, z);
+  const h = surovaVyska(o, x, z);
+  if (h <= NIC + 1) return f;
+  const w = THREE.MathUtils.smoothstep(_d, 1.3, 1.8);   // svah ostrova plynule prejde do dna
+  const m = hladkyMax(h, f, 6);
+  return m + (f - m) * w;
 }
 
 export function vyskaTerenu(x, z) {
   const o = ostrovVBunke(Math.floor(x / BUNKA), Math.floor(z / BUNKA));
-  return o ? vyskaOstrova(o, x, z) : DNO;
+  return o ? vyskaOstrova(o, x, z) : dnoMorske(x, z);
 }
 
 export function ostrovPri(x, z, faktor = 1.0) {
@@ -166,7 +206,9 @@ float kaustika(vec2 p, float t) {
   return pow(1.0 - min(a, 1.0), 6.0) + pow(1.0 - min(b, 1.0), 6.0) * 0.6;
 }
 `;
-const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, envMapIntensity: 0.3 });
+export const KAUSTIKA_GLSL = KAUSTIKA;
+export const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, envMapIntensity: 0.3,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });   // ostrov vyhra nad morskym dnom (z-fighting)
 matTeren.onBeforeCompile = sh => {
   sh.uniforms.uCas = uCas;
   sh.uniforms.uPriliv = uPriliv;
@@ -217,7 +259,7 @@ function postavTeren(o) {
   for (let i = 0; i < poz.count; i++) poz.setY(i, vyskaOstrova(o, o.x + poz.getX(i), o.z + poz.getZ(i)));
   geo.computeVertexNormals();
 
-  const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), c = new THREE.Color(), t2 = new THREE.Color();
+  const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), c = new THREE.Color(), t2 = new THREE.Color(), t3 = new THREE.Color();
   const T = TEREN[o.biom], [tr1, tr2] = T.tr;
   for (let i = 0; i < poz.count; i++) {
     const x = poz.getX(i) + o.x, z = poz.getZ(i) + o.z, h = poz.getY(i), strmost = 1 - nor.getY(i);
@@ -225,7 +267,8 @@ function postavTeren(o) {
     const hranica = T.plaz + n * 0.6;                       // kde konci plaz (nerovno)
     t2.copy(tr1).lerp(tr2, THREE.MathUtils.clamp((h - 2) / (o.H * 0.8) + n * 0.4, 0, 1));
     if (perlin.noise(x * 0.04, z * 0.04, o.seed + 5) > T.hlPrah) t2.lerp(T.hl, 0.5);   // flaky hliny
-    c.copy(T.dno).lerp(T.piesok, THREE.MathUtils.smoothstep(h, -2, 0.3));
+    farbaDna(h, x, z, t3);
+    c.copy(T.dno).lerp(t3, 1 - THREE.MathUtils.smoothstep(h, -9, -4)).lerp(T.piesok, THREE.MathUtils.smoothstep(h, -2, 0.3));
     c.lerp(t2, THREE.MathUtils.smoothstep(h, hranica, hranica + 0.8));
     c.lerp(T.skala, THREE.MathUtils.smoothstep(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3));
     c.offsetHSL(0, 0, n * 0.03);

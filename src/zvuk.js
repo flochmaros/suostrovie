@@ -14,6 +14,49 @@ export function initZvuk() {
   vietor = ctx.createGain(); vietor.gain.value = 0;
   vietorF = filter('bandpass', 600, 0.6);
   smycka().connect(vietorF).connect(vietor).connect(ctx.destination);
+  // dazd: siroky sum (siks) + nizsi sum (bubnovanie)
+  dazdG = ctx.createGain(); dazdG.gain.value = 0;
+  smycka().connect(filter('highpass', 1800)).connect(filter('lowpass', 9000)).connect(dazdG);
+  smycka().connect(filter('bandpass', 700, 0.5)).connect(dazdG);
+  dazdG.connect(ctx.destination);
+  // noc: dva sverciky (ton 4-5 kHz zapinany a vypinany nizkou frekvenciou)
+  nocG = ctx.createGain(); nocG.gain.value = 0; nocG.connect(ctx.destination);
+  for (const [f, lf] of [[4300, 7.3], [5100, 10.9]]) {
+    const o = ctx.createOscillator(), amp = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+    o.frequency.value = f; amp.gain.value = 0.5;
+    l.frequency.value = lf; lg.gain.value = 0.5;
+    l.connect(lg).connect(amp.gain);
+    o.connect(amp).connect(nocG);
+    o.start(); l.start();
+  }
+}
+let dazdG = null, nocG = null;
+
+// pocasie: sila dazda 0..1, sila nocnej atmosfery 0..1 (vola pocasie.js kazdy snimok)
+export function dazd(sila, podVodou = false) {
+  if (!ctx) return;
+  dazdG.gain.setTargetAtTime(podVodou ? sila * 0.02 : sila * 0.09, ctx.currentTime, 0.6);
+}
+export function noc(sila, podVodou = false) {
+  if (!ctx) return;
+  nocG.gain.setTargetAtTime(podVodou ? 0 : sila * 0.006, ctx.currentTime, 1.0);
+}
+// hrom: dlhe dunenie (blizko = hlasnejsie a ostrejsie), blizkost 0..1
+export function hrom(blizkost = 0.5) {
+  if (!ctx) return;
+  const n = ctx.currentTime, h = 0.25 + blizkost * 0.5;
+  burst(0.25, 'lowpass', 2200, 0.5 * blizkost);                       // prasknutie
+  for (let i = 0; i < 4; i++) {                                         // dunenie: niekolko dozvukov
+    const s = ctx.createBufferSource(); s.buffer = sum;
+    const g = ctx.createGain(), f = filter('lowpass', 140 + Math.random() * 120);
+    const t0 = n + i * (0.25 + Math.random() * 0.4), dl = 1.8 + Math.random() * 2.2;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(h * (1 - i * 0.18), t0 + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dl);
+    s.connect(f).connect(g).connect(ctx.destination);
+    s.start(t0, Math.random() * 1.5, dl + 0.1);
+  }
+  ton(48, 1.6, 0.25 * h, 28);
 }
 function smycka() { const s = ctx.createBufferSource(); s.buffer = sum; s.loop = true; s.start(0, Math.random() * 1.9); return s; }
 function filter(typ, f, q = 1) { const b = ctx.createBiquadFilter(); b.type = typ; b.frequency.value = f; b.Q.value = q; return b; }
