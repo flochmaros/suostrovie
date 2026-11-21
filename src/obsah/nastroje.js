@@ -81,6 +81,16 @@ predmet('kamenny_noz', { kopa: 1, meno: 'Kamenný nôž', ikona: '🔪', popis: 
 predmet('macheta', { kopa: 1, meno: 'Mačeta', ikona: '🔪', popis: 'Dlhá čepeľ, kosí kroviny ako nič.',
   nastroj: nastroj('noz', 1.5, { drevo: 0.6, kamen: 0, list: 4 }, 100), drzanie: drzanie(0.08, 0.7), model: noz(0.46, C.obsidian, C.tmavy) });
 
+// obsidian: silnejsi nez kamen, ale krehky (mala trvanlivost); 'zivocichy' = poskodenie zivocichom (pre buduci boj)
+predmet('obsidianova_sekera', { kopa: 1, meno: 'Obsidiánová sekera', ikona: '🪓', popis: 'Veľmi ostrá, ale krehká.',
+  nastroj: nastroj('sekera', 1.7, { drevo: 2, kamen: 0.25, list: 1.4 }, 28), drzanie: drzanie(0.15), model: sekera(C.obsidian, 0x1a1d21) });
+predmet('obsidianovy_krompac', { kopa: 1, meno: 'Obsidiánový krompáč', ikona: '⛏️', popis: 'Láme kameň rýchlo, ale rýchlo sa opotrebuje.',
+  nastroj: nastroj('krompac', 1.8, { drevo: 0.3, kamen: 2, list: 0.3 }, 30), drzanie: drzanie(0.15), model: krompac(0x1a1d21, C.drevo) });
+predmet('obsidianovy_noz', { kopa: 1, meno: 'Obsidiánový nôž', ikona: '🔪', popis: 'Ostrejší ako oceľ, no krehký.',
+  nastroj: nastroj('noz', 1.8, { drevo: 0.5, kamen: 0, list: 3.5 }, 35), drzanie: drzanie(0.08, 0.7), model: noz(0.26, 0x1a1d21, C.drevo) });
+predmet('obsidianovy_mec', { kopa: 1, meno: 'Obsidiánový meč', ikona: '🗡️', popis: 'Zbraň s obrovským poškodením. Čepeľ je krehká.',
+  nastroj: { ...nastroj('mec', 2.2, { drevo: 0.6, kamen: 0, list: 3 }, 35), zivocichy: 9 }, drzanie: drzanie(0.08, 0.7), model: noz(0.7, 0x1a1d21, C.tmavy) });
+
 predmet('kyj', { kopa: 1, meno: 'Kyj', ikona: '🏏', popis: 'Ťažká drevená palica.',
   nastroj: nastroj('kyj', 1.5, { drevo: 0.8, kamen: 0.1, list: 1.5 }, 60), drzanie: drzanie(0.15), model: kyj() });
 

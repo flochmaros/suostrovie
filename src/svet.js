@@ -13,6 +13,30 @@ export const BUNKA = 520;
 export const DNO = -32;
 const POLOMER_NAHRAVANIA = 2;          // 5 x 5 buniek okolo hraca
 
+// ---------- pasma (cim dalej od startu, tym drsnejsie more a vzacnejsie ostrovy) ----------
+// hranice v metroch od stredu startovej bunky; pasmo 1..5
+export const PASMA = [null,
+  { meno: 'Domovské ostrovy', do: 1200 },
+  { meno: 'Sopečné ostrovy', do: 2400 },
+  { meno: 'Mangrovové močiare', do: 3800 },
+  { meno: 'Búrkové útesy', do: 5400 },
+  { meno: 'Hmlisté ostrovy', do: Infinity },
+];
+export function vzdialenostOdStartu(x, z) { return Math.hypot(x - BUNKA / 2, z - BUNKA / 2); }
+export function pasmo(x, z) {
+  const d = vzdialenostOdStartu(x, z);
+  for (let i = 1; i < PASMA.length; i++) if (d < PASMA[i].do) return i;
+  return 5;
+}
+// plynula hodnota 1.0..5.0 (na prechody vln medzi pasmami)
+export function pasmoPlynule(x, z) {
+  const d = vzdialenostOdStartu(x, z);
+  for (let i = 1; i < PASMA.length; i++) {
+    if (d < PASMA[i].do) return i + (isFinite(PASMA[i].do) ? Math.max(0, (d - (PASMA[i].do - 200)) / 200) : 0);
+  }
+  return 5;
+}
+
 const perlin = new ImprovedNoise();
 const ostrovy = new Map();             // "x,z" -> data ostrova alebo null
 const nahrate = new Map();             // "x,z" -> { skupina, teren, uzly } alebo null
@@ -39,10 +63,21 @@ export const BIOM_MENO = {
   mangrovy: 'Mangrovový močiar', bambusovy: 'Bambusový ostrov', savana: 'Savana', plytcina: 'Piesočná plytčina', ovocny: 'Ovocný ostrov',
 };
 
-function vyberBiom(b) {
-  let suma = 0;
-  for (const [biom, vaha] of TYPY) { suma += vaha; if (b < suma) return biom; }
-  return 'palmovy';
+// vahy biomov podla pasma (poradie = TYPY); chybajuci biom = 0
+const VAHY_PASMA = [null,
+  { palmovy: 0.22, dzungla: 0.14, atol: 0.14, plytcina: 0.1, savana: 0.12, ovocny: 0.1, bambusovy: 0.1, skalnaty: 0.08 },
+  { sopecny: 0.45, skalnaty: 0.2, plytcina: 0.15, palmovy: 0.2 },
+  { mangrovy: 0.5, dzungla: 0.28, bambusovy: 0.22 },
+  { skalnaty: 0.4, atol: 0.3, plytcina: 0.3 },
+  null,                                                   // pasmo 5: zmes vsetkeho (TYPY)
+];
+function vyberBiom(b, p) {
+  const tab = VAHY_PASMA[p];
+  if (!tab) { let suma = 0; for (const [biom, vaha] of TYPY) { suma += vaha; if (b < suma) return biom; } return 'palmovy'; }
+  let suma = 0, posledny = 'palmovy';
+  const celkom = Object.values(tab).reduce((a, v) => a + v, 0);
+  for (const biom in tab) { suma += tab[biom] / celkom; posledny = biom; if (b < suma) return biom; }
+  return posledny;
 }
 
 export function ostrovVBunke(bx, bz) {
@@ -53,7 +88,8 @@ export function ostrovVBunke(bx, bz) {
   const start = bx === 0 && bz === 0;
   if (start || r() < 0.72) {
     const b = r();
-    const biom = start ? 'palmovy' : vyberBiom(b);
+    const pas = pasmo(bx * BUNKA + BUNKA / 2, bz * BUNKA + BUNKA / 2);
+    const biom = start ? 'palmovy' : vyberBiom(b, pas);
     let R;
     if (start) R = 95;
     else if (biom === 'plytcina') R = 14 + 16 * r();
@@ -69,7 +105,7 @@ export function ostrovVBunke(bx, bz) {
       skalnaty: (5 + R * (0.08 + v * 0.2)) * 1.6, bambusovy: 6 + R * (0.08 + v * 0.15), ovocny: 5 + R * (0.06 + v * 0.1),
     }[biom] ?? (5 + R * (0.08 + v * 0.2));
     o = {
-      bx, bz, R, ext, biom,
+      bx, bz, R, ext, biom, pasmo: pas,
       x: bx * BUNKA + ext + (start ? volno / 2 : r() * volno),
       z: bz * BUNKA + ext + (start ? volno / 2 : r() * volno),
       H,

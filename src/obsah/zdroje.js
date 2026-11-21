@@ -59,6 +59,8 @@ export const ZDROJE = {
     zber: { text: 'Odtrhnúť kvet', vynos: [['kvet', [1, 2]]], cas: 8 } },
   balvan: { zivoty: 6, material: 'kamen', nastroj: 'krompac', rukou: 0.25,
     vynos: [['kamen', 3], ['kamen', 1, 0.5]] },
+  obsidian: { zivoty: 9, material: 'kamen', nastroj: 'krompac', rukou: 0.15,
+    vynos: [['obsidian', 2], ['obsidian', 1, 0.5], ['sira', 1, 0.3]] },
   // trava nie je uzol (nema hitbox ani zivoty): len zber na E s cooldownom na kazdom 3 m policku
   trava: { material: 'list', zber: { text: 'Trhať trávu', vynos: [['vlakno', 1]], cas: 5 } },
 };

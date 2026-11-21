@@ -598,6 +598,25 @@ function kamen(seed, mach, zaklad = 0x8a867e) {
   return g;
 }
 
+// obsidianova zila: zhluk ostrych cierno-modrych hranolov (vertex farby, lesky material)
+function obsidianZila(seed) {
+  const r = rng(seed), diely = [];
+  const n = 5 + Math.floor(r() * 4);
+  for (let i = 0; i < n; i++) {
+    const h = (i === 0 ? 1.5 : 0.5 + r() * 0.9), w = (i === 0 ? 0.38 : 0.16 + r() * 0.16);
+    const g = new THREE.ConeGeometry(w, h, 4 + Math.floor(r() * 2), 1).toNonIndexed();
+    g.rotateY(r() * 3).rotateZ((r() - 0.5) * (i === 0 ? 0.25 : 0.9)).rotateX((r() - 0.5) * (i === 0 ? 0.25 : 0.9));
+    const a = i === 0 ? 0 : 0.15 + r() * 0.35;
+    g.translate(Math.cos(i * 2.4) * a * 1.4, h * 0.5 - 0.1, Math.sin(i * 2.4) * a * 1.4);
+    const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
+    for (let k = 0; k < p.count; k++) { c.set(0x15181c).offsetHSL(0.02, 0.1, (p.getY(k) / 2) * 0.12 + r() * 0.0); col.set([c.r, c.g, c.b], k * 3); }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    diely.push(g);
+  }
+  const g = spoj(diely); g.computeVertexNormals();
+  return g;
+}
+
 // ---------- materialy s vetrom ----------
 function material(vietor, opts = {}) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4, side: THREE.DoubleSide, ...opts });
@@ -633,6 +652,7 @@ export const M = {
   taro: material(0.08),
   huba: material(0),
   kamen: material(0, { roughness: 0.95, ...FS }),
+  obsidian: material(0, { roughness: 0.12, metalness: 0.35, envMapIntensity: 1.4, ...FS }),
 };
 
 // ---------- varianty (vyrobia sa raz pri starte) ----------
@@ -659,5 +679,6 @@ export const DRUHY = {
   trava: D('trava', false, [41, 42].map(s => len(trava(s)))),
   kamen: D('kamen', true, [61, 62, 63].map(s => len(kamen(s, false)))),
   kamenMach: D('kamen', true, [64, 65].map(s => len(kamen(s, true)))),
+  obsidianZila: D('obsidian', true, [81, 82, 83].map(s => len(obsidianZila(s)))),
   kamenSopka: D('kamen', true, [66, 67].map(s => len(kamen(s, false, 0x3a3836)))),
 };

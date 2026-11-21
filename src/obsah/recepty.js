@@ -19,6 +19,12 @@ recept({ id: 'spevneny_krompac', skupina: N, vysledok: ['spevneny_krompac', 1], 
 recept({ id: 'macheta', skupina: N, vysledok: ['macheta', 1], suroviny: [['bambus', 1], ['kamen', 2], ['vlakno', 2]] });
 recept({ id: 'kamenna_ostep', skupina: N, vysledok: ['kamenna_ostep', 1], suroviny: [['bambus', 2], ['kamen', 1], ['vlakno', 2]] });
 
+// obsidian (sopecne ostrovy): silnejsie, ale krehke
+recept({ id: 'obsidianova_sekera', skupina: N, vysledok: ['obsidianova_sekera', 1], suroviny: [['palica', 1], ['obsidian', 3], ['vlakno', 2]] });
+recept({ id: 'obsidianovy_krompac', skupina: N, vysledok: ['obsidianovy_krompac', 1], suroviny: [['palica', 1], ['obsidian', 4], ['vlakno', 2]] });
+recept({ id: 'obsidianovy_noz', skupina: N, vysledok: ['obsidianovy_noz', 1], suroviny: [['palica', 1], ['obsidian', 2], ['vlakno', 1]] });
+recept({ id: 'obsidianovy_mec', skupina: N, vysledok: ['obsidianovy_mec', 1], suroviny: [['drevo', 1], ['obsidian', 5], ['vlakno', 3]] });
+
 // tabor: taborak (polozi sa klavesou F)
 recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [['kamen', 5], ['drevo', 2], ['palica', 2]] });
 

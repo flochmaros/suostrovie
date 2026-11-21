@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 import { klavesy } from './vstup.js';
-import { vyskaTerenu, uzlyPri } from './svet.js';
+import { vyskaTerenu, uzlyPri, pasmoPlynule } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { VRSTVA_VODA } from './grafika.js';
 import { MAPA_KRUH } from './castice.js';
@@ -45,6 +45,14 @@ export const DRUHY = {
     rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, hit: 2.3, nazov: 'Veľký katamarán',
     paluba: { x: [-2.0, 2.0], z: [-3.3, 3.8], y: 0.89, boxy: [[-1.35, 1.35, 0.35, 2.65], [-1.7, -0.15, -2.7, -1.9], [0.95, 1.5, -2.7, -2.1], [-0.2, 0.2, -1.4, -1.0]] } } },
 };
+
+// najvyssie pasmo mora, ktore lod zvladne (pasmo 5 zvladne ur. 4 a katamaran)
+export function maxPasmo(k) {
+  if (k.druh === 'kanoe') return [1, 1, 2, 3, 4][k.uroven] ?? 1;
+  return { pretekove: 2, barza: 2, katamaran: 4 }[k.druh] ?? 1;
+}
+const dovolenePasmo = k => { const m = maxPasmo(k); return m >= 4 ? 5 : m; };
+const CAS_DO_PREVRATENIA = 9, CAS_PREVRATENA = 6;   // s v prilis divokom mori / s kym je lod prevratena
 
 export const vietor = { smer: 0.8, sila: 0.8 };       // smer = kam fuka (rovnaky uhol ako smer kanoe)
 export function aktualizujVietor(t) {
@@ -391,6 +399,8 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
     y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0, ucinnost: 0,
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
     rychlost: () => k.rych.length(),
+    // divoke more: riziko 0..1, hlaska (text pre HUD, main ju vyzdvihne), prevrat (true = hrac ma vypadnut)
+    riziko: 0, hlaska: null, prevrat: false, prevratCas: 0, prevrUhol: 0, hlaskaCas: 0,
 
     // prestavba modelu na inu uroven kanoe (1..4); ostatne druhy maju jeden model
     nastavUroven(n) {
@@ -415,6 +425,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
 
     aktualizuj(dt, t, ovladane) {
       const S = k.efekt(), DLZKA = S.dlz;
+      k.prevrat = false; k.hlaska = null;            // udalosti plati jeden snimok (main ich cita pred aktualizuj)
       const fx = -Math.sin(k.smer), fz = -Math.cos(k.smer), rx = Math.cos(k.smer), rz = -Math.sin(k.smer);
       let tah = 0, zatacanie = 0;
       if (ovladane) {
@@ -466,8 +477,24 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       k.y = tlm(k.y, hS - 0.08, 7, dt);
       k.pitch = tlm(k.pitch, Math.atan2(hP - hZ, DLZKA * 0.9) + Math.min(Math.abs(vf), 14) * 0.004, 5, dt);   // pri rychlosti dvihne pridu
       k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + rozL) * (S.rollK ?? 1) + k.uhlRych * vf * 0.025, 5, dt);
-      model.position.set(k.poz.x, k.y, k.poz.y);
-      model.rotation.set(k.pitch, k.smer, k.roll, 'YXZ');
+      // prilis divoke more pre tuto lod: kolisanie, varovanie, nakoniec prevratenie
+      const nad = pasmoPlynule(k.poz.x, k.poz.y) - dovolenePasmo(k);
+      let kolis = 0;
+      k.hlaskaCas -= dt;
+      if (k.prevratCas > 0) {
+        k.prevratCas -= dt;
+        k.riziko = 0;
+        if (k.prevratCas <= 0) k.hlaskaCas = 0;
+      } else if (nad > 0.3) {
+        k.riziko += dt * (1 + Math.min(nad, 2) * 0.5) / CAS_DO_PREVRATENIA;
+        const sila = Math.min(1, k.riziko * 1.5);
+        kolis = Math.sin(t * 1.7) * (0.07 + 0.2 * sila) + Math.sin(t * 2.9 + 1) * 0.05 * sila;
+        if (k.riziko > 0.1 && k.hlaskaCas <= 0) { k.hlaska = 'More je na túto loď príliš divoké!'; k.hlaskaCas = 6; }
+        if (k.riziko >= 1) { k.prevrat = true; k.prevratCas = CAS_PREVRATENA; k.riziko = 0; k.hlaska = 'Loď sa prevrátila!'; zvuky.uder?.('drevo'); }
+      } else k.riziko = Math.max(0, k.riziko - dt / 4);
+      k.prevrUhol = tlm(k.prevrUhol, k.prevratCas > 0 ? 2.9 : 0, k.prevratCas > 0 ? 3 : 1.2, dt);
+      model.position.set(k.poz.x, k.y - Math.sin(Math.min(k.prevrUhol, 3)) * 0.15, k.poz.y);
+      model.rotation.set(k.pitch, k.smer, k.roll + kolis + k.prevrUhol, 'YXZ');
 
       // plachta po vetre
       const plachta = k.plachta, padlo = k.padlo, K = k.plachtaK;

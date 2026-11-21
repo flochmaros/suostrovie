@@ -29,6 +29,10 @@ predmet('palica', { meno: 'Palica', ikona: '🥢', popis: 'Suchá palica.',
   model: [new THREE.CylinderGeometry(0.035, 0.05, 1.1, 5).rotateZ(Math.PI / 2).translate(0, 0.05, 0), DREVO] });
 predmet('kamen', { meno: 'Kameň', ikona: '🪨', popis: 'Hodí sa na nástroje.',
   model: [new THREE.IcosahedronGeometry(0.16, 0).scale(1, 0.7, 1).translate(0, 0.1, 0), KAMEN] });
+predmet('obsidian', { meno: 'Obsidián', ikona: '🖤', popis: 'Čierne sopečné sklo, ostré ako britva.',
+  model: [spoj(fv(new THREE.ConeGeometry(0.09, 0.3, 5).rotateZ(0.5).translate(0, 0.14, 0), 0x15181c), fv(new THREE.ConeGeometry(0.07, 0.2, 4).rotateZ(-0.6).translate(0.08, 0.08, 0.03), 0x1d2228)), matV({ roughness: 0.1, metalness: 0.35 })] });
+predmet('sira', { meno: 'Síra', ikona: '🟡', popis: 'Žltá hrudka z kráteru.',
+  model: [new THREE.IcosahedronGeometry(0.11, 0).scale(1, 0.7, 1).translate(0, 0.08, 0), mat(0xe3c92a, { roughness: 0.6 })] });
 predmet('kokos', { meno: 'Kokos', ikona: '🥥', popis: 'Jedlo aj pitie.', jedlo: { sytost: 10, voda: 30 },
   model: [new THREE.IcosahedronGeometry(0.15, 1).scale(1, 1.15, 1).translate(0, 0.16, 0), KOKOS] });
 predmet('musla', { meno: 'Mušľa', ikona: '🐚', popis: 'Pekná mušľa z pláže.',

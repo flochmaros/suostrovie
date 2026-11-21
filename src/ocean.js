@@ -6,6 +6,7 @@
 //  - pena pri brehu (mala hrubka vody) a na hrebenoch vln, odlesky slnka, odraz oblohy (Fresnel)
 import * as THREE from 'three';
 import { SLNKO, VRSTVA_VODA } from './grafika.js';
+import { pasmoPlynule } from './svet.js';
 
 const VLNY = [
   { a: 0.42, l: 64, sx: 1.0, sz: 0.35 },
@@ -24,10 +25,17 @@ const PRILIV_A = 0.6, PRILIV_T = 300;        // priliv/odliv: +-0.6 m, perioda 5
 export const priliv = t => PRILIV_A * Math.sin(t * 2 * Math.PI / PRILIV_T);
 
 // Vyska vody v bode (x, z) v case t
+// globalny nasobok amplitudy vln podla pasma (tlmene sa nastavuje v aktualizuj; rovnaka hodnota ide do uniformu uVlnySila)
+export const uVlnySila = { value: 1 };
+const SILA_PASMA = [1, 1, 1.5, 1.8, 2.8, 2.2];    // index = pasmo 1..5
+export function silaPasma(p) {                     // plynula interpolacia podla pasmoPlynule (1.0..5.0)
+  const i = Math.max(1, Math.min(4, Math.floor(p))), q = Math.min(1, p - i);
+  return SILA_PASMA[i] + (SILA_PASMA[i + 1] - SILA_PASMA[i]) * q;
+}
 export function vyskaVody(x, z, t) {
-  let h = priliv(t);
+  let h = 0;
   for (const v of VLNY) h += v.a * Math.sin(v.k * (v.sx * x + v.sz * z) - v.w * t);
-  return h;
+  return h * uVlnySila.value + priliv(t);
 }
 
 // ta ista funkcia v GLSL: vlny() -> (vyska bez prilivu, sklon x, sklon z); posun() -> Gerstner do boku
@@ -48,6 +56,7 @@ export const uPriliv = { value: 0 };
 const VERTEX = /* glsl */`
 uniform float uCas;
 uniform float uPriliv;
+uniform float uVlnySila;
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -183,6 +192,7 @@ export function vytvorOcean(g) {
   VODA.u = mat.uniforms;                   // pre pocasie.js (farby oblohy, svetlo)
   mat.uniforms.uCas = uCas;
   mat.uniforms.uPriliv = uPriliv;
+  mat.uniforms.uVlnySila = uVlnySila;
   mat.uniforms.uSvet.value = g.podvod.texture;
   mat.uniforms.uHlbka.value = g.podvod.depthTexture;
   mat.uniforms.uVlnky.value = vlnky;
@@ -194,9 +204,13 @@ export function vytvorOcean(g) {
   g.scena.add(ocean);
 
   const krok = 0.6;
+  let tPred = null;
   return {
     mesh: ocean,
     aktualizuj(x, z, t) {
+      const cil = silaPasma(pasmoPlynule(x, z)), dt = tPred === null ? 99 : Math.max(0, Math.min(t - tPred, 0.5));
+      tPred = t;
+      uVlnySila.value = THREE.MathUtils.damp(uVlnySila.value, cil, 0.5, dt);   // ~niekolko sekund prechodu
       uCas.value = t;
       uPriliv.value = priliv(t);
       ocean.position.set(Math.round(x / krok) * krok, 0, Math.round(z / krok) * krok);

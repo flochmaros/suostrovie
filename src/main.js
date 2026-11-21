@@ -347,6 +347,8 @@ function aktualizuj(dt) {
   }
   const zivy = !stavPreziti.mrtvy;
 
+  if (kanoe.hlaska) { if (vKanoe || naPalube) oznam(kanoe.hlaska); kanoe.hlaska = null; }      // divoke more (kanoe.js)
+  if (kanoe.prevrat) { kanoe.prevrat = false; if (vKanoe || naPalube) vystupDoVody(); }
   let napoveda = '';
   if (vKanoe) {
     kanoe.aktualizuj(dt, cas, true);

@@ -38,7 +38,7 @@ const PRAVIDLA = {
   huba:     { ymin: 2.0, sklon: 1.2, odstup: 0, m: [0.8, 1.4], rK: 0, rZ: 0.5, odtien: 0.1, naklon: 0.1, dy: 0 },
   kvet:     { ymin: 1.7, sklon: 1.0, odstup: 0, m: [0.8, 1.4], rK: 0, rZ: 0.6, odtien: 0.05, naklon: 0.1, dy: 0 },
 };
-const PORADIE = ['palma', 'mangrova', 'strom', 'mango', 'akacia', 'bambus', 'balvan', 'banan', 'bobule', 'ker', 'ibistek', 'ananas',
+const PORADIE = ['palma', 'mangrova', 'strom', 'mango', 'akacia', 'bambus', 'balvan', 'obsidian', 'banan', 'bobule', 'ker', 'ibistek', 'ananas',
   'aloe', 'taro', 'trstina', 'papradie', 'huba', 'kvet', 'trava', 'kamienky'];
 
 // hustota = pokusov na 100 m2 ostrova (k = nasobok poctu pokusov pre biomy, kde je sucho malo)
@@ -47,7 +47,7 @@ const HUSTOTY = {
   dzungla:  { palma: 0.3, strom: 0.9, mango: 0.12, banan: 0.5, ker: 0.6, ibistek: 0.15, bobule: 0.35, papradie: 1.6, trava: 14, kvet: 0.4, huba: 0.6, taro: 0.3, balvan: 0.18, kamienky: 0.3, bambus: 0.1 },
   skalnaty: { palma: 0.2, strom: 0.1, ker: 0.3, aloe: 0.35, papradie: 0.1, trava: 8, kvet: 0.2, balvan: 0.7, kamienky: 1.2, bobule: 0.1 },
   atol:     { k: 1.8, palma: 1.4, ker: 0.3, trava: 8, aloe: 0.15, kvet: 0.15, kamienky: 1, trstina: 0.2, ibistek: 0.2 },
-  sopecny:  { palma: 0.06, papradie: 0.15, aloe: 0.1, balvan: 0.8, kamienky: 1.5, trava: 1.5 },
+  sopecny:  { palma: 0.06, papradie: 0.15, aloe: 0.1, balvan: 0.8, obsidian: 0.22, kamienky: 1.5, trava: 1.5 },
   mangrovy: { k: 1.2, mangrova: 1.6, palma: 0.1, trstina: 0.6, taro: 0.3, papradie: 0.2, kamienky: 0.3 },
   bambusovy: { bambus: 1.0, strom: 0.15, papradie: 0.5, ker: 0.3, banan: 0.1, trava: 8, kvet: 0.2, huba: 0.15, balvan: 0.1, trstina: 0.05, kamienky: 0.2 },
   savana:   { akacia: 0.12, strom: 0.05, mango: 0.05, ker: 0.3, bobule: 0.15, ibistek: 0.15, aloe: 0.2, ananas: 0.05, trava: 38, kvet: 1.2, balvan: 0.1, kamienky: 0.4 },
@@ -162,6 +162,14 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
         const mierka = 0.8 + r() * 1.0;
         pridaj(druhBalvanu, Math.floor(r() * DRUHY[druhBalvanu].varianty.length), b.x, b.y - 0.15 * mierka, b.z, mierka, 0.1,
           uzol('balvan', b.x, b.y, b.z, 0.85 * mierka, 0.3), 0.4);
+        continue;
+      }
+      if (druh === 'obsidian') {                       // obsidianova zila (len sopecny ostrov), ostra, treba krompac
+        if (b.y < 1 || !volne(b.x, b.z, 2.5)) continue;
+        obsad(b.x, b.z);
+        const mierka = 0.8 + r() * 0.7;
+        pridaj('obsidianZila', Math.floor(r() * DRUHY.obsidianZila.varianty.length), b.x, b.y - 0.1 * mierka, b.z, mierka, 0.05,
+          uzol('obsidian', b.x, b.y, b.z, 0.7 * mierka, 0.3), 0.15);
         continue;
       }
       const P = PRAVIDLA[druh];
