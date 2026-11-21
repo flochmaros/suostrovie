@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { predmet } from './predmety.js';
+import { ik } from '../ikony.js';
 
 const C = { drevo: 0x7a5535, tmavy: 0x5a3d25, bambus: 0xc9b266, vlakno: 0xcfb87c, kamen: 0x8f8c86, kamen2: 0xb9b6ae, musla: 0xf1d2bf, ostrie: 0xd8d4c8, obsidian: 0x3d4248 };
 const MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 });
@@ -66,35 +67,35 @@ function ostep(hrotHex, dlzka = 1.45) {
 // ---------- predmety ----------
 const nastroj = (typ, sila, ucinnost, trvanlivost) => ({ typ, sila, ucinnost, trvanlivost });
 
-predmet('kamenna_sekera', { kopa: 1, meno: 'Kamenná sekera', ikona: '🪓', popis: 'Seká stromy a palmy rýchlejšie.',
+predmet('kamenna_sekera', { kopa: 1, meno: 'Kamenná sekera', ikona: ik('stone-axe', '#a19d95'), popis: 'Seká stromy a palmy rýchlejšie.',
   nastroj: nastroj('sekera', 1, { drevo: 2, kamen: 0.25, list: 1.2 }, 40), drzanie: drzanie(0.15), model: sekera(C.kamen, C.kamen2) });
-predmet('lasturova_sekera', { kopa: 1, meno: 'Mušľová sekera', ikona: '🪓', popis: 'Ostrá mušľová čepeľ, vydrží dlhšie.',
+predmet('lasturova_sekera', { kopa: 1, meno: 'Mušľová sekera', ikona: ik('stone-axe', '#f0c8b0'), popis: 'Ostrá mušľová čepeľ, vydrží dlhšie.',
   nastroj: nastroj('sekera', 1.3, { drevo: 2, kamen: 0.25, list: 1.2 }, 80), drzanie: drzanie(0.15), model: sekera(C.musla, 0xffffff, 1.15) });
 
-predmet('kamenny_krompac', { kopa: 1, meno: 'Kamenný krompáč', ikona: '⛏️', popis: 'Láme kamene a balvany.',
+predmet('kamenny_krompac', { kopa: 1, meno: 'Kamenný krompáč', ikona: ik('war-pick', '#a19d95'), popis: 'Láme kamene a balvany.',
   nastroj: nastroj('krompac', 1, { drevo: 0.3, kamen: 2, list: 0.3 }, 40), drzanie: drzanie(0.15), model: krompac(C.kamen, C.drevo) });
-predmet('spevneny_krompac', { kopa: 1, meno: 'Spevnený krompáč', ikona: '⛏️', popis: 'Hroty z tmavého kameňa, pevná rukoväť.',
+predmet('spevneny_krompac', { kopa: 1, meno: 'Spevnený krompáč', ikona: ik('war-pick', '#6e6a64'), popis: 'Hroty z tmavého kameňa, pevná rukoväť.',
   nastroj: nastroj('krompac', 1.4, { drevo: 0.3, kamen: 2, list: 0.3 }, 90), drzanie: drzanie(0.15), model: krompac(C.obsidian, C.tmavy) });
 
-predmet('kamenny_noz', { kopa: 1, meno: 'Kamenný nôž', ikona: '🔪', popis: 'Reže rastliny a vlákna.',
+predmet('kamenny_noz', { kopa: 1, meno: 'Kamenný nôž', ikona: ik('bone-knife', '#a19d95'), popis: 'Reže rastliny a vlákna.',
   nastroj: nastroj('noz', 1, { drevo: 0.4, kamen: 0, list: 3 }, 50), drzanie: drzanie(0.08, 0.7), model: noz(0.2, C.kamen2, C.drevo) });
-predmet('macheta', { kopa: 1, meno: 'Mačeta', ikona: '🔪', popis: 'Dlhá čepeľ, kosí kroviny ako nič.',
+predmet('macheta', { kopa: 1, meno: 'Mačeta', ikona: ik('machete', '#c4beb2'), popis: 'Dlhá čepeľ, kosí kroviny ako nič.',
   nastroj: nastroj('noz', 1.5, { drevo: 0.6, kamen: 0, list: 4 }, 100), drzanie: drzanie(0.08, 0.7), model: noz(0.46, C.obsidian, C.tmavy) });
 
 // obsidian: silnejsi nez kamen, ale krehky (mala trvanlivost); 'zivocichy' = poskodenie zivocichom (pre buduci boj)
-predmet('obsidianova_sekera', { kopa: 1, meno: 'Obsidiánová sekera', ikona: '🪓', popis: 'Veľmi ostrá, ale krehká.',
+predmet('obsidianova_sekera', { kopa: 1, meno: 'Obsidiánová sekera', ikona: ik('stone-axe', '#56487e'), popis: 'Veľmi ostrá, ale krehká.',
   nastroj: nastroj('sekera', 1.7, { drevo: 2, kamen: 0.25, list: 1.4 }, 28), drzanie: drzanie(0.15), model: sekera(C.obsidian, 0x1a1d21) });
-predmet('obsidianovy_krompac', { kopa: 1, meno: 'Obsidiánový krompáč', ikona: '⛏️', popis: 'Láme kameň rýchlo, ale rýchlo sa opotrebuje.',
+predmet('obsidianovy_krompac', { kopa: 1, meno: 'Obsidiánový krompáč', ikona: ik('war-pick', '#56487e'), popis: 'Láme kameň rýchlo, ale rýchlo sa opotrebuje.',
   nastroj: nastroj('krompac', 1.8, { drevo: 0.3, kamen: 2, list: 0.3 }, 30), drzanie: drzanie(0.15), model: krompac(0x1a1d21, C.drevo) });
-predmet('obsidianovy_noz', { kopa: 1, meno: 'Obsidiánový nôž', ikona: '🔪', popis: 'Ostrejší ako oceľ, no krehký.',
+predmet('obsidianovy_noz', { kopa: 1, meno: 'Obsidiánový nôž', ikona: ik('plain-dagger', '#56487e'), popis: 'Ostrejší ako oceľ, no krehký.',
   nastroj: nastroj('noz', 1.8, { drevo: 0.5, kamen: 0, list: 3.5 }, 35), drzanie: drzanie(0.08, 0.7), model: noz(0.26, 0x1a1d21, C.drevo) });
-predmet('obsidianovy_mec', { kopa: 1, meno: 'Obsidiánový meč', ikona: '🗡️', popis: 'Zbraň s obrovským poškodením. Čepeľ je krehká.',
+predmet('obsidianovy_mec', { kopa: 1, meno: 'Obsidiánový meč', ikona: ik('shard-sword', '#56487e'), popis: 'Zbraň s obrovským poškodením. Čepeľ je krehká.',
   nastroj: { ...nastroj('mec', 2.2, { drevo: 0.6, kamen: 0, list: 3 }, 35), zivocichy: 9 }, drzanie: drzanie(0.08, 0.7), model: noz(0.7, 0x1a1d21, C.tmavy) });
 
-predmet('kyj', { kopa: 1, meno: 'Kyj', ikona: '🏏', popis: 'Ťažká drevená palica.',
+predmet('kyj', { kopa: 1, meno: 'Kyj', ikona: ik('wood-club', '#9a6638'), popis: 'Ťažká drevená palica.',
   nastroj: nastroj('kyj', 1.5, { drevo: 0.8, kamen: 0.1, list: 1.5 }, 60), drzanie: drzanie(0.15), model: kyj() });
 
-predmet('bambusova_ostep', { kopa: 1, meno: 'Bambusový oštep', ikona: '🔱', popis: 'Ľahký oštep na lov a ryby.',
+predmet('bambusova_ostep', { kopa: 1, meno: 'Bambusový oštep', ikona: ik('stone-spear', '#a5c75a'), popis: 'Ľahký oštep na lov a ryby.',
   nastroj: nastroj('ostep', 1.2, { drevo: 0.3, kamen: 0.05, list: 1 }, 30), drzanie: drzanie(0.5, 0.35), model: ostep(C.bambus) });
-predmet('kamenna_ostep', { kopa: 1, meno: 'Kamenný oštep', ikona: '🔱', popis: 'Oštep s kamenným hrotom, vydrží viac.',
+predmet('kamenna_ostep', { kopa: 1, meno: 'Kamenný oštep', ikona: ik('stone-spear', '#a19d95'), popis: 'Oštep s kamenným hrotom, vydrží viac.',
   nastroj: nastroj('ostep', 1.8, { drevo: 0.3, kamen: 0.05, list: 1 }, 60), drzanie: drzanie(0.5, 0.35), model: ostep(C.kamen2) });

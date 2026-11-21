@@ -25,6 +25,7 @@ import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori,
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
+import { UI } from './ikony.js';
 import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
 import { initUlohy, hlas as hlasUlohy, aktualizujUlohy, prepniOkno as prepniDennik, jeOknoOtvorene as jeDennik, ulozUlohy, nacitajUlohy, stavUloh } from './ulohy.js';
@@ -110,7 +111,7 @@ addEventListener('beforeunload', uloz);
 
 function oznam(text) {
   const d = document.createElement('div');
-  d.className = 'oznam panel'; d.textContent = text;
+  d.className = 'oznam panel'; d.innerHTML = text;
   $('oznamy').appendChild(d);
   setTimeout(() => d.remove(), 2700);
 }
@@ -209,7 +210,7 @@ nastavLodenicu({
     const m = miestoSpustenia(L, (x, z) => lode.some(l => Math.hypot(l.poz.x - x, l.poz.y - z) < 9));
     if (!m) { oznam('Pri lodenici nie je voľné miesto na vode'); return false; }
     novaLod(druh, m.x, m.z).smer = m.smer;
-    zvuky.pad(); oznam(`🛠️ Postavená loď: ${DRUHY[druh].nazov} – čaká na vode pri splave`);
+    zvuky.pad(); oznam(`${UI.lod} Postavená loď: ${DRUHY[druh].nazov} – čaká na vode pri splave`);
     return true;
   },
 });
@@ -267,7 +268,7 @@ function spi(d, noc) {
     stavPreziti.zdravie = Math.min(100, stavPreziti.zdravie + dalej * 8);
     hrac.poz.set(postel[0], vyskaTerenu(postel[0], postel[1]), postel[1]);
     oznam(noc ? '☀️ Dobré ráno! Vyspal si sa do rána' : '😴 Zdriemol si si hodinku');
-    oznam('🛏️ Tu sa zobudíš, ak omdlieš');
+    oznam(`${UI.hamaka} Tu sa zobudíš, ak omdlieš`);
     setTimeout(() => { z.style.opacity = 0; spim = false; }, 700);
   }, 1300);
 }
@@ -360,11 +361,11 @@ function aktualizuj(dt) {
       if (vKanoe || hrac.plava) oznam('Oheň sa dá položiť len na súši');
       else if (vyskaTerenu(x, z) < vyskaVody(x, z, cas) + 0.15) oznam('Tu je voda – oheň polož na suchú zem');
       else if (!polozOhen(x, z)) oznam('Príliš blízko iného ohňa');
-      else { hlasUlohy('ohen'); odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam('🔥 Táborák horí – prikladaj drevo (E)'); }
+      else { hlasUlohy('ohen'); odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam(`${UI.ohen} Táborák horí – prikladaj drevo (E)`); }
     } else if (d?.polozit === 'lodenica' && !vKanoe) {      // polozit lodenicu 5 m pred postavu (pri brehu)
       const r = polozLodenicu(hrac.poz.x - Math.sin(hrac.smer) * 5, hrac.poz.z - Math.cos(hrac.smer) * 5);
       if (r !== true) oznam(r);
-      else { odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam('🏗️ Lodenica postavená – E pri nej staviaš lode'); }
+      else { odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam(`${PREDMETY.lodenica.ikona} Lodenica postavená – E pri nej staviaš lode`); }
     }
   }
   const zivy = !stavPreziti.mrtvy;
@@ -416,8 +417,8 @@ function aktualizuj(dt) {
       const d = vybranyPredmet(), mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
       const peci = hori(ohen) && d && daSaUpiect(d.id);
       napoveda = peci ? `<kbd>E</kbd> upiecť: ${d.ikona} ${d.meno}`
-        : pocet('drevo') ? `<kbd>E</kbd> ${hori(ohen) ? 'priložiť drevo' : 'zapáliť (drevo)'}` : hori(ohen) ? 'Na priloženie treba 🪵 drevo' : 'Pahreba – zapáliš ju drevom';
-      if (hori(ohen)) napoveda += ` · 🔥 ${mmss(ohen.palivo)}${ohen.pecie.length ? ` · pečie sa ${ohen.pecie.length}×` : ''}`;
+        : pocet('drevo') ? `<kbd>E</kbd> ${hori(ohen) ? 'priložiť drevo' : 'zapáliť (drevo)'}` : hori(ohen) ? `Na priloženie treba ${UI.drevo} drevo` : 'Pahreba – zapáliš ju drevom';
+      if (hori(ohen)) napoveda += ` · ${UI.ohen} ${mmss(ohen.palivo)}${ohen.pecie.length ? ` · pečie sa ${ohen.pecie.length}×` : ''}`;
       if (stlacene('KeyE')) {
         if (peci) { if (pec(ohen, d.id)) { odober(d.id, 1); vykresliInventar(); zvuky.syc(); } else oznam('Na ohni už nie je miesto'); }
         else if (pocet('drevo')) { if (prilozDrevo(ohen)) { odober('drevo', 1); vykresliInventar(); zvuky.uder('drevo'); hrac.zdvihni(); } else oznam('Oheň je plný dreva'); }

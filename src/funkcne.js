@@ -1,6 +1,7 @@
 // Funkcne stavby: truhlica (sklad), zberac vody (dazd -> voda), susiak (ryby/ovocie sa susia), kamenna pec
 // (pecie 6 kusov naraz na dreve), hamaka (prespanie noci + miesto, kde sa zobudis po omdleti).
 // Stav kazdej stavby je v d.st (uklada sa spolu so stavbami v stavba.js).
+import { UI } from './ikony.js';
 import * as THREE from 'three';
 import { diely } from './stavba.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -112,9 +113,9 @@ export function obsluha(d, h) {
   if (d.typ === 'zberac_vody') {
     const n = Math.floor(st.v);
     if (n < 1) return { text: `Zberač je prázdny – naplní ho dážď 🌧 (${Math.round(st.v / VODA_MAX * 100)} %)`, akcia: null };
-    return { text: `<kbd>E</kbd> napiť sa 💧 (${n}/${VODA_MAX})`, akcia: () => {
+    return { text: `<kbd>E</kbd> napiť sa ${UI.voda} (${n}/${VODA_MAX})`, akcia: () => {
       if (h.smad >= 98) return h.oznam('Nie si smädný');
-      h.zjedz({ id: 'dazdova_voda', jedlo: { sytost: 0, voda: VODA_DUSOK } }); st.v -= 1; h.oznam('💧 Napil si sa dažďovej vody');
+      h.zjedz({ id: 'dazdova_voda', jedlo: { sytost: 0, voda: VODA_DUSOK } }); st.v -= 1; h.oznam(`${UI.voda} Napil si sa dažďovej vody`);
     } };
   }
   if (d.typ === 'susiak' || d.typ === 'kamenna_pec') {
@@ -122,7 +123,7 @@ export function obsluha(d, h) {
     const hotove = st.sl.filter(s => s.hotove);
     const vlozit = v && TAB[v.id] && st.sl.length < MAX;
     const info = [];
-    if (pec) info.push(st.p > 0 ? `🔥 ${mmss(st.p)}` : 'vyhasnutá');
+    if (pec) info.push(st.p > 0 ? `${UI.ohen} ${mmss(st.p)}` : 'vyhasnutá');
     const bezi = st.sl.filter(s => !s.hotove);
     if (bezi.length) info.push(`${pec ? 'pečie' : 'suší'} sa ${bezi.length}× (${mmss(Math.max(...bezi.map(s => s.t)))})`);
     const inf = info.length ? ' · ' + info.join(' · ') : '';
@@ -135,7 +136,7 @@ export function obsluha(d, h) {
     if (pec && h.pocet('drevo') && st.p < PEC_PALIVO_MAX - PEC_DREVO / 2)
       return { text: `<kbd>E</kbd> ${st.p > 0 ? 'priložiť' : 'zapáliť'} drevo${inf}`, akcia: () => { h.odober('drevo', 1); st.p = Math.min(PEC_PALIVO_MAX, st.p + PEC_DREVO); } };
     const co = pec ? 'surové jedlo (ryba, krab, taro, huba, banán)' : 'rybu alebo ovocie (banán, mango, ananás)';
-    return { text: `Vyber do ruky ${co}${pec && !st.p ? ' a pridaj 🪵 drevo' : ''}${inf}`, akcia: null };
+    return { text: `Vyber do ruky ${co}${pec && !st.p ? ' a pridaj ' + UI.drevo + ' drevo' : ''}${inf}`, akcia: null };
   }
   if (d.typ === 'hamaka') {
     const noc = h.hodina >= 19 || h.hodina < 5;

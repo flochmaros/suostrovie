@@ -58,7 +58,7 @@ const html = () => `
   <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button></div>
 </div>
 <div class="obsah" data-t="predmety" hidden>
-  <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.ikona || ''} ${v.meno || k}</option>`).join('')}</select>
+  <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
     <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
   <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
 </div>

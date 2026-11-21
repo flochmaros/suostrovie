@@ -29,6 +29,8 @@
   .slot.pop { animation: pop .45s ease-out; }
   @keyframes pop { 0% { transform: scale(1); } 30% { transform: scale(1.22); box-shadow: 0 0 14px rgba(255,230,150,.9); } 100% { transform: scale(1); } }
   .slot .ikona { font-size: 30px; line-height: 1; }
+  .ik { width: 1.3em; height: 1.3em; vertical-align: -0.32em; filter: drop-shadow(0 1px 1px rgba(0,0,0,.55)); }
+  .ikona .ik, .velka .ik, #duch .ik { width: 1.25em; height: 1.25em; display: block; vertical-align: 0; }
   .slot .cislo { position: absolute; top: 2px; left: 6px; font-size: 11px; opacity: .75; }
   .slot .pocet { position: absolute; bottom: 1px; right: 6px; font-size: 14px; font-weight: 800; }
   .slot .trv { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 4px; border-radius: 2px; background: rgba(0,0,0,.45); overflow: hidden; }
@@ -144,14 +146,14 @@
   <div id="napoveda"></div>
   <div id="dych"><div></div></div>
   <div id="uloha-hud" class="panel"></div>
-  <div id="uloha-ukaz" class="panel" title="Zobraziť úlohu">📖</div>
-  <div id="dennik" class="panel"><h2>📖 Denník <small><kbd>J</kbd> zavrie</small><span id="dennik-zavri" class="zalozka" style="margin-left:auto">Zavrieť</span></h2><div id="dennik-obsah"></div></div>
+  <div id="uloha-ukaz" class="panel" title="Zobraziť úlohu"><span data-ik="dennik"></span></div>
+  <div id="dennik" class="panel"><h2><span data-ik="dennik"></span> Denník <small><kbd>J</kbd> zavrie</small><span id="dennik-zavri" class="zalozka" style="margin-left:auto">Zavrieť</span></h2><div id="dennik-obsah"></div></div>
   <div id="oznamy"></div>
   <div id="zatmenie" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:50"></div>
   <div id="bary" class="panel">
-    <div class="bar" id="bar-zdravie"><div style="width:100%"></div><span>❤</span></div>
-    <div class="bar" id="bar-hlad"><div style="width:100%"></div><span>🍖</span></div>
-    <div class="bar" id="bar-smad"><div style="width:100%"></div><span>💧</span></div>
+    <div class="bar" id="bar-zdravie"><div style="width:100%"></div><span data-ik="srdce"></span></div>
+    <div class="bar" id="bar-hlad"><div style="width:100%"></div><span data-ik="jedlo"></span></div>
+    <div class="bar" id="bar-smad"><div style="width:100%"></div><span data-ik="voda"></span></div>
   </div>
   <div id="lista" class="panel"></div>
   <div id="batoh" class="panel">

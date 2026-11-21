@@ -1,4 +1,5 @@
 // Dennik uloh: sleduje postup, ukladanie, oznamenie, HUD panel (vpravo hore) a okno Dennika (J).
+import { UI } from './ikony.js';
 import { KAPITOLY } from './obsah/ulohy.js';
 import { pocet, pridaj, vykresli as vykresliInventar } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -67,8 +68,8 @@ export function skontroluj() {
       hotove.add(u.id); zmena = true;
       const o = odmen(u);
       ctx.zvuk();
-      ctx.oznam(`📖 Úloha splnená: ${u.text.split(' (')[0]}${o ? ' · odmena ' + o : ''}`);
-      if (kapHotova(KAPITOLY[i])) ctx.oznam(KAPITOLY[i + 1] ? `📖 Nová kapitola: ${KAPITOLY[i + 1].meno}` : '📖 Kapitola dokončená');
+      ctx.oznam(`${UI.dennik} Úloha splnená: ${u.text.split(' (')[0]}${o ? ' · odmena ' + o : ''}`);
+      if (kapHotova(KAPITOLY[i])) ctx.oznam(KAPITOLY[i + 1] ? `${UI.dennik} Nová kapitola: ${KAPITOLY[i + 1].meno}` : `${UI.dennik} Kapitola dokončená`);
     }
   }
   if (zmena) { vykresliHud(); if (otvorene) vykresliOkno(); }
@@ -81,9 +82,9 @@ function vykresliHud() {
   const a = aktualna();
   h.style.display = skryty ? 'none' : 'block';
   $('uloha-ukaz').style.display = skryty ? 'block' : 'none';
-  if (!a) { h.innerHTML = '<b>📖 Denník</b><div>Všetky úlohy splnené – ďalšie pribudnú.</div>'; return; }
+  if (!a) { h.innerHTML = `<b>${UI.dennik} Denník</b><div>Všetky úlohy splnené – ďalšie pribudnú.</div>`; return; }
   const [x, n] = postup(a.u);
-  h.innerHTML = `<b>📖 ${a.kap.meno}</b><div>${a.u.text}${n > 1 ? ` <span class="uloha-p">${Math.min(x, n)}/${n}</span>` : ''}</div><small>J – denník · klik skryje</small>`;
+  h.innerHTML = `<b>${UI.dennik} ${a.kap.meno}</b><div>${a.u.text}${n > 1 ? ` <span class="uloha-p">${Math.min(x, n)}/${n}</span>` : ''}</div><small>J – denník · klik skryje</small>`;
 }
 
 // ---------- okno ----------
@@ -91,7 +92,7 @@ function vykresliOkno() {
   const o = $('dennik-obsah');
   if (!o) return;
   o.innerHTML = KAPITOLY.map((k, i) => {
-    if (!kapOdomknuta(i)) return '<div class="kap zamknuta"><h3>🔒 ???</h3><div class="uloha">Dokonči predchádzajúcu kapitolu.</div></div>';
+    if (!kapOdomknuta(i)) return `<div class="kap zamknuta"><h3>${UI.zamok} ???</h3><div class="uloha">Dokonči predchádzajúcu kapitolu.</div></div>`;
     const spl = k.ulohy.filter(u => hotove.has(u.id)).length;
     return `<div class="kap"><h3>${k.meno} <small>${spl}/${k.ulohy.length}</small></h3><p class="tichy">${k.popis}</p>` +
       k.ulohy.map(u => {

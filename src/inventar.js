@@ -200,7 +200,7 @@ export function initInventar(onZmena) {
       zmena(); return;
     }
     tahany = { P, i: +s.dataset.i };
-    duch.textContent = PREDMETY[P[tahany.i].typ].ikona;
+    duch.innerHTML = PREDMETY[P[tahany.i].typ].ikona;
     duch.style.display = 'block';
     duch.style.left = e.clientX + 'px'; duch.style.top = e.clientY + 'px';
   });

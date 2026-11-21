@@ -46,6 +46,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/lode_modely.js`, `src/lodenica.js` | 3D modely nových lodí; lodenica (stavba pri vode, spúšťanie lodí) |
 | `src/stavba.js` | stavanie: podlaha/stena/strecha na mriežke 2 m (F), náhľad, kolízie (`odtlacOdStien`, `vyskaPodlahy` v hrac.js), rozobratie úderom, ukladanie |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
+| `src/ikony.js` | ikony: `ik(tvar, farba, ...vrstvy)` → SVG (game-icons.net CC BY 3.0 + vlastné), `UI` ikony HUD, `data-ik` v HTML |
 | `src/inventar.js` | batoh 32 políčok (prvých 8 = lišta), ťahanie, Shift+klik, delenie stohu, zoradenie; výroba so záložkami (Tab); stavebné menu (B) |
 | `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js`, `jedlo.js`, `more.js` |
 | `server.py` | lokálny server bez cache |

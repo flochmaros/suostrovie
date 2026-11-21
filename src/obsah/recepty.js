@@ -3,6 +3,7 @@
 // Nepovinne: meno, ikona (inak z vysledku), podmienka: () => bool (false = recept sa skryje),
 // akcia: () => void (zavola sa namiesto pridania vysledku; vrati false = zrusi vyrobu a vrati suroviny)
 // (vysledny predmet musi byt v obsah/predmety.js alebo obsah/nastroje.js)
+import { ik } from '../ikony.js';
 export const RECEPTY = [];
 export function recept(def) { RECEPTY.push(def); }
 
@@ -29,9 +30,9 @@ recept({ id: 'obsidianovy_mec', skupina: N, vysledok: ['obsidianovy_mec', 1], su
 recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [['kamen', 5], ['drevo', 2], ['palica', 2]] });
 
 // stavba: zakladne diely sa stavaju z menu B na mriezku 2 m (stavba.js), nevyrabaju sa do batohu
-recept({ id: 'podlaha', stavba: 'podlaha', skupina: 'Stavba', meno: 'Podlaha', ikona: '🟫', popis: 'Drevená plošina 2×2 m na nohách.', suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });
-recept({ id: 'stena', stavba: 'stena', skupina: 'Stavba', meno: 'Stena', ikona: '🧱', popis: 'Zrubová stena 2×2 m. Prichytí sa na hranu podlahy.', suroviny: [['drevo', 4], ['vlakno', 2]] });
-recept({ id: 'strecha', stavba: 'strecha', skupina: 'Stavba', meno: 'Strecha', ikona: '🛖', popis: 'Šikmá strecha z listov na vrch stien. Dá sa na nej stáť.', suroviny: [['list', 6], ['palica', 3], ['vlakno', 2]] });
+recept({ id: 'podlaha', stavba: 'podlaha', skupina: 'Stavba', meno: 'Podlaha', ikona: ik('packed-planks', '#b88a56'), popis: 'Drevená plošina 2×2 m na nohách.', suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });
+recept({ id: 'stena', stavba: 'stena', skupina: 'Stavba', meno: 'Stena', ikona: ik('wood-pile', '#a87340'), popis: 'Zrubová stena 2×2 m. Prichytí sa na hranu podlahy.', suroviny: [['drevo', 4], ['vlakno', 2]] });
+recept({ id: 'strecha', stavba: 'strecha', skupina: 'Stavba', meno: 'Strecha', ikona: ik('hut', '#d6b86a'), popis: 'Šikmá strecha z listov na vrch stien. Dá sa na nej stáť.', suroviny: [['list', 6], ['palica', 3], ['vlakno', 2]] });
 
 // lodenica: polozi sa klavesou F pri brehu; v nej sa stavaju a vylepsuju lode
 recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['kamen', 6]] });
