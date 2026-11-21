@@ -2,7 +2,7 @@
 // Predmety su v obsah/predmety.js, recepty v obsah/recepty.js.
 // Batoh (Tab): predmety sa daju presuvat mysou (tahaj a pusti), vpravo je panel vyroby so zalozkami.
 // Stavebne menu (B): samostatne okno s kartami stavebnych dielov a taboru (skupiny z STAVBA_SKUPINY).
-const STAVBA_SKUPINY = ['Stavba', 'Tábor'];
+const STAVBA_SKUPINY = ['Stavba', 'Nábytok', 'Tábor', 'Prístav'];
 const zalozka = {};                                // rezim -> zvolena skupina receptov
 import { PREDMETY } from './obsah/predmety.js';
 import { RECEPTY } from './obsah/recepty.js';
@@ -85,7 +85,8 @@ const policko = (s, i, z = 'b') => `<div class="slot${z === 'b' && i === vybrany
 const jeStavebny = r => STAVBA_SKUPINY.includes(r.skupina);
 const surovinyHtml = r => `<div class="suroviny">` + r.suroviny.map(([id, c]) => `<span class="${pocet(id) >= c ? 'ma' : 'chyba'}">${ikonaPredmetu(id)} ${Math.min(pocet(id), c)}/${c}</span>`).join('') + '</div>';
 const stavHtml = r => {
-  if (mozeVyrobit(r)) return '<div class="stav">Kliknutím vyrobíš</div>';
+  if (r.stavba && r.vysledok && pocet(r.vysledok[0])) return '<div class="stav">Kliknutím umiestniš (z batohu)</div>';
+  if (mozeVyrobit(r)) return `<div class="stav">Kliknutím ${r.stavba ? 'umiestniš' : 'vyrobíš'}</div>`;
   const chyba = r.suroviny.filter(([id, n]) => pocet(id) < n);
   return chyba.length ? `<div class="stav chybaj">Chýba: ${chyba.map(([id, c]) => `${c - pocet(id)}× ${PREDMETY[id]?.meno ?? id}`).join(', ')}</div>` : '';
 };
@@ -117,9 +118,9 @@ function receptyHtml(skupiny) {
 function karty(skupiny) {
   return skupiny.get(zalozka[rezim]).map(i => {
     const r = RECEPTY[i], p = r.vysledok ? PREDMETY[r.vysledok[0]] : null;
-    const ok = mozeVyrobit(r), ma = p ? pocet(p.id) : 0;
+    const ma = p ? pocet(p.id) : 0, ok = mozeVyrobit(r) || (r.stavba && ma > 0);
     return `<div class="karta${ok ? ' moze' : ' nedostupny'}" data-r="${i}"><span class="velka">${r.ikona ?? p?.ikona ?? '?'}</span><b>${r.meno ?? p?.meno ?? r.id}</b>`
-      + (p?.popis ? `<div class="popis">${p.popis}</div>` : '') + surovinyHtml(r) + stavHtml(r) + (ma ? `<div class="mas">V batohu: ${ma}</div>` : '') + '</div>';
+      + ((r.popis ?? p?.popis) ? `<div class="popis">${r.popis ?? p.popis}</div>` : '') + surovinyHtml(r) + stavHtml(r) + (ma ? `<div class="mas">V batohu: ${ma}</div>` : '') + '</div>';
   }).join('');
 }
 
@@ -135,7 +136,7 @@ export function vykresli() {
     const sk = receptySkupiny();
     $('stavba-tabs').innerHTML = zalozkyHtml(sk);
     $('stavba-zoznam').innerHTML = sk.size ? karty(sk) : '<p class="prazdne">Zatiaľ nič na stavanie.</p>';
-    $('stavba-pata').innerHTML = 'Vyrobený diel sa vloží do lišty. Zavri menu a polož ho <kbd>F</kbd>; inú položku vyberieš <kbd>1–8</kbd>.';
+    $('stavba-pata').innerHTML = 'Klikni na stavbu → mierením vyberieš miesto, <kbd>koliesko</kbd>/<kbd>Q</kbd> otáča, <kbd>klik</kbd> postaví, <kbd>pravý klik</kbd> zruší. Suroviny sa minú až pri postavení.';
     return;
   }
   $('batoh-mriezka').innerHTML = sloty.map((s, i) => policko(s, i)).join('');
@@ -174,6 +175,10 @@ export function initInventar(onZmena) {
     const r = e.target.closest('.recept, .karta');
     if (!r) return;
     const rec = RECEPTY[+r.dataset.r];
+    if (rezim === 'stavba' && rec.stavba) {           // stavba: nevyrabi sa, zacne umiestnovanie (main.js + stavba.js)
+      if (mozeVyrobit(rec) || (rec.vysledok && pocet(rec.vysledok[0]))) dispatchEvent(new CustomEvent('stavaj', { detail: rec }));
+      return;
+    }
     if (!vyrob(rec)) return;
     if (rezim === 'stavba' && rec.vysledok) { const id = rec.vysledok[0]; let i = sloty.findIndex((s, k) => k < 8 && s?.typ === id); if (i < 0) { i = vybrany; presun(sloty.findIndex(s => s?.typ === id), i); } vybrany = i; }   // vyrobeny diel rovno do ruky
     zmena();

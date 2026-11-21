@@ -22,7 +22,7 @@ import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
 import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne } from './ohen.js';
-import { initStavba, miesto, nahlad, poloz, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
+import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { ZDROJE } from './obsah/zdroje.js';
@@ -52,7 +52,8 @@ moreUdalosti.priZraneni = (dmg, pricina) => zran(dmg, pricina);
 initPocasie(g);
 initOhen(scena);
 initLodenice(scena);
-initStavba(scena);
+initStavba(scena, { oznam: t => oznam(t), pad: () => zvuky.pad(),   // stavanie: taborak a lodenicu polozi ich vlastny kod
+  specialne: { taborak: (x, z) => polozOhen(x, z) || 'Príliš blízko iného ohňa', lodenica: (x, z) => polozLodenicu(x, z) } });
 let poc = null;                                   // posledny stav pocasia (hodina, svetlo, dazd...)
 const kam = vytvorKameru(kamera);
 hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z);
@@ -232,6 +233,7 @@ initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vK
 const menu = initNastavenia(g, $('start'));
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initInventar(() => hrac.drz(vybranyPredmet()));
+addEventListener('stavaj', e => { if (stavPreziti.mrtvy || vKanoe) return; prepniBatoh(false); zamkni(); zacniStavat(e.detail); });   // klik na stavbu v menu B
 vykresliInventar();
 hrac.drz(vybranyPredmet());
 
@@ -287,6 +289,7 @@ function aktualizuj(dt) {
   if (stlacene('Tab')) { if (prepniBatoh(!jeOtvoreny() || rezimOkna() === 'stavba', 'batoh')) document.exitPointerLock(); else zamkni(); }
   if (stlacene('KeyM')) oznam(menu.prepniTicho() ? '🔇 Zvuk vypnutý (M)' : '🔊 Zvuk zapnutý (M)');
   if (stlacene('KeyB') && !stavPreziti.mrtvy && !vKanoe) {   // stavebne menu
+    zrusStavanie();
     if (jeOtvoreny() && rezimOkna() === 'stavba') { prepniBatoh(false); zamkni(); }
     else { prepniBatoh(true, 'stavba'); document.exitPointerLock(); }
   }
@@ -310,9 +313,7 @@ function aktualizuj(dt) {
       if (r !== true) oznam(r);
       else { odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam('🏗️ Lodenica postavená – E pri nej staviaš lode'); }
     } else if (d?.polozit === 'stavba' && !vKanoe) {       // polozit stavebny diel (nahlad ukazuje kam)
-      const p = miesto(d.id, hrac.poz.x, hrac.poz.z, kam.yaw, cas);
-      if (!p.ok) oznam(p.dovod);
-      else { poloz(p); odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); }
+      zacniStavat(d.id);                                  // diel z batohu -> rezim umiestnovania
     }
   }
   const zivy = !stavPreziti.mrtvy;
@@ -349,7 +350,7 @@ function aktualizuj(dt) {
     hrac.nasobok = rychlostNasobok();
     if (!letim && zivy) hrac.aktualizuj(dt, kam.yaw, cas);
     for (const l of lode) if (Math.hypot(l.poz.x - hrac.poz.x, l.poz.y - hrac.poz.z) < 25) odtlacOdLode(l, hrac.poz);   // trup lode je pevny
-    if (stlacene('Mys0') && zivy) hrac.uder();
+    if (stlacene('Mys0') && zivy && !stavim()) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
     const ohen = !blizko && !predmet && najblizsiOhen(hrac.poz.x, hrac.poz.z);   // taborak ma prednost pred zberom
@@ -367,7 +368,7 @@ function aktualizuj(dt) {
         else if (pocet('drevo')) { if (prilozDrevo(ohen)) { odober('drevo', 1); vykresliInventar(); zvuky.uder('drevo'); hrac.zdvihni(); } else oznam('Oheň je plný dreva'); }
       }
     } else if (vybranyPredmet()?.polozit === 'taborak') napoveda = '<kbd>F</kbd> položiť táborák';
-    else if (vybranyPredmet()?.polozit === 'stavba') napoveda = `<kbd>F</kbd> položiť: ${vybranyPredmet().meno.toLowerCase()} · otáčaš pohľadom · <kbd>klik</kbd> rozobrať`;
+    else if (vybranyPredmet()?.polozit === 'stavba') napoveda = `<kbd>F</kbd> umiestniť: ${vybranyPredmet().meno.toLowerCase()}`;
     const lodUk = !blizko && !predmet && !ohen && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
     if (blizko) napoveda = `<kbd>E</kbd> nastúpiť: ${kanoe.stat.nazov} · <kbd>R</kbd> sklad`;
     else if (lodUk) napoveda = '<kbd>E</kbd> lodenica – stavba a vylepšenie lodí';
@@ -385,8 +386,8 @@ function aktualizuj(dt) {
       else oznam('Batoh je plný');
     }
   }
-  const dStavba = vybranyPredmet()?.polozit === 'stavba' && !vKanoe && vybranyPredmet().id;
-  nahlad(dStavba ? miesto(dStavba, hrac.poz.x, hrac.poz.z, kam.yaw, cas) : null);   // ghost dielu
+  const tStavba = aktualizujStavby({ kamera, hlava: new THREE.Vector3(hrac.poz.x, hrac.poz.y + 1.55, hrac.poz.z), yaw: kam.yaw, t: cas, hrac: hrac.poz, aktivne: !vKanoe && !naPalube && zivy && !jeOtvoreny() });
+  if (tStavba) napoveda = tStavba;                       // rezim umiestnovania stavby (nahlad, klik, otacanie)
   $('napoveda').innerHTML = napoveda;
 
   const stred = vKanoe ? kanoe.model.position : hrac.poz;
