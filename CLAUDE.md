@@ -21,6 +21,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 - **Web (verejný):** https://flochmaros.github.io/suostrovie/ – repo `flochmaros/suostrovie`, GitHub Pages z vetvy `main`; každý push sa do ~1 min objaví na webe.
 - Spustenie lokálne: `python server.py` v tomto priečinku (server bez cache) → http://localhost:8125 (alebo `.claude/launch.json` „hra“).
 - Komentáre v kóde po slovensky bez diakritiky; názvy premenných môžu byť slovensky.
+- Repo: https://github.com/flochmaros/suostrovie (GitHub Pages) – po každom commite **push**.
 - Svet je deterministický zo `SEED` (`src/svet.js`): rovnaký seed = rovnaké ostrovy.
 
 ## Štruktúra
