@@ -21,38 +21,73 @@ let ctx, panel, info, snimky = 0, casFps = 0, fps = 0;
 
 const html = () => `
 <style>
-  #dev { position: fixed; top: 60px; left: 14px; width: 270px; max-height: calc(100vh - 80px); overflow: auto; z-index: 20;
-         padding: 12px 14px; border-radius: 12px; background: rgba(15, 20, 30, .88); color: #e8f0ff; font: 13px/1.45 system-ui, sans-serif; }
-  #dev h3 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #ffd27a; }
-  #dev h3:first-child { margin-top: 0; }
-  #dev label { display: block; cursor: pointer; }
-  #dev button, #dev select { margin: 2px 2px 2px 0; padding: 3px 8px; border: 1px solid #456; border-radius: 6px; background: #223044; color: #fff; cursor: pointer; font: inherit; }
+  #dev { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: 96vw; width: max-content;
+         font: 13px/1.4 system-ui, sans-serif; color: #e8f0ff; pointer-events: auto; user-select: none; }
+  #dev .lista { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; padding: 5px 8px; border-radius: 10px; background: rgba(15, 20, 30, .88); }
+  #dev .obsah { margin-top: 4px; padding: 8px 10px; border-radius: 10px; background: rgba(15, 20, 30, .88); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; justify-content: center; }
+  #dev .obsah[hidden], #dev .lista .ot[hidden] { display: none; }
+  #dev button, #dev select { padding: 3px 9px; border: 1px solid #456; border-radius: 6px; background: #223044; color: #fff; cursor: pointer; font: inherit; }
   #dev button:hover { background: #2f4462; }
-  #dev .info { font: 12px/1.5 ui-monospace, monospace; color: #9fe3ff; white-space: pre; }
+  #dev .zap { font-weight: 700; color: #ffd27a; }
+  #dev .tab.akt { background: #ffd27a; color: #1a1a1a; border-color: #ffd27a; }
+  #dev .vyp { opacity: .6; } #dev.otvoreny .vyp { opacity: 1; }
+  #dev label { cursor: pointer; white-space: nowrap; }
+  #dev .skup { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  #dev .skup > b { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #ffd27a; margin-right: 2px; }
+  #dev .info { font: 11px/1.25 ui-monospace, monospace; color: #9fe3ff; white-space: pre; padding: 0 6px; }
+  #dev input[type=range] { vertical-align: middle; width: 110px; }
 </style>
-<h3>Dev režim (F2)</h3>
-<div class="info" id="dev-info"></div>
-<h3>Pohyb</h3>
-<label><input type="checkbox" data-p="lietanie"> Lietanie (Medzerník hore, C dole, Shift rýchlo)</label>
-<label>Rýchlosť letu <input type="range" min="5" max="150" value="25" data-r="rychlostLetu"> <span id="dev-rl">25</span> m/s</label>
-<label><input type="checkbox" data-p="nekonecnyDych"> Nekonečný dych</label>
-<h3>Teleport</h3>
-<select id="dev-biom">${Object.entries(BIOM_MENO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
-<button data-a="teleport">Na najbližší</button><br>
-<button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button>
-<h3>Predmety a nástroje</h3>
-<button data-a="vsetko">Daj všetko (10×)</button><button data-a="vyprazdni">Vyprázdni batoh</button><br>
-<label><input type="checkbox" data-p="bezOpotrebenia"> Nástroje sa neopotrebúvajú</label>
-<label><input type="checkbox" data-a="rubanie"> Okamžité rúbanie</label>
-<h3>Kanoe</h3>
-<button data-k="1">Úroveň 1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button><br>
-Nová loď: <button data-lod="kanoe">Kanoe</button><button data-lod="pretekove">Pretekárske</button><button data-lod="barza">Barža</button><button data-lod="katamaran">Katamarán</button><br>
-<button data-vyl="1">Vylepšenia max</button><button data-vyl="0">Vylepšenia 0</button>
-<h3>Svet</h3>
-Hustota vegetácie: <button data-h="0.5">0.5×</button><button data-h="1">1×</button><button data-h="2">2×</button><button data-h="3">3×</button><br>
-<button data-a="cas">Čas +60 s (príliv)</button><button data-a="hud">Skryť/ukázať HUD</button><br>
-<button data-a="reset">Zmazať uloženie a reštart</button>
+<div class="lista">
+  <button class="zap" id="dev-zap" title="Dev režim (F2)">🛠 DEV</button>
+  <span class="ot" hidden><span class="info" id="dev-info"></span></span>
+  <span class="ot" hidden id="dev-tabs">
+    <button class="tab" data-t="pohyb">Pohyb</button><button class="tab" data-t="teleport">Teleport</button><button class="tab" data-t="predmety">Predmety</button><button class="tab" data-t="lode">Lode</button><button class="tab" data-t="svet">Svet</button>
+  </span>
+  <button class="ot" hidden data-a="hraj" title="Vrátiť myš do hry (klik do scény)">▶ Hrať</button>
+</div>
+<div class="obsah" data-t="pohyb" hidden>
+  <label><input type="checkbox" data-p="lietanie"> Lietanie <small>(Medzerník ↑, C ↓, Shift rýchlo)</small></label>
+  <label>Rýchlosť <input type="range" min="5" max="150" value="25" data-r="rychlostLetu"> <span id="dev-rl">25</span> m/s</label>
+  <label><input type="checkbox" data-p="nekonecnyDych"> Nekonečný dych</label>
+  <label><input type="checkbox" data-p="bezOpotrebenia"> Nástroje sa neopotrebúvajú</label>
+  <label><input type="checkbox" data-a="rubanie"> Okamžité rúbanie</label>
+</div>
+<div class="obsah" data-t="teleport" hidden>
+  <div class="skup"><b>Biom</b><select id="dev-biom">${Object.entries(BIOM_MENO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><button data-a="teleport">Na najbližší</button></div>
+  <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button></div>
+</div>
+<div class="obsah" data-t="predmety" hidden>
+  <button data-a="vsetko">Daj všetko (10×)</button><button data-a="vyprazdni">Vyprázdni batoh</button>
+</div>
+<div class="obsah" data-t="lode" hidden>
+  <div class="skup"><b>Úroveň kanoe</b><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button></div>
+  <div class="skup"><b>Nová loď</b><button data-lod="kanoe">Kanoe</button><button data-lod="pretekove">Pretekárske</button><button data-lod="barza">Barža</button><button data-lod="katamaran">Katamarán</button></div>
+  <div class="skup"><b>Vylepšenia</b><button data-vyl="1">Max</button><button data-vyl="0">0</button></div>
+</div>
+<div class="obsah" data-t="svet" hidden>
+  <div class="skup"><b>Vegetácia</b><button data-h="0.5">0.5×</button><button data-h="1">1×</button><button data-h="2">2×</button><button data-h="3">3×</button></div>
+  <div class="skup"><button data-a="cas">Čas +60 s (príliv)</button><button data-a="hud">Skryť/ukázať HUD</button><button data-a="reset">Zmazať uloženie a reštart</button></div>
+</div>
 `;
+
+const platno = () => document.querySelector('canvas');
+const zamkni = () => platno().requestPointerLock()?.catch?.(() => {});
+let aktTab = null;
+function otvorTab(t) {
+  aktTab = aktTab === t ? null : t;
+  panel.querySelectorAll('.tab').forEach(b => b.classList.toggle('akt', b.dataset.t === aktTab));
+  panel.querySelectorAll('.obsah').forEach(o => { o.hidden = o.dataset.t !== aktTab; });
+  try { localStorage.setItem('devTab', aktTab || ''); } catch (e) { /* nic */ }
+}
+function prepniDev(zap) {
+  const bol = dev.zapnuty;
+  dev.zapnuty = zap;
+  panel.classList.toggle('otvoreny', zap);
+  panel.querySelectorAll('.lista .ot').forEach(o => { o.hidden = !zap; });
+  panel.querySelectorAll('.obsah').forEach(o => { o.hidden = !zap || o.dataset.t !== aktTab; });
+  if (zap) { document.exitPointerLock(); document.getElementById('start').style.display = 'none'; }
+  else if (bol) { document.getElementById('start').style.display = 'flex'; zamkni(); }
+}
 
 // najblizsi ostrov daneho biomu (spirala buniek okolo bodu)
 function najdiBiom(biom, x, z) {
@@ -78,9 +113,14 @@ export function initDev(c) {
   panel = document.createElement('div');
   panel.id = 'dev';
   panel.innerHTML = html();
-  panel.style.display = 'none';
   document.body.appendChild(panel);
   info = panel.querySelector('#dev-info');
+  try { aktTab = localStorage.getItem('devTab') || 'pohyb'; } catch (e) { aktTab = 'pohyb'; }
+  const t0 = aktTab; aktTab = null; otvorTab(t0);
+  prepniDev(false);
+  panel.querySelector('#dev-zap').onclick = () => prepniDev(!dev.zapnuty);
+  // klik do scény pri otvorenom dev paneli vráti myš do hry (panel ostáva)
+  platno().addEventListener('click', () => { if (dev.zapnuty) zamkni(); });
 
   panel.addEventListener('input', e => {
     const t = e.target;
@@ -91,6 +131,8 @@ export function initDev(c) {
   panel.addEventListener('click', e => {
     const t = e.target.closest('button');
     if (!t) return;
+    if (t.dataset.t) return otvorTab(t.dataset.t);
+    if (t.dataset.a === 'hraj') return zamkni();
     const { hrac, kanoe } = ctx;
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
     if (t.dataset.vyl) for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? 3 : 0);
@@ -126,17 +168,15 @@ export function initDev(c) {
 // volat kazdy snimok; vrati true, ak dev rezim riadil pohyb hraca (lietanie)
 export function aktualizujDev(dt, g) {
   if (stlacene('F2')) {
-    dev.zapnuty = !dev.zapnuty;
-    panel.style.display = dev.zapnuty ? 'block' : 'none';
-    if (dev.zapnuty) document.exitPointerLock();
+    prepniDev(!dev.zapnuty);
   }
   snimky++; casFps += dt;
   if (casFps >= 0.5) { fps = snimky / casFps; snimky = 0; casFps = 0; }
   if (dev.zapnuty) {
     const { hrac, kanoe } = ctx, p = ctx.jeVKanoe() ? new THREE.Vector3(kanoe.poz.x, kanoe.y, kanoe.poz.y) : hrac.poz;
     const r = g.renderer.info.render;
-    info.textContent = `FPS ${fps.toFixed(0)} · kreslení ${r.calls} · ${(r.triangles / 1000).toFixed(0)}k Δ\n`
-      + `x ${p.x.toFixed(1)}  y ${p.y.toFixed(1)}  z ${p.z.toFixed(1)}\nbunka ${Math.floor(p.x / BUNKA)}, ${Math.floor(p.z / BUNKA)} · hustota ${nasobokHustoty}×`;
+    info.textContent = `${fps.toFixed(0)} FPS · ${r.calls} kr · ${(r.triangles / 1000).toFixed(0)}kΔ
+${p.x.toFixed(0)}, ${p.y.toFixed(1)}, ${p.z.toFixed(0)} · bunka ${Math.floor(p.x / BUNKA)},${Math.floor(p.z / BUNKA)} · ${nasobokHustoty}×`;
   }
   if (dev.nekonecnyDych) ctx.hrac.dych = 1;
   if (!dev.lietanie || ctx.jeVKanoe()) return false;
