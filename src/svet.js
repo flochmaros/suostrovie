@@ -16,13 +16,22 @@ const POLOMER_NAHRAVANIA = 2;          // 5 x 5 buniek okolo hraca
 // ---------- pasma (cim dalej od startu, tym drsnejsie more a vzacnejsie ostrovy) ----------
 // hranice v metroch od stredu startovej bunky; pasmo 1..5
 export const PASMA = [null,
-  { meno: 'Domovské ostrovy', do: 1200 },
-  { meno: 'Sopečné ostrovy', do: 2400 },
-  { meno: 'Mangrovové močiare', do: 3800 },
-  { meno: 'Búrkové útesy', do: 5400 },
-  { meno: 'Hmlisté ostrovy', do: Infinity },
+  { meno: 'Domovské ostrovy', do: 1200, lod: 'kanoe I' },
+  { meno: 'Sopečné ostrovy', do: 2400, lod: 'kanoe II' },
+  { meno: 'Mangrovové močiare', do: 3800, lod: 'kanoe III + lano' },
+  { meno: 'Búrkové útesy', do: 5400, lod: 'katamarán / plachta' },
+  { meno: 'Hmlisté ostrovy', do: Infinity, lod: 'kompas + mapa' },
 ];
-export function vzdialenostOdStartu(x, z) { return Math.hypot(x - BUNKA / 2, z - BUNKA / 2); }
+// vzdialenost od startu so setrvacnym sumom podla uhla (+-12 %): hranice pasiem nie su dokonale kruhy, ale maju zalivy a vyspy
+export function vzdialenostOdStartu(x, z) {
+  const dx = x - BUNKA / 2, dz = z - BUNKA / 2, d = Math.hypot(dx, dz);
+  if (d < 1) return d;
+  const a = Math.atan2(dz, dx);
+  return d / (1 + 0.12 * sumUhol(a));
+}
+const sumUhol = a => 0.5 * Math.sin(2 * a + 1.3) + 0.3 * Math.sin(3 * a + 4.1) + 0.2 * Math.sin(5 * a + 0.7);
+// presny polomer hranice pasma i (vonkajsia hranica) v smere uhla a od stredu startovej bunky (na kreslenie mapy)
+export function polomerPasma(i, a) { return PASMA[i].do * (1 + 0.12 * sumUhol(a)); }
 export function pasmo(x, z) {
   const d = vzdialenostOdStartu(x, z);
   for (let i = 1; i < PASMA.length; i++) if (d < PASMA[i].do) return i;

@@ -4,12 +4,15 @@
 import * as THREE from 'three';
 import { SLNKO, FARBA_HMLY } from './grafika.js';
 import { VODA } from './ocean.js';
+import { pasmoPlynule } from './svet.js';
 import { dazd as zvukDazd, noc as zvukNoc, hrom } from './zvuk.js';
 
 export const DEN_MINUT = 24;          // jeden herny den = 24 realnych minut
 const START_HODINA = 9;               // hra zacina o 9:00
 
 // Hmla pre main.js (nad vodou): scena.fog.near/far = MLHA.near/far; POD_VODOU = farba hmly pod hladinou
+const PAS_T2 = new THREE.Color(), PAS_T3 = new THREE.Color(), PAS_T4 = new THREE.Color(), PAS_T5 = new THREE.Color();
+export let pasmoVietor = 0, pasmoPopol = 0;   // doplnky pre vietor (main.js) a popol (castice)
 export const MLHA = { near: 220, far: 1300 };
 export const POD_VODOU = new THREE.Color(0x0d5468);
 
@@ -312,6 +315,19 @@ export function aktualizujPocasie(dt, cas, stred) {
   FARBA_HMLY.r += flash * 0.25; FARBA_HMLY.g += flash * 0.25; FARBA_HMLY.b += flash * 0.3;
   MLHA.near = 220 * (1 - 0.65 * mokro);
   MLHA.far = 1300 * (1 - 0.55 * mokro) * (1 - 0.2 * noc);
+  // atmosfera podla pasma (plynule): 2 oranzovy opar, 3 zelenkava hustejsia hmla, 4 sivsie, 5 hustá biela hmla
+  if (stred) {
+    const pf = pasmoPlynule(stred.x, stred.z), w = i => Math.max(0, 1 - Math.abs(pf - i));   // vaha pasma i (1..5)
+    const svetlo = 0.35 + 0.65 * den2;                      // v noci nech tinty nesvietia
+    FARBA_HMLY.lerp(PAS_T2.set(1.0, 0.62, 0.38).multiplyScalar(svetlo), 0.35 * w(2));
+    FARBA_HMLY.lerp(PAS_T3.set(0.42, 0.62, 0.38).multiplyScalar(svetlo), 0.45 * w(3));
+    FARBA_HMLY.lerp(PAS_T4.set(0.52, 0.56, 0.62).multiplyScalar(svetlo), 0.5 * w(4));
+    FARBA_HMLY.lerp(PAS_T5.set(0.9, 0.93, 0.96).multiplyScalar(0.25 + 0.75 * den2), 0.75 * w(5));
+    const hustota = 1 + 0.25 * w(2) + 0.55 * w(3) + 0.35 * w(4) + 1.6 * w(5);   // vacsie = hustejsia hmla
+    MLHA.near /= hustota; MLHA.far /= hustota;
+    pasmoVietor = 0.18 * w(4) + 0.08 * w(3);
+    pasmoPopol = w(2);
+  }
   POD_VODOU.set(0x0d5468).multiplyScalar(0.1 + 0.9 * clamp01(den2 * (1 - 0.35 * cover)));
 
   // --- voda: farby oblohy pre odraz, farba slnka, celkove svetlo ---

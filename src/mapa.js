@@ -2,7 +2,7 @@
 // Teren sa kresli do malych platien po dlazdiciach (1 dlazdica = 1 bunka sveta 520 m) a uklada sa do cache.
 // Dlazdice sa generuju postupne (casovy limit na snimok), aby hra nezasekavala.
 // Suradnice: sever = -z (hore), vychod = +x (vpravo) -> na mape px = x, py = z.
-import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA } from './svet.js';
+import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma } from './svet.js';
 
 const RES = 96;                 // pixelov na dlazdicu (5.4 m na pixel)
 const MAX_DLAZDIC = 700;        // limit cache (cca 37 kB na dlazdicu)
@@ -46,12 +46,54 @@ mini.innerHTML = `<canvas width="${MINI_PX * 2}" height="${MINI_PX * 2}"></canva
 const miniPlatno = mini.querySelector('canvas'), miniCtx = miniPlatno.getContext('2d');
 const miniSipka = mini.querySelector('.sipka'), miniPopis = mini.querySelector('.popis');
 
+// farby pasiem: [podfarbenie (priehladne), ciara]
+const PAS_FARBY = [['rgba(40,220,210,.10)', '#30d5c8'], ['rgba(255,110,40,.16)', '#ff7a3c'], ['rgba(90,140,50,.20)', '#8fbf4a'],
+  ['rgba(90,110,135,.22)', '#8fa6c0'], ['rgba(150,120,190,.22)', '#c2a8e8']];
+const N_UHLOV = 120;
+// obrys hranice pasma i (polygon v suradniciach platna); X, Z prevadzaju metre na pixely
+function obrysPasma(c, i, X, Z, spat) {
+  for (let k = 0; k < N_UHLOV; k++) {
+    const a = (spat ? N_UHLOV - k : k) / N_UHLOV * Math.PI * 2, r = polomerPasma(i, a);
+    const x = X(BUNKA / 2 + Math.cos(a) * r), y = Z(BUNKA / 2 + Math.sin(a) * r);
+    k ? c.lineTo(x, y) : c.moveTo(x, y);
+  }
+  c.closePath();
+}
+// podfarbenie pasiem + prerusovane hranice (popisy len na velkej mape); je to len 4 polygony po 120 bodoch
+function kresliPasma(c, w, h, X, Z, popisy, m) {
+  for (let i = 5; i >= 1; i--) {
+    c.beginPath();
+    if (i === 5) c.rect(0, 0, w, h); else obrysPasma(c, i, X, Z, false);
+    if (i > 1) obrysPasma(c, i - 1, X, Z, true);
+    c.fillStyle = PAS_FARBY[i - 1][0]; c.fill('evenodd');
+  }
+  c.save();
+  c.setLineDash(popisy ? [14, 9] : [7, 5]); c.lineWidth = popisy ? 2.5 : 1.8;
+  for (let i = 1; i <= 4; i++) {
+    c.beginPath(); obrysPasma(c, i, X, Z, false);
+    c.strokeStyle = PAS_FARBY[i][1]; c.stroke();
+  }
+  c.restore();
+  if (!popisy) return;
+  c.font = 'italic 700 14px Georgia, serif'; c.textAlign = 'center';
+  for (let i = 1; i <= 4; i++) {
+    for (const a of [-2.35, -0.8, 0.8, 2.35]) {            // 4 uhly: popis sa ukaze tam, kde je hranica v pohlade
+      const r = polomerPasma(i, a), sx = X(BUNKA / 2 + Math.cos(a) * r), sy = Z(BUNKA / 2 + Math.sin(a) * r);
+      if (sx < 80 || sx > w - 80 || sy < 20 || sy > h - 20) continue;
+      const t = `${i}→${i + 1} · ${PASMA[i + 1].meno}`;
+      c.lineWidth = 4; c.strokeStyle = 'rgba(20,14,6,.8)'; c.strokeText(t, sx, sy - 6);
+      c.fillStyle = PAS_FARBY[i][1]; c.fillText(t, sx, sy - 6);
+    }
+  }
+}
+
 const okno = document.createElement('div');
 okno.id = 'mapa-okno';
 okno.innerHTML = `<div id="mapa-ram"><canvas></canvas><div class="vineta"></div></div>
   <div id="mapa-titul">Mapa súostrovia</div>
   <div id="mapa-legenda"><div><i style="background:#fff"></i>Ty (šípka = smer)</div><div><i style="background:#ffb020"></i>Aktívna loď</div>
-    <div><i style="background:#c0392b"></i>Ostatné lode</div></div>
+    <div><i style="background:#c0392b"></i>Ostatné lode</div>
+    <hr style="border:0;border-top:1px solid rgba(255,255,255,.25);margin:6px 0">${PASMA.slice(1).map((p, i) => `<div><i style="background:${PAS_FARBY[i][1]}"></i>${i + 1} · ${p.meno}<br><small style="opacity:.7">loď: ${p.lod}</small></div>`).join('')}</div>
   <div id="mapa-info"></div>`;
 document.body.appendChild(okno);
 const mapaPlatno = okno.querySelector('canvas'), mapaCtx = mapaPlatno.getContext('2d');
@@ -228,8 +270,9 @@ function kresliMinimapu(hra) {
   const c = miniCtx, W = miniPlatno.width, m = W / (2 * MINI_R), p = hra.hrac.poz;
   const chyba = kresliTeren(c, W, W, p.x, p.z, m);
   fronta = chyba.sort((a, b) => a[1] - b[1]).map(a => a[0]);
-  // lode
   const r = W / 2;
+  kresliPasma(c, W, W, x => (x - p.x) * m + r, z => (z - p.z) * m + r, false, m);
+  // lode
   for (const l of hra.lode) {
     const aktivna = l === hra.kanoe;
     let dx = (l.poz.x - p.x) * m, dy = (l.poz.y - p.z) * m;
@@ -289,6 +332,7 @@ function kresliMapu(hra) {
 
   // sepiovy nadych starej mapy
   c.fillStyle = 'rgba(200,160,90,.13)'; c.fillRect(0, 0, w, h);
+  kresliPasma(c, w, h, X, Z, true, m);
   // mriezka po bunkach
   c.strokeStyle = 'rgba(70,45,20,.22)'; c.lineWidth = 1;
   c.beginPath();

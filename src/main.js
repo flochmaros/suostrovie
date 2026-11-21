@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
-import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO } from './svet.js';
+import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
-import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych } from './kanoe.js';
+import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
@@ -16,7 +16,7 @@ import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './ziv
 import './obsah/jedlo.js';
 import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti } from './more.js';
-import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU } from './pocasie.js';
+import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor } from './pocasie.js';
 import { initNastavenia } from './nastavenia.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
@@ -277,7 +277,24 @@ let poslednyOstrov = null, casNapisu = 0;
 const STRANY = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
 const BIOM = BIOM_MENO;
 const uhol = smer => ((Math.atan2(-Math.sin(smer), Math.cos(smer)) * 180 / Math.PI) + 360) % 360;
+// pasmo: hlaska pri prechode (hysteria 1.5 s, aby neblikala na hranici)
+let pasmoAkt = 0, pasmoNove = 0, pasmoCas = 0, pasmoNapis = 0;
+const PAS_FARBY_HUD = ['#30d5c8', '#ff7a3c', '#8fbf4a', '#8fa6c0', '#c2a8e8'];
+function hlaskaPasma(dt, p) {
+  const n = pasmo(p.x, p.z);
+  if (n !== pasmoNove) { pasmoNove = n; pasmoCas = 0; } else pasmoCas += dt;
+  if (n !== pasmoAkt && (pasmoCas > 1.5 || !pasmoAkt)) {
+    pasmoAkt = n;
+    const lod = vKanoe || naPalube ? kanoe : null;
+    const slaba = lod && n > (maxPasmo(lod) >= 4 ? 5 : maxPasmo(lod));
+    $('pasmo').style.setProperty('--pasmo-farba', PAS_FARBY_HUD[n - 1]);
+    $('pasmo').innerHTML = `Pásmo ${n} · ${PASMA[n].meno}` + (slaba ? `<small>Tvoja loď tu neobstojí – odporúčame: ${PASMA[n].lod}</small>` : n > 1 ? `<small>Odporúčaná loď: ${PASMA[n].lod}</small>` : '');
+    $('pasmo').style.opacity = 1; pasmoNapis = 4;
+  }
+  if ((pasmoNapis -= dt) < 0) $('pasmo').style.opacity = 0;
+}
 function hud(dt, p) {
+  hlaskaPasma(dt, p);
   const o = ostrovPri(p.x, p.z, 1.3);
   if (o && o !== poslednyOstrov) {
     const kluc = o.bx + ',' + o.bz, novy = !objavene.has(kluc);
@@ -295,7 +312,7 @@ function hud(dt, p) {
     + `${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} ${pr >= 0 ? '+' : ''}${pr.toFixed(1)} m<br>${casText(poc)}${poc.burka ? ' · ⛈' : poc.dazd > 0.3 ? ' · 🌧' : ''}`;
   const stav = vKanoe ? `${kanoe.stat.nazov} · <b>${(kanoe.rychlost() * 1.944).toFixed(0)}</b> uzlov` + (kanoe.plachtaV > 0.5 ? ` · plachta ${Math.round(kanoe.ucinnost * 100)} %` : '')
     : hrac.potapa ? 'Potápaš sa' : hrac.plava ? 'Plávaš' : 'Pešo';
-  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b><br>${stav}<br>Objavené ostrovy: ${objavene.size}`;
+  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b> <span style="opacity:.75">· pásmo ${pasmoAkt}</span><br>${stav}<br>Objavené ostrovy: ${objavene.size}`;
   $('dych').style.display = hrac.dych < 1 && !vKanoe ? 'block' : 'none';
   $('dych').firstChild.style.width = hrac.dych * 100 + '%';
 }
@@ -314,7 +331,7 @@ function zoberVsetko(vynos) {
 function aktualizuj(dt) {
   cas += dt;
   aktualizujVietor(cas);
-  if (poc) vietor.sila = 0.3 + 0.7 * poc.vietorSila;
+  if (poc) vietor.sila = Math.min(1.2, 0.3 + 0.7 * poc.vietorSila + pasmoVietor);
   const letim = aktualizujDev(dt, g);
   if (!vKanoe && !naPalube) kanoe = lodBlizko(1e9) || kanoe;                    // na brehu je aktivna najblizsia lod
   const lx = vKanoe || naPalube ? kanoe.poz.x : hrac.poz.x, lz = vKanoe || naPalube ? kanoe.poz.y : hrac.poz.z;
