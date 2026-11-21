@@ -10,11 +10,12 @@ import { RECEPTY, recept } from './obsah/recepty.js';
 import { STAVBY } from './obsah/stavby.js';
 import { pocet, odober, vykresli as vykresliInventar } from './inventar.js';
 import { mys, stlacene } from './vstup.js';
+import { novyStav, opravStav, obsah, pecHori } from './funkcne.js';
 
 const M = 2;                                   // velkost mriezky (m)
 const ZIVOTY = 3;                              // pocet uderov na rozobratie
 const MOLO_Y = 1.0;                            // vyska paluby mola nad strednou hladinou (priliv je +-0.6)
-const diely = [];                              // { typ, x, y, z, r (stvrtotacky, mriezka), u (uhol), model, zivoty }
+export const diely = [];                              // { typ, x, y, z, r (stvrtotacky, mriezka), u (uhol), model, zivoty }
 let scena = null, sluzby = {};
 
 // ---------- modely zakladnych dielov ----------
@@ -178,6 +179,8 @@ function miesto(typ, ax, az, yaw, otoc, t, hx, hz) {
 
 export function poloz(p) {
   const d = { typ: p.typ, x: p.x, y: p.y, z: p.z, r: p.r ?? 0, u: p.u ?? (p.r ?? 0) * Math.PI / 2, zivoty: ZIVOTY };
+  const st = 'st' in p ? opravStav(p.typ, p.st) : novyStav(p.typ);   // stav funkcnej stavby (truhlica, pec...)
+  if (st) d.st = st;
   vytvorModel(d);
   diely.push(d);
 }
@@ -251,11 +254,11 @@ export function aktualizujStavby(o) {
 }
 
 function aktualizujSvetla(h, t) {
-  const zdroje = diely.filter(d => STAVBY[d.typ]?.svetlo).sort((a, b) => Math.hypot(a.x - h.x, a.z - h.z) - Math.hypot(b.x - h.x, b.z - h.z));
+  const zdroje = diely.filter(d => STAVBY[d.typ]?.svetlo || pecHori(d)).sort((a, b) => Math.hypot(a.x - h.x, a.z - h.z) - Math.hypot(b.x - h.x, b.z - h.z));
   svetla.forEach((l, i) => {
     const d = zdroje[i];
     if (!d || Math.hypot(d.x - h.x, d.z - h.z) > 80) { l.intensity = 0; return; }
-    l.position.set(d.x, d.y + (STAVBY[d.typ].vyskaSvetla ?? 1.6), d.z);
+    l.position.set(d.x, d.y + (pecHori(d) ? 0.5 : STAVBY[d.typ].vyskaSvetla ?? 1.6), d.z);
     l.intensity = 4 * (0.85 + 0.15 * Math.sin(t * 13 + i * 2) * Math.sin(t * 7.3 + i));
   });
 }
@@ -317,18 +320,19 @@ export function najdiDiel(x, z, fx, fz) {
 export function uderDiel(d) {
   d.model.position.y = d.y - 0.03;
   setTimeout(() => d.model && (d.model.position.y = d.y), 90);
+  if (d.st?.sk?.some(Boolean)) { sluzby.oznam?.('Najprv vyprázdni truhlicu'); return null; }
   if (--d.zivoty > 0) return null;
   scena.remove(d.model); d.model = null;
   diely.splice(diely.indexOf(d), 1);
   const r = surovinyRec(d.typ);
-  return r ? r.suroviny.map(([id, n]) => [id, Math.ceil(n / 2)]) : [];
+  return (r ? r.suroviny.map(([id, n]) => [id, Math.ceil(n / 2)]) : []).concat(obsah(d));   // + obsah truhlice, pece...
 }
 
 // ---------- ukladanie ----------
-export const ulozStavby = () => diely.map(d => ({ t: d.typ, x: +d.x.toFixed(3), y: +d.y.toFixed(3), z: +d.z.toFixed(3), r: d.r, u: +d.u.toFixed(4) }));
+export const ulozStavby = () => diely.map(d => ({ t: d.typ, x: +d.x.toFixed(3), y: +d.y.toFixed(3), z: +d.z.toFixed(3), r: d.r, u: +d.u.toFixed(4), ...(d.st ? { st: d.st } : {}) }));
 export function nacitajStavby(data) {
   if (!Array.isArray(data)) return;
   for (const d of data) if ((GEO[d?.t] || STAVBY[d?.t]) && [d.x, d.y, d.z].every(Number.isFinite))
-    poloz({ typ: d.t, x: d.x, y: d.y, z: d.z, r: d.r ?? 0, u: Number.isFinite(d.u) ? d.u : (d.r ?? 0) * Math.PI / 2 });
+    poloz({ typ: d.t, x: d.x, y: d.y, z: d.z, r: d.r ?? 0, u: Number.isFinite(d.u) ? d.u : (d.r ?? 0) * Math.PI / 2, st: d.st });
 }
 export const pocetDielov = () => diely.length;

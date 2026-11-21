@@ -72,15 +72,6 @@ predmet('taborak', { meno: 'Táborák', ikona: '🔥', kopa: 5, polozit: 'tabora
     fv(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 5).rotateZ(1.2).translate(0, 0.08, 0), 0x6a4a2e),
     fv(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 5).rotateZ(-1.2).rotateY(1.5).translate(0, 0.08, 0), 0x6a4a2e)), MAT_V] });
 
-// ---- stavba ----
-// polozit: 'stavba' = F polozi diel na mriezku 2 m (main.js + stavba.js)
-predmet('podlaha', { meno: 'Podlaha', ikona: '🟫', kopa: 10, polozit: 'stavba', popis: 'Drevená plošina 2×2 m na nohách. Polož (F).',
-  model: [new THREE.BoxGeometry(0.4, 0.06, 0.4).translate(0, 0.03, 0), DREVO] });
-predmet('stena', { meno: 'Stena', ikona: '🧱', kopa: 10, polozit: 'stavba', popis: 'Zrubová stena 2×2 m. Prichytí sa na hranu podlahy (F).',
-  model: [spoj(...[0, 1, 2].map(i => new THREE.CylinderGeometry(0.05, 0.05, 0.45, 6).rotateZ(Math.PI / 2).translate(0, 0.05 + i * 0.1, 0))), DREVO] });
-predmet('strecha', { meno: 'Strecha', ikona: '🛖', kopa: 10, polozit: 'stavba', popis: 'Šikmá strecha z listov. Položí sa na vrch stien nad podlahou (F).',
-  model: [new THREE.BoxGeometry(0.45, 0.05, 0.4).rotateX(0.4).translate(0, 0.1, 0), mat(0xb59a52)] });
-
 // ---- lodenica (polozit: 'lodenica' = klavesa F polozi lodenicu pri brehu, spracuva main.js + lodenica.js) ----
 predmet('lodenica', { meno: 'Lodenica', ikona: '🏗️', kopa: 2, polozit: 'lodenica', popis: 'Stavba pri vode. Polož (F) na breh do 40 m od vody; v nej staviaš a vylepšuješ lode (E).',
   model: [spoj(...[-1, 1].map(x => fv(new THREE.BoxGeometry(0.05, 0.05, 0.5).translate(x * 0.15, 0.04, 0), 0x6a4a2e)),

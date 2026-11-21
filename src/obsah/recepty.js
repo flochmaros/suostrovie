@@ -22,10 +22,10 @@ recept({ id: 'kamenna_ostep', skupina: N, vysledok: ['kamenna_ostep', 1], surovi
 // tabor: taborak (polozi sa klavesou F)
 recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [['kamen', 5], ['drevo', 2], ['palica', 2]] });
 
-// stavba: diely sa kladu klavesou F na mriezku 2 m (stavba.js)
-recept({ id: 'podlaha', skupina: 'Stavba', vysledok: ['podlaha', 1], suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });
-recept({ id: 'stena', skupina: 'Stavba', vysledok: ['stena', 1], suroviny: [['drevo', 4], ['vlakno', 2]] });
-recept({ id: 'strecha', skupina: 'Stavba', vysledok: ['strecha', 1], suroviny: [['list', 6], ['palica', 3], ['vlakno', 2]] });
+// stavba: zakladne diely sa stavaju z menu B na mriezku 2 m (stavba.js), nevyrabaju sa do batohu
+recept({ id: 'podlaha', stavba: 'podlaha', skupina: 'Stavba', meno: 'Podlaha', ikona: '🟫', popis: 'Drevená plošina 2×2 m na nohách.', suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });
+recept({ id: 'stena', stavba: 'stena', skupina: 'Stavba', meno: 'Stena', ikona: '🧱', popis: 'Zrubová stena 2×2 m. Prichytí sa na hranu podlahy.', suroviny: [['drevo', 4], ['vlakno', 2]] });
+recept({ id: 'strecha', stavba: 'strecha', skupina: 'Stavba', meno: 'Strecha', ikona: '🛖', popis: 'Šikmá strecha z listov na vrch stien. Dá sa na nej stáť.', suroviny: [['list', 6], ['palica', 3], ['vlakno', 2]] });
 
 // lodenica: polozi sa klavesou F pri brehu; v nej sa stavaju a vylepsuju lode
 recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['kamen', 6]] });

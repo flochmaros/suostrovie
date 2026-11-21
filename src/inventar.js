@@ -53,6 +53,38 @@ export function presunMedzi(P, a, Q, b) {         // z pola P policko a do pola 
   } else { P[a] = B; Q[b] = A; }
 }
 
+// cely stoh z P[a] do Q v rozsahu [od, do): najprv doplni rovnake stohy, potom prazdne policka; zvysok ostane
+function prenes(P, a, Q, od, doo) {
+  const A = P[a];
+  if (!A) return;
+  for (let i = od; i < doo && A.pocet; i++) {
+    const B = Q[i];
+    if (B && B.typ === A.typ && kopa(A.typ) > 1 && B.pocet < kopa(A.typ) && (P !== Q || i !== a)) { const k = Math.min(A.pocet, kopa(A.typ) - B.pocet); B.pocet += k; A.pocet -= k; }
+  }
+  for (let i = od; i < doo && A.pocet; i++) if (!Q[i]) { Q[i] = { ...A }; A.pocet = 0; }
+  if (!A.pocet) P[a] = null;
+}
+// pravy klik: polovica stohu do prvého prazdneho policka
+function rozdel(P, a) {
+  const A = P[a], i = P.findIndex(s => !s);
+  if (!A || A.pocet < 2 || i < 0) return;
+  const k = Math.floor(A.pocet / 2);
+  A.pocet -= k; P[i] = { ...A, pocet: k };
+}
+// zorad batoh: spoj stohy, zvysok (od 8. policka) zoradi podla nazvu predmetu; lista ostane
+function zorad() {
+  const vsetko = sloty.slice(8).filter(Boolean);
+  const vysledok = [];
+  for (const s of vsetko) {
+    const t = kopa(s.typ) > 1 && vysledok.find(v => v.typ === s.typ && v.pocet < kopa(s.typ));
+    if (!t) { vysledok.push(s); continue; }
+    const k = Math.min(s.pocet, kopa(s.typ) - t.pocet); t.pocet += k; s.pocet -= k;
+    if (s.pocet) vysledok.push(s);
+  }
+  vysledok.sort((a, b) => a.typ.localeCompare(b.typ));
+  for (let i = 8; i < sloty.length; i++) sloty[i] = vysledok[i - 8] ?? null;
+}
+
 export const vybranyIndex = () => vybrany;
 export const vybranyPredmet = () => sloty[vybrany] ? PREDMETY[sloty[vybrany].typ] : null;
 export const jeOtvoreny = () => otvoreny;
@@ -152,10 +184,20 @@ export function initInventar(onZmena) {
   priZmene = onZmena;
   let tahany = null;
   const duch = $('duch');
+  addEventListener('contextmenu', e => { if (e.target.closest('#batoh')) e.preventDefault(); });
   addEventListener('pointerdown', e => {
+    if (e.target.closest('#zorad')) { zorad(); zmena(); return; }
     const s = e.target.closest('#batoh .slot');
     const P = s && (s.dataset.z === 's' ? sklad : sloty);
     if (!s || !P?.[+s.dataset.i]) return;
+    if (e.button === 2) { rozdel(P, +s.dataset.i); zmena(); return; }          // pravy klik = polovica stohu do prazdneho policka
+    if (e.shiftKey) {                                                           // Shift+klik = rychly presun
+      const i = +s.dataset.i;
+      if (P === sklad) prenes(P, i, sloty, 0, sloty.length);                    // sklad -> batoh
+      else if (sklad) prenes(P, i, sklad, 0, sklad.length);                     // batoh -> sklad
+      else prenes(P, i, sloty, i < 8 ? 8 : 0, i < 8 ? sloty.length : 8);        // lista <-> zvysok batoha
+      zmena(); return;
+    }
     tahany = { P, i: +s.dataset.i };
     duch.textContent = PREDMETY[P[tahany.i].typ].ikona;
     duch.style.display = 'block';

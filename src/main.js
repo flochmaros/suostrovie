@@ -312,8 +312,6 @@ function aktualizuj(dt) {
       const r = polozLodenicu(hrac.poz.x - Math.sin(hrac.smer) * 5, hrac.poz.z - Math.cos(hrac.smer) * 5);
       if (r !== true) oznam(r);
       else { odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.pad(); oznam('🏗️ Lodenica postavená – E pri nej staviaš lode'); }
-    } else if (d?.polozit === 'stavba' && !vKanoe) {       // polozit stavebny diel (nahlad ukazuje kam)
-      zacniStavat(d.id);                                  // diel z batohu -> rezim umiestnovania
     }
   }
   const zivy = !stavPreziti.mrtvy;
