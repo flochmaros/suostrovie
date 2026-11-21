@@ -45,7 +45,9 @@ const html = () => `
 <label><input type="checkbox" data-p="bezOpotrebenia"> Nástroje sa neopotrebúvajú</label>
 <label><input type="checkbox" data-a="rubanie"> Okamžité rúbanie</label>
 <h3>Kanoe</h3>
-<button data-k="1">Úroveň 1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button>
+<button data-k="1">Úroveň 1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button><br>
+Typ: <button data-t="zakladne">Základné</button><button data-t="pretekove">Pretekárske</button><button data-t="rybarske">Rybárske</button><button data-t="nakladne">Nákladné</button><br>
+<button data-vyl="1">Vylepšenia max</button><button data-vyl="0">Vylepšenia 0</button>
 <h3>Svet</h3>
 Hustota vegetácie: <button data-h="0.5">0.5×</button><button data-h="1">1×</button><button data-h="2">2×</button><button data-h="3">3×</button><br>
 <button data-a="cas">Čas +60 s (príliv)</button><button data-a="hud">Skryť/ukázať HUD</button><br>
@@ -90,6 +92,8 @@ export function initDev(c) {
     const t = e.target.closest('button');
     if (!t) return;
     const { hrac, kanoe } = ctx;
+    if (t.dataset.t) { kanoe.nastavTyp(t.dataset.t); ctx.oznam(`Kanoe typ: ${t.dataset.t}`); }
+    if (t.dataset.vyl) for (const x in kanoe.vyl) kanoe.vyl[x] = t.dataset.vyl === '1' ? 3 : 0;
     if (t.dataset.k) { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); }
     if (t.dataset.h) { nastavHustotu(+t.dataset.h); prestavSvet(); ctx.oznam(`Hustota vegetácie ${t.dataset.h}×`); }
     const a = t.dataset.a;

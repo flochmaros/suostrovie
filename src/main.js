@@ -65,13 +65,15 @@ try {
     nacitajPreziti(u.preziti);
     nacitajPocasie(u.pocasie);
     if (u.kanoeUroven) kanoe.nastavUroven(u.kanoeUroven);
+    if (u.kanoeTyp) kanoe.nastavTyp(u.kanoeTyp);
+    if (u.kanoeVyl) Object.assign(kanoe.vyl, u.kanoeVyl);
     if (u.vKanoe) nastup();
   }
 } catch (e) { /* nova hra */ }
 function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(), kanoe: [kanoe.poz.x, kanoe.poz.y, kanoe.smer],
-      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), kanoeUroven: kanoe.uroven, preziti: ulozPreziti(), pocasie: ulozPocasie() }));
+      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), kanoeUroven: kanoe.uroven, kanoeTyp: kanoe.typ, kanoeVyl: kanoe.vyl, preziti: ulozPreziti(), pocasie: ulozPocasie() }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);

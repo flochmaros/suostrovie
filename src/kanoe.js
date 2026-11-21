@@ -25,6 +25,16 @@ export const STATY = [null,
   { dlzka: 7.2, sirka: 0.5, hlbka: 0.5, zdvih: 0.55, pad: 7.6, plachta: 8.0, zat: 1.5, nazov: 'Dvojtrupová plachetnica' },
 ];
 
+// typy kanoe (na rozny ucel): nasobice k zakladnym statom urovne; dlz/sir = zmena tvaru modelu, farba = odtien trupu
+export const TYPY = {
+  zakladne: { nazov: 'Základné', pad: 1, plachta: 1, zat: 1, odpor: 1, dlz: 1, sir: 1, roll: 1, farba: 0xffffff },
+  pretekove: { nazov: 'Pretekárske (rýchle, menej obratné)', pad: 1.3, plachta: 1.15, zat: 0.75, odpor: 0.8, dlz: 1.18, sir: 0.8, roll: 1.5, farba: 0xffb08a },
+  rybarske: { nazov: 'Rybárske (obratné, stabilné)', pad: 0.95, plachta: 0.9, zat: 1.6, odpor: 1.05, dlz: 0.88, sir: 1.12, roll: 0.5, farba: 0xb9d6a0 },
+  nakladne: { nazov: 'Nákladné (pomalé, veľmi stabilné)', pad: 0.8, plachta: 1.25, zat: 0.7, odpor: 1.15, dlz: 1.1, sir: 1.45, roll: 0.25, farba: 0xc9b2a0 },
+};
+// vylepsenia (kazde 0..3): pad = silnejsie padlo, plachta = lepsia plachta, trup = hladsi trup (mensi odpor), kyl = obratnost
+export const VYL_MAX = 3;
+
 export const vietor = { smer: 0.8, sila: 0.8 };       // smer = kam fuka (rovnaky uhol ako smer kanoe)
 export function aktualizujVietor(t) {
   vietor.smer = 0.8 + Math.sin(t / 97) * 1.4;
@@ -284,9 +294,18 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
   const m4 = new THREE.Matrix4(), c = new THREE.Color();
   let vlastne = [];
 
+  // tvar a farba trupu podla typu (model sedadla/hraca sa nemeni)
+  function aplikujTyp() {
+    const T = TYPY[k.typ];
+    for (const o of vlastne) {
+      o.scale.set(T.sir, 1, T.dlz);
+      o.traverse(m => { const mt = m.material; if (mt && !Array.isArray(mt) && mt.map === texTrup) mt.color.setHex(T.farba); });
+    }
+  }
+
   const k = {
     model, padlo: null, plachta: null,
-    uroven: 1, stat: STATY[1], plachtaK: 1,
+    uroven: 1, stat: STATY[1], plachtaK: 1, typ: 'zakladne', vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0 },
     poz: new THREE.Vector2(x, z), rych: new THREE.Vector2(),
     y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0, ucinnost: 0,
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
@@ -304,11 +323,20 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       for (const o of vlastne) model.add(o);
       k.uroven = n; k.stat = b.S; k.plachta = b.plachta; k.padlo = b.padlo; k.plachtaK = b.K;
       for (const d of model.children) if (!vlastne.includes(d)) d.position.copy(k.SEDADLO);   // hrac ostava sediet
+      aplikujTyp();
       return n;
+    },
+    nastavTyp(id) { if (TYPY[id]) { k.typ = id; aplikujTyp(); } return k.typ; },
+    vylepsi(kluc, n) { if (kluc in k.vyl) k.vyl[kluc] = Math.max(0, Math.min(VYL_MAX, n)); },
+    // aktualne staty = zaklad urovne x typ x vylepsenia (pouziva aj HUD/dev)
+    efekt() {
+      const T = TYPY[k.typ], V = k.vyl, S = k.stat;
+      return { pad: S.pad * T.pad * (1 + 0.15 * V.pad), plachta: S.plachta * T.plachta * (1 + 0.2 * V.plachta),
+        zat: S.zat * T.zat * (1 + 0.15 * V.kyl), odpor: T.odpor * (1 - 0.07 * V.trup), dlz: S.dlzka * T.dlz };
     },
 
     aktualizuj(dt, t, ovladane) {
-      const S = k.stat, DLZKA = S.dlzka;
+      const S = k.efekt(), DLZKA = S.dlz;
       const fx = -Math.sin(k.smer), fz = -Math.cos(k.smer), rx = Math.cos(k.smer), rz = -Math.sin(k.smer);
       let tah = 0, zatacanie = 0;
       if (ovladane) {
@@ -322,7 +350,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       let vf = k.rych.x * fx + k.rych.y * fz;
       let vr = k.rych.x * rx + k.rych.y * rz;
       vf += (tah * S.pad + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
-      vf -= (vf * Math.abs(vf) * 0.055 + vf * 0.08) * dt;           // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)
+      vf -= (vf * Math.abs(vf) * 0.055 * S.odpor + vf * 0.08) * dt;           // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)
       vr *= Math.exp(-4 * dt);                                       // kyl
 
       k.uhlRych += zatacanie * (S.zat + 0.11 * Math.abs(vf)) * dt;
@@ -348,7 +376,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       const hS = (hP + hZ + hR + hL + v(0, 0)) / 5;
       k.y = tlm(k.y, hS - 0.08, 7, dt);
       k.pitch = tlm(k.pitch, Math.atan2(hP - hZ, DLZKA * 0.9) + Math.min(Math.abs(vf), 14) * 0.004, 5, dt);   // pri rychlosti dvihne pridu
-      k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + 1.5) * (k.uroven === 4 ? 0.5 : 1) + k.uhlRych * vf * 0.025, 5, dt);
+      k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + 1.5) * (k.uroven === 4 ? 0.5 : 1) * TYPY[k.typ].roll + k.uhlRych * vf * 0.025, 5, dt);
       model.position.set(k.poz.x, k.y, k.poz.y);
       model.rotation.set(k.pitch, k.smer, k.roll, 'YXZ');
 
