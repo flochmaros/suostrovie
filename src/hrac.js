@@ -6,6 +6,7 @@ import { klavesy, stlacene } from './vstup.js';
 import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { postavModel } from './postava.js';
+import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
@@ -144,7 +145,8 @@ export function vytvorHraca(scena) {
         if (d < min && d > 1e-4) { h.poz.x = u.x + dx / d * min; h.poz.z = u.z + dz / d * min; }
       }
 
-      const zem = vyskaTerenu(h.poz.x, h.poz.z);
+      odtlacOdStien(h.poz);                                            // steny zo stavania
+      const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y));
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
       h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / 20 : dt / 4), 0, 1);
       if (h.plava && zem < voda - 1.15) {

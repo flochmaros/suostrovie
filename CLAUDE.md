@@ -43,6 +43,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
 | `src/ohen.js` | táborák: položenie, palivo/pahreba, plamene+dym+svetlo, pečenie (`PECENIE` v `obsah/jedlo.js`), praskanie |
 | `src/kanoe.js` | kanoe: 4 úrovne (`STATY`, `nastavUroven`), fyzika, plachta + vietor, brázda, sprej |
+| `src/stavba.js` | stavanie: podlaha/stena/strecha na mriežke 2 m (F), náhľad, kolízie (`odtlacOdStien`, `vyskaPodlahy` v hrac.js), rozobratie úderom, ukladanie |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
 | `src/inventar.js` | batoh 24 políčok, ťahanie myšou, výroba podľa receptov |
 | `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js`, `jedlo.js`, `more.js` |
