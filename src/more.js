@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { vyskaTerenu, dnoMorske, farbaDna, zobrate, SEED, KAUSTIKA_GLSL } from './svet.js';
-import { vyskaVody, uCas, uPriliv } from './ocean.js';
+import { vyskaVody, uCas, uPriliv, uNoc } from './ocean.js';
 import { rng, hash } from './nahoda.js';
 import './obsah/more.js';
 
@@ -36,7 +36,7 @@ function matMore(o = {}) {
   }[sway] || '';
   m.customProgramCacheKey = () => `more|${sway}|${A}|${F}|${emis}|${ripple}|${dvojity}`;
   m.onBeforeCompile = sh => {
-    sh.uniforms.uT = uT; sh.uniforms.uCas = uCas; sh.uniforms.uPriliv = uPriliv;
+    sh.uniforms.uT = uT; sh.uniforms.uCas = uCas; sh.uniforms.uPriliv = uPriliv; sh.uniforms.uNoc = uNoc;
     sh.vertexShader = 'uniform float uT;\nvarying vec3 vSvetP;\n' + sh.vertexShader
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
@@ -51,16 +51,16 @@ function matMore(o = {}) {
           wp_ = instanceMatrix * wp_;
         #endif
         vSvetP = (modelMatrix * wp_).xyz;`);
-    sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nvarying vec3 vSvetP;\n' + KAUSTIKA_GLSL + sh.fragmentShader
+    sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nuniform float uNoc;\nvarying vec3 vSvetP;\n' + KAUSTIKA_GLSL + sh.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
         ${ripple ? `float rp = sin(dot(vSvetP.xz, vec2(0.8, 0.6)) * 3.1 + sin(vSvetP.x * 0.21 + vSvetP.z * 0.17) * 3.0)
                   + 0.5 * sin(dot(vSvetP.xz, vec2(-0.5, 0.86)) * 7.3);
         diffuseColor.rgb *= 1.0 + rp * 0.05 * smoothstep(-16.0, -3.0, vSvetP.y);` : ''}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float hl = uPriliv - vSvetP.y;
-        totalEmissiveRadiance += vec3(0.8, 0.95, 1.0) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb
+        totalEmissiveRadiance += vec3(0.8, 0.95, 1.0) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.93 * uNoc)
           * smoothstep(0.0, 0.5, hl) * (1.0 - smoothstep(3.0, 12.0, hl)) * 1.3;
-        ${emis ? `totalEmissiveRadiance += diffuseColor.rgb * ${f3(emis)};` : ''}`);
+        ${emis ? `totalEmissiveRadiance += diffuseColor.rgb * ${f3(emis)} * (1.0 + uNoc * (5.0 + 3.0 * sin(uCas * 1.7 + vSvetP.x * 0.7)));` : ''}`);
   };
   return m;
 }

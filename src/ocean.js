@@ -54,6 +54,13 @@ glsl += '  return r;\n}\n' + glslPosun + '  return r;\n}\n';
 export const uCas = { value: 0 };
 export const VODA = { u: null };           // uniformy materialu vody (plni sa vo vytvorOcean)
 export const uPriliv = { value: 0 };
+// noc 0..1 (nastavuje pocasie.js) - svietiaci plankton, meduzy
+export const uNoc = { value: 0 };
+// poruchy hladiny pre plankton: (x, z, cas vzniku, polomer) - kruhovy zasobnik, plni aktualizuj()
+const N_PORUCH = 32;
+const poruchy = Array.from({ length: N_PORUCH }, () => new THREE.Vector4(0, 0, -999, 1));
+let iPor = 0;
+export function porucha(x, z, r = 1) { poruchy[iPor].set(x, z, uCas.value, r); iPor = (iPor + 1) % N_PORUCH; }
 
 const VERTEX = /* glsl */`
 uniform float uCas;
@@ -91,6 +98,8 @@ uniform vec3 uSlnkoFarba;
 uniform vec3 uObzor;
 uniform vec3 uZenit;
 uniform float uSvetlo;
+uniform float uNoc;
+uniform vec4 uPoruchy[32];
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -103,6 +112,46 @@ vec3 obloha(vec3 d) {
   vec3 c = mix(uObzor, uZenit, pow(y, 0.5));
   float s = max(dot(d, uSlnko), 0.0);
   return c + uSlnkoFarba * (pow(s, 12.0) * 0.3);
+}
+
+// ---------- svietiaci plankton (bioluminiscencia) ----------
+float hashP(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float sumP(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hashP(i), hashP(i + vec2(1, 0)), f.x), mix(hashP(i + vec2(0, 1)), hashP(i + vec2(1, 1)), f.x), f.y);
+}
+// hustota planktonu: velke svietiace polia (zatoky) + slaby zaklad vsade
+float planktonZona(vec2 p) {
+  float n = sumP(p / 230.0) * 0.65 + sumP(p / 70.0) * 0.35;
+  return 0.4 + 0.6 * smoothstep(0.52, 0.68, n);
+}
+// iskricky: drobne body, ktore blikaju
+float iskra1(vec2 p, float t, float sk) {
+  vec2 c = floor(p * sk);
+  float h = hashP(c);
+  if (h < 0.45) return 0.0;                                  // nie v kazdej bunke
+  float blik = 0.5 + 0.5 * sin(t * (2.0 + h * 6.0) + h * 40.0);
+  vec2 f = fract(p * sk) - 0.5 - (vec2(hashP(c + 7.1), hashP(c + 3.3)) - 0.5) * 0.75;
+  return smoothstep(0.13, 0.0, length(f)) * blik * blik;
+}
+float iskry(vec2 p, float t) {                               // dve vrstvy, druha otocena -> ziadna mriezka
+  vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * p;
+  return iskra1(p, t, 2.3) + iskra1(q + 17.0, t * 1.3, 4.1) * 0.8;
+}
+// jas planktonu v bode: stopy za hracom/lodou + vlny pri brehu
+float plankton(vec2 p, float pena) {
+  float z = planktonZona(p), st = 0.0;
+  for (int i = 0; i < 32; i++) {
+    vec4 q = uPoruchy[i];
+    float vek = uCas - q.z;
+    if (vek < 0.0 || vek > 7.0) continue;
+    float r = q.w * (0.7 + vek * 0.35);
+    vec2 d = p - q.xy;
+    st += exp(-dot(d, d) / (r * r)) * exp(-vek * 0.6) * (1.0 + 0.8 * exp(-vek * 3.0));
+  }
+  float spontanne = smoothstep(0.75, 1.0, sumP(p * 0.35 + uCas * 0.15)) * 0.25;
+  float iskra = iskry(p, uCas);
+  return z * (min(st, 1.8) * (0.35 + 1.6 * iskra) + smoothstep(0.45, 0.95, pena) * (0.15 + 1.1 * iskra) + spontanne * iskra);
 }
 
 void main() {
@@ -124,6 +173,7 @@ void main() {
 
   if (!gl_FrontFacing) {                 // pohlad zospodu (pod vodou)
     vec3 c = vec3(0.03, 0.28, 0.33) * (1.0 + sumPeny) * uSvetlo;
+    if (uNoc > 0.01) c += vec3(0.1, 0.65, 1.0) * plankton(p, 0.0) * uNoc * 1.4;
     gl_FragColor = vec4(c, 1.0);
     #include <fog_fragment>
     return;
@@ -161,6 +211,8 @@ void main() {
   float pena = breh * smoothstep(0.35, 0.6, sumPeny + vlnenie * 0.3 + breh * 0.3);
   pena += smoothstep(0.55, 0.85, vVyska) * smoothstep(0.3, 0.6, sumPeny) * 0.7;
   farba = mix(farba, vec3(0.92, 0.96, 0.97) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.85);
+  // v noci plankton svieti tam, kde sa voda pohne (stopa, vlny pri brehu); jas > 3 = bloom
+  if (uNoc > 0.01) farba += vec3(0.08, 0.62, 1.0) * plankton(p, clamp(pena, 0.0, 1.0)) * uNoc * 2.2;
 
   gl_FragColor = vec4(farba, 1.0);
   #include <fog_fragment>
@@ -195,6 +247,8 @@ export function vytvorOcean(g) {
   mat.uniforms.uCas = uCas;
   mat.uniforms.uPriliv = uPriliv;
   mat.uniforms.uVlnySila = uVlnySila;
+  mat.uniforms.uNoc = uNoc;
+  mat.uniforms.uPoruchy = { value: poruchy };
   mat.uniforms.uSvet.value = g.podvod.texture;
   mat.uniforms.uHlbka.value = g.podvod.depthTexture;
   mat.uniforms.uVlnky.value = vlnky;
@@ -206,7 +260,7 @@ export function vytvorOcean(g) {
   g.scena.add(ocean);
 
   const krok = 0.6;
-  let tPred = null;
+  let tPred = null, px = null, pz = 0, lx = 0, lz = 0, rych = 0;
   return {
     mesh: ocean,
     aktualizuj(x, z, t) {
@@ -215,6 +269,17 @@ export function vytvorOcean(g) {
       uVlnySila.value = THREE.MathUtils.damp(uVlnySila.value, cil, 0.5, dt);   // ~niekolko sekund prechodu
       uCas.value = t;
       uPriliv.value = priliv(t);
+      // stopa v planktone: novy bod po kazdych ~0.8 m pohybu (lod = sirsia stopa po oboch bokoch)
+      if (px === null) { px = lx = x; pz = lz = z; }
+      if (dt > 0 && dt < 0.5) rych = THREE.MathUtils.damp(rych, Math.hypot(x - lx, z - lz) / dt, 4, dt);
+      lx = x; lz = z;
+      const dx = x - px, dz = z - pz, d = Math.hypot(dx, dz);
+      if (d > 8) { px = x; pz = z; }
+      else if (d > 0.8) {
+        if (rych > 3.2) { const sx = -dz / d * 0.7, sz = dx / d * 0.7; porucha(x + sx, z + sz, 0.9); porucha(x - sx, z - sz, 0.9); }
+        else porucha(x, z, 0.85);
+        px = x; pz = z;
+      }
       ocean.position.set(Math.round(x / krok) * krok, 0, Math.round(z / krok) * krok);
     },
   };

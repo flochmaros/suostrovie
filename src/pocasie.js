@@ -3,7 +3,8 @@
 // Menime zdielane objekty z grafika.js (SLNKO, FARBA_HMLY - na mieste) a uniformy vody (ocean.js).
 import * as THREE from 'three';
 import { SLNKO, FARBA_HMLY } from './grafika.js';
-import { VODA } from './ocean.js';
+import { VODA, uNoc } from './ocean.js';
+import { initNoc, aktualizujNoc } from './noc.js';
 import { pasmoPlynule } from './svet.js';
 import { dazd as zvukDazd, noc as zvukNoc, hrom } from './zvuk.js';
 
@@ -124,8 +125,8 @@ void main() {
   float d = length(vUv);
   float disk = smoothstep(0.11, 0.1, d);
   float mora = 0.72 + 0.28 * sin(vUv.x * 80.0 + sin(vUv.y * 55.0) * 2.0) * sin(vUv.y * 70.0 + 1.3);
-  float zar = exp(-d * d * 30.0) * 0.35 + exp(-d * 4.0) * 0.05;
-  vec3 col = vec3(1.0, 0.97, 0.88) * (disk * mora * 2.2 + zar) * smoothstep(1.0, 0.7, d);
+  float zar = exp(-d * d * 30.0) * 0.35 + exp(-d * d * 9.0) * 0.04;   // ziara plynule do nuly (inak bolo vidno hranu stvorca)
+  vec3 col = vec3(1.0, 0.97, 0.88) * (disk * mora * 2.2 + zar) * smoothstep(0.95, 0.45, d);
   gl_FragColor = vec4(col * uAlfa, 1.0);
 }`;
 
@@ -158,6 +159,7 @@ let oblaky, hviezdy, mesiac, dazdLinie, uObl, uHv, uMes, uDz, hviezdyHolder;
 export function initPocasie(g) {
   G = g;
   const scena = g.scena;
+  initNoc(scena);
 
   // oblaky
   uObl = {
@@ -293,7 +295,7 @@ export function aktualizujPocasie(dt, cas, stred) {
     SLF.copy(SL_NIZKE).lerp(SL_DEN, sm(0.02, 0.32, e)).lerp(SL_SEDE, cover * 0.6);
     farbaSvetla = SLF;
   } else {
-    smer = MESIAC; intenzita = 0.75 * sm(-0.04, -0.25, e) * (1 - 0.7 * cover);
+    smer = MESIAC; intenzita = 0.5 * sm(-0.04, -0.25, e) * (1 - 0.7 * cover);
     farbaSvetla = SL_MESIAC;
   }
   SLNKO.copy(smer); if (SLNKO.y < 0.1) { SLNKO.y = 0.1; SLNKO.normalize(); }
@@ -304,7 +306,7 @@ export function aktualizujPocasie(dt, cas, stred) {
   hs.color.copy(HS_NOC).lerp(HS_DEN, den2).lerp(HS_SUM, twi * 0.5).lerp(HS_SEDA, cover * 0.7);
   hs.groundColor.copy(HZ_NOC).lerp(HZ_DEN, den2);
   hs.intensity = lerp(0.42, 0.55, den2) * (1 - 0.2 * cover) + flash * 2.5;
-  g.renderer.toneMappingExposure = lerp(0.5, 0.85, noc) * (1 + flash * 0.35);
+  g.renderer.toneMappingExposure = lerp(0.5, 0.72, noc) * (1 + flash * 0.35);
 
   // --- hmla (farba sa meni na mieste; main.js ju kopiruje do scena.fog) ---
   const mokro = clamp01(Math.max(dazd * 0.7, burkaF, cover * 0.3));
@@ -387,6 +389,10 @@ export function aktualizujPocasie(dt, cas, stred) {
   const pod = stred ? stred.y < -0.3 : false;
   zvukDazd(dazd, pod);
   zvukNoc(noc * (1 - dazd), pod);
+  // noc: farebne ladenie obrazu, svietiaci plankton + meduzy, svetlusky
+  uNoc.value = noc;
+  if (g.uNocGrad) g.uNocGrad.value = noc * (1 - flash);
+  aktualizujNoc(cas, noc, dazd, stred);
 
   // --- vietor pre hru (0..1) ---
   const zaklad = 0.28 + 0.14 * Math.sin(cas / 53) + 0.1 * Math.sin(cas / 17.3 + 1);

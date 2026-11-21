@@ -81,21 +81,26 @@ export function vytvorGrafiku() {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   // farebne ladenie (po tone mappingu): sytost, kontrast, tiene do modra / svetla do tepla, vignetacia
-  composer.addPass(new ShaderPass({
-    uniforms: { tDiffuse: { value: null } },
+  const uNocGrad = { value: 0 };   // 0 den .. 1 noc (nastavuje pocasie.js)
+  const grad = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uNoc: uNocGrad },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uNoc; varying vec2 vUv;
       void main() {
         vec4 c = texture2D(tDiffuse, vUv);
         float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
-        c.rgb = mix(vec3(l), c.rgb, 1.3);
+        // noc: oko v tme nevidi farby (len modrosive odtiene), jasne svetla (ohen, plankton) si farbu nechaju
+        float sytost = mix(1.3, mix(0.28, 1.15, smoothstep(0.35, 0.8, l)), uNoc);
+        c.rgb = mix(vec3(l), c.rgb, sytost);
+        c.rgb = mix(c.rgb, c.rgb * vec3(0.72, 0.88, 1.25), uNoc * (1.0 - smoothstep(0.4, 0.9, l)));
         c.rgb = (c.rgb - 0.5) * 1.1 + 0.5;
         c.rgb *= mix(vec3(0.96, 0.99, 1.05), vec3(1.05, 1.0, 0.94), smoothstep(0.25, 0.85, l));
         vec2 d = vUv - 0.5;
-        c.rgb *= 1.0 - dot(d, d) * 0.5;
+        c.rgb *= 1.0 - dot(d, d) * (0.5 + 0.7 * uNoc);
         gl_FragColor = vec4(clamp(c.rgb, 0.0, 1.0), c.a);
       }`,
-  }));
+  });
+  composer.addPass(grad);   // ShaderPass si uniformy kopiruje -> uNocGrad ukazuje na jeho kopiu
 
   const uObrazovka = { value: velkost.clone() };
 
@@ -112,6 +117,7 @@ export function vytvorGrafiku() {
 
   const krokTiena = (2 * S) / 4096;
   return {
+    uNocGrad: grad.uniforms.uNoc,
     renderer, scena, kamera, slnko,
     obloha, hemi, obnovProstredie, bloom,
     podvod, uObrazovka,

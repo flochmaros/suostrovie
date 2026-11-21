@@ -129,6 +129,16 @@ function modelMajaka(rnd) {
   const kuzel = (r) => {
     const m = new THREE.Mesh(new THREE.ConeGeometry(r, 170, 20, 1, true).translate(0, -85, 0).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    // lúč ako svetlo v hmle: najjasnejší pri lampe a v strede, k okrajom a do diaľky mäkko mizne (nie plný kužeľ)
+    m.material.onBeforeCompile = sh => {
+      sh.vertexShader = 'varying float vLucV; varying vec3 vLucN; varying vec3 vLucD;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+        `#include <begin_vertex>
+        vLucV = uv.y; vec4 mvL = modelViewMatrix * vec4(position, 1.0);
+        vLucN = normalize(normalMatrix * normal); vLucD = normalize(-mvL.xyz);`);
+      sh.fragmentShader = 'varying float vLucV; varying vec3 vLucN; varying vec3 vLucD;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );',
+        `float stred = abs(dot(normalize(vLucN), normalize(vLucD)));
+        vec4 diffuseColor = vec4( diffuse, opacity * 2.2 * pow(vLucV, 2.2) * stred * stred );`);
+    };
     m.frustumCulled = false; return m;
   };
   const k1 = kuzel(20), k2 = kuzel(20); k2.rotation.y = Math.PI; luc.add(k1, k2);
