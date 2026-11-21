@@ -3,11 +3,13 @@
 import * as THREE from 'three';
 import { mys } from './vstup.js';
 import { vyskaTerenu } from './svet.js';
+import { vzdialenostKStavbe } from './stavba.js';
 import { vyskaVody } from './ocean.js';
 import { tlmUhol } from './hrac.js';
 import { nastavenia } from './nastavenia.js';
 
 const tlm = THREE.MathUtils.damp;
+const SMER = new THREE.Vector3();
 export const CITLIVOST = 0.0032;
 
 export function vytvorKameru(kamera) {
@@ -34,6 +36,9 @@ export function vytvorKameru(kamera) {
       p.set(k.ciel.x + Math.sin(k.yaw) * Math.cos(k.pitch) * s, k.ciel.y + Math.sin(k.pitch) * s, k.ciel.z + Math.cos(k.yaw) * Math.cos(k.pitch) * s);
       if (vyskaTerenu(p.x, p.z) + 0.35 > p.y) { d = Math.max(ciel * (i - 1) / 10, 1.2); break; }
     }
+    // kolizia so stavbami: kamera nesmie byt za stenou -> priblizi sa pred nu
+    SMER.set(Math.sin(k.yaw) * Math.cos(k.pitch), Math.sin(k.pitch), Math.cos(k.yaw) * Math.cos(k.pitch));
+    d = Math.min(d, Math.max(vzdialenostKStavbe(k.ciel, SMER, d + 0.3) - 0.3, 0.6));
     k.akt = d < k.akt ? d : tlm(k.akt, d, 5, dt);           // priblizenie hned, oddialenie plynule
     kamera.position.set(
       k.ciel.x + Math.sin(k.yaw) * Math.cos(k.pitch) * k.akt,

@@ -235,7 +235,7 @@ udalostiPreziti.priZobudeni = () => {
   zamkni();
 };
 initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
-const menu = initNastavenia(g, $('start'));
+const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initInventar(() => hrac.drz(vybranyPredmet()));
 addEventListener('stavaj', e => { if (stavPreziti.mrtvy || vKanoe) return; prepniBatoh(false); zamkni(); zacniStavat(e.detail); });   // klik na stavbu v menu B
@@ -399,7 +399,6 @@ function aktualizuj(dt) {
         else if (pocet('drevo')) { if (prilozDrevo(ohen)) { odober('drevo', 1); vykresliInventar(); zvuky.uder('drevo'); hrac.zdvihni(); } else oznam('Oheň je plný dreva'); }
       }
     } else if (vybranyPredmet()?.polozit === 'taborak') napoveda = '<kbd>F</kbd> položiť táborák';
-    else if (vybranyPredmet()?.polozit === 'stavba') napoveda = `<kbd>F</kbd> umiestniť: ${vybranyPredmet().meno.toLowerCase()}`;
     const lodUk = !blizko && !predmet && !ohen && !funk && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
     if (blizko) napoveda = `<kbd>E</kbd> nastúpiť: ${kanoe.stat.nazov} · <kbd>R</kbd> sklad`;
     else if (lodUk) napoveda = '<kbd>E</kbd> lodenica – stavba a vylepšenie lodí';

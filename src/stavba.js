@@ -45,7 +45,7 @@ const jeStena = typ => info(typ)?.prichyt === 'stena';
 
 // recepty pre nove stavby (menu B ich ukaze samo; vysledok sa nevyraba, stavba sa polozi priamo)
 for (const [id, s] of Object.entries(STAVBY)) recept({ id, stavba: id, skupina: s.skupina, meno: s.meno, ikona: s.ikona, popis: s.popis, suroviny: s.suroviny });
-for (const r of RECEPTY) if (ZAKLAD[r.id] || SPECIALNE[r.id]) r.stavba = r.id;
+for (const r of RECEPTY) if (SPECIALNE[r.id]) r.stavba = r.id;
 
 function vytvorModel(d) {
   let g;
@@ -164,7 +164,7 @@ function miesto(typ, ax, az, yaw, otoc, t, hx, hz) {
   }
   // volne: na zem alebo na podlahu / molo, otocene k hracovi
   const u = s.specialne ? 0 : yaw + Math.PI + otoc * Math.PI / 12;
-  const vp = vyskaPodlahy(ax, az, Infinity), ter = vyskaTerenu(ax, az);
+  const vp = vyskaPodlahy(ax, az, Infinity, false), ter = vyskaTerenu(ax, az);
   const naPodlahe = vp > ter;
   const p = { typ, x: ax, y: naPodlahe ? vp : ter, z: az, r: 0, u, ok: true, dovod: '' };
   if (s.specialne) return p;                   // taborak/lodenica si kontroluje main.js
@@ -285,17 +285,35 @@ export function odtlacOdStien(poz) {
     poz.x = d.x + dx / v * min; poz.z = d.z + dz / v * min;
   }
 }
-// vyska podlahy / mola pod bodom (alebo -Infinity); plati len ked bod nie je hlboko pod nou
-export function vyskaPodlahy(x, z, y) {
+// vyska podlahy / mola / strechy pod bodom (alebo -Infinity); plati len ked bod nie je hlboko pod nou
+// strecha: sikma plocha, vyska podla polohy na sklone (lokalne z: -1.2 = hreben, +1.2 = okap)
+export function vyskaPodlahy(x, z, y, strechy = true) {
   let v = -Infinity;
   for (const d of diely) {
-    if (y < d.y - 0.7) continue;
-    if (d.typ === 'podlaha') { if (Math.abs(x - d.x) > M / 2 || Math.abs(z - d.z) > M / 2) continue; }
-    else if (STAVBY[d.typ]?.prichyt === 'voda') {
-      const dx = x - d.x, dz = z - d.z, c = Math.cos(d.u), s = Math.sin(d.u);
-      if (Math.abs(dx * c - dz * s) > 1 || Math.abs(dx * s + dz * c) > 2) continue;   // lokalne 2 x 4 m
+    const dx = x - d.x, dz = z - d.z, c = Math.cos(d.u), s = Math.sin(d.u);
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;       // poloha v suradniciach dielu (otoceneho o u)
+    let h = d.y;
+    if (d.typ === 'podlaha') { if (Math.abs(dx) > M / 2 || Math.abs(dz) > M / 2) continue; }
+    else if (STAVBY[d.typ]?.prichyt === 'voda') { if (Math.abs(lx) > 1 || Math.abs(lz) > 2) continue; }   // lokalne 2 x 4 m
+    else if (d.typ === 'strecha' && strechy) {
+      if (Math.abs(lx) > (M + 0.5) / 2 || Math.abs(lz) > 1.2) continue;
+      h = d.y + M + 0.62 - lz * Math.tan(SKLON);
     } else continue;
-    v = Math.max(v, d.y);
+    if (y < h - 0.7) continue;
+    v = Math.max(v, h);
+  }
+  return v;
+}
+
+// kamera: vzdialenost od bodu po prvu stavbu v smere (alebo max) – raycast na modely stavieb
+// 2 luce nad sebou: medzi gulatymi kmenmi steny su tenke medzery, jeden luc by nimi presiel
+const RAY = new THREE.Raycaster(), OD = new THREE.Vector3();
+export function vzdialenostKStavbe(od, smer, max) {
+  const blizke = diely.filter(d => d.model && Math.hypot(d.x - od.x, d.z - od.z) < max + 4).map(d => d.model);
+  let v = max;
+  for (const dy of blizke.length ? [0, 0.2] : []) {
+    RAY.set(OD.copy(od).setY(od.y + dy), smer); RAY.far = v;
+    v = RAY.intersectObjects(blizke, true)[0]?.distance ?? v;
   }
   return v;
 }

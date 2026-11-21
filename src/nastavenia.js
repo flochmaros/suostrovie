@@ -27,7 +27,8 @@ function pouzi() {
   try { localStorage.setItem(KLUC, JSON.stringify(nastavenia)); } catch (e) { /* nic */ }
 }
 
-export function initNastavenia(grafika, rodic) {
+// zaloha = { kluc, uloz }: kluc ulozenia hry v localStorage a funkcia, ktora ho zapise (main.js)
+export function initNastavenia(grafika, rodic, zaloha) {
   g = grafika;
   const p = document.createElement('div');
   p.id = 'nastavenia';
@@ -36,7 +37,9 @@ export function initNastavenia(grafika, rodic) {
     + '#nastavenia label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:3px 0;cursor:pointer}'
     + '#nastavenia input[type=range]{width:140px}</style><h3>Nastavenia</h3>'
     + SUVAKY.map(([k, t, a, b]) => `<label>${t}<input type="range" min="${a}" max="${b}" step="0.05" data-s="${k}"></label>`).join('')
-    + PREPINACE.map(([k, t]) => `<label>${t}<input type="checkbox" data-p="${k}"></label>`).join('');
+    + PREPINACE.map(([k, t]) => `<label>${t}<input type="checkbox" data-p="${k}"></label>`).join('')
+    + '<h3 style="margin-top:10px">Uloženie</h3><button id="zal-stiahni">Stiahnuť uloženie</button> <button id="zal-nahraj">Nahrať uloženie</button>'
+    + '<input type="file" id="zal-subor" accept=".json,application/json" hidden><div id="zal-hlaska" style="color:#ff8a7a;margin-top:4px"></div>';
   const sync = () => {
     for (const i of p.querySelectorAll('[data-s]')) i.value = nastavenia[i.dataset.s];
     for (const i of p.querySelectorAll('[data-p]')) i.checked = nastavenia[i.dataset.p];
@@ -47,8 +50,35 @@ export function initNastavenia(grafika, rodic) {
     if (t.dataset.p) nastavenia[t.dataset.p] = t.checked;
     pouzi();
   });
-  p.addEventListener('click', e => e.stopPropagation());   // klik v menu nema spustit hru
+  p.addEventListener('click', e => {
+    e.stopPropagation();                          // klik v menu nema spustit hru
+    if (e.target.id === 'zal-stiahni') {          // aktualny stav -> subor .json (Blob + <a download>)
+      zaloha.uloz();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([localStorage.getItem(zaloha.kluc) || '{}'], { type: 'application/json' }));
+      a.download = `suostrovie-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    if (e.target.id === 'zal-nahraj') p.querySelector('#zal-subor').click();
+  });
+  p.querySelector('#zal-subor').addEventListener('change', async e => {
+    const subor = e.target.files[0];
+    e.target.value = '';
+    if (subor) nahrajZalohu(await subor.text(), zaloha, t => { p.querySelector('#zal-hlaska').textContent = t; });
+  });
   rodic.appendChild(p);
   sync(); pouzi();
   return { prepniTicho() { nastavenia.ticho = !nastavenia.ticho; sync(); pouzi(); return nastavenia.ticho; }, sync };
+}
+
+// text zo suboru -> ak je to platne ulozenie, zapise ho a nacita hru znova; inak len hlaska, nic sa neprepise
+export function nahrajZalohu(text, zaloha, hlaska) {
+  let u = null;
+  try { u = JSON.parse(text); } catch (e) { /* neplatny JSON */ }
+  if (!u || typeof u !== 'object' || !Array.isArray(u.hrac)) { hlaska('Neplatný súbor uloženia – nič sa nezmenilo.'); return false; }
+  removeEventListener('beforeunload', zaloha.uloz);   // inak by odchod zo stranky prepisal nahrate data aktualnym stavom
+  localStorage.setItem(zaloha.kluc, JSON.stringify(u));
+  location.reload();
+  return true;
 }
