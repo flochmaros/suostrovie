@@ -5,6 +5,7 @@ import { mys } from './vstup.js';
 import { vyskaTerenu } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { tlmUhol } from './hrac.js';
+import { nastavenia } from './nastavenia.js';
 
 const tlm = THREE.MathUtils.damp;
 export const CITLIVOST = 0.0032;
@@ -15,8 +16,8 @@ export function vytvorKameru(kamera) {
   const p = new THREE.Vector3();
 
   k.aktualizuj = (dt, t, cielPoz, { vKanoe = false, smerKanoe = 0, rychlost = 0, podVodu = false, extra = 0 } = {}) => {
-    k.yaw -= mys.dx * CITLIVOST;
-    k.pitch = THREE.MathUtils.clamp(k.pitch + mys.dy * CITLIVOST, -0.6, 1.35);
+    k.yaw -= mys.dx * CITLIVOST * nastavenia.citlivost;
+    k.pitch = THREE.MathUtils.clamp(k.pitch + mys.dy * CITLIVOST * nastavenia.citlivost, -0.6, 1.35);
     k.vzdialenost = THREE.MathUtils.clamp(k.vzdialenost + mys.koliesko * 1.0, 2.5, 25);
     if (vKanoe && performance.now() - mys.posledny > 1200) k.yaw = tlmUhol(k.yaw, smerKanoe, 2.2, dt);
 

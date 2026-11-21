@@ -93,7 +93,7 @@ export function initDev(c) {
     if (!t) return;
     const { hrac, kanoe } = ctx;
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
-    if (t.dataset.vyl) for (const x in kanoe.vyl) kanoe.vyl[x] = t.dataset.vyl === '1' ? 3 : 0;
+    if (t.dataset.vyl) for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? 3 : 0);
     if (t.dataset.k) { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); }
     if (t.dataset.h) { nastavHustotu(+t.dataset.h); prestavSvet(); ctx.oznam(`Hustota vegetácie ${t.dataset.h}×`); }
     const a = t.dataset.a;

@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 import { klavesy } from './vstup.js';
-import { vyskaTerenu } from './svet.js';
+import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { VRSTVA_VODA } from './grafika.js';
 import { MAPA_KRUH } from './castice.js';
@@ -20,25 +20,30 @@ const UP = new THREE.Vector3(0, 1, 0);
 // staty urovni: pad = tah padla, plachta = sila plachty (po vetre), zat = obratnost
 // (strop rychlosti vychadza z odporu: ~9 m/s padlom na ur. 1, ~16 m/s s plachtou po vetre na ur. 4)
 export const STATY = [null,
-  { dlzka: 5.0, sirka: 0.42, hlbka: 0.36, zdvih: 0.36, pad: 5.5, plachta: 0, zat: 1.0, nazov: 'Jednoduché kanoe' },
-  { dlzka: 5.6, sirka: 0.46, hlbka: 0.42, zdvih: 0.42, pad: 6.2, plachta: 5.5, zat: 1.1, nazov: 'Kanoe s plachtou' },
-  { dlzka: 6.4, sirka: 0.54, hlbka: 0.48, zdvih: 0.5, pad: 7.0, plachta: 6.8, zat: 1.35, nazov: 'Veľké kanoe' },
-  { dlzka: 7.2, sirka: 0.5, hlbka: 0.5, zdvih: 0.55, pad: 7.6, plachta: 8.0, zat: 1.5, nazov: 'Dvojtrupová plachetnica', rozchod: 2.2, boky: [-0.4, 0.4, 2.3, 3.1], rollK: 0.5 },
+  { dlzka: 5.0, sirka: 0.42, hlbka: 0.36, zdvih: 0.36, pad: 5.5, plachta: 0, zat: 1.0, hit: 0.55, nazov: 'Jednoduché kanoe' },
+  { dlzka: 5.6, sirka: 0.46, hlbka: 0.42, zdvih: 0.42, pad: 6.2, plachta: 5.5, zat: 1.1, hit: 0.6, nazov: 'Kanoe s plachtou' },
+  { dlzka: 6.4, sirka: 0.54, hlbka: 0.48, zdvih: 0.5, pad: 7.0, plachta: 6.8, zat: 1.35, hit: 0.7, nazov: 'Veľké kanoe' },
+  { dlzka: 7.2, sirka: 0.5, hlbka: 0.5, zdvih: 0.55, pad: 7.6, plachta: 8.0, zat: 1.5, nazov: 'Dvojtrupová plachetnica', rozchod: 2.2, boky: [-0.4, 0.4, 2.3, 3.1], rollK: 0.5, hit: 2.6 },
 ];
 
 // vylepsenia (kazde 0..3): pad = silnejsie padlo, plachta = lepsia plachta, trup = hladsi trup (mensi odpor), kyl = obratnost
 export const VYL_MAX = 3;
+// vylepsenia: pad, plachta, trup, kyl (vsetky lode), sklad (+4 policka za stupen), tr = vylepsenie konkretnej lode (len lode okrem kanoe)
+export const SKLAD_PRIRASTOK = 4;
 
 // druhy lodi: kanoe (4 urovne, STATY) + lode s vlastnym modelom (lode_modely.js). sklad = pocet policok ulozneho priestoru.
 // sedadlo = kde sedi hrac, boky = kde sa kresli brazda, sym = trup symetricky (naklon z vln z oboch bokov), kam = dalsia vzdialenost kamery
 export const DRUHY = {
   kanoe: { nazov: 'Kanoe', sklad: 6 },
   pretekove: { nazov: 'Pretekárske kanoe', sklad: 4, stat: { dlzka: 7.4, sirka: 0.3, hlbka: 0.3, zdvih: 0.45, pad: 9, plachta: 7, zat: 1.25, odpor: 0.8,
-    rozchod: 1.7, boky: [-0.3, 0.3], rollK: 1, sym: true, sedadlo: [0, 0.3, 1.0], kam: 1, nazov: 'Pretekárske kanoe' } },
+    rozchod: 1.7, boky: [-0.3, 0.3], rollK: 1, sym: true, sedadlo: [0, 0.3, 1.0], kam: 1, hit: 1.9, nazov: 'Pretekárske kanoe' } },
   barza: { nazov: 'Nákladná pltť (barža)', sklad: 36, stat: { dlzka: 7.4, sirka: 1.0, hlbka: 0.4, zdvih: 0.3, pad: 5, plachta: 5.5, zat: 0.8, odpor: 1.7,
-    rozchod: 1.4, boky: [-1.3, 1.3], rollK: 0.3, sym: true, sedadlo: [0, 0.6, 2.4], kam: 3, nazov: 'Nákladná pltť (barža)' } },
+    rozchod: 1.4, boky: [-1.3, 1.3], rollK: 0.3, sym: true, sedadlo: [0, 0.6, 2.4], kam: 3, hit: 1.8, nazov: 'Nákladná pltť (barža)',
+    // paluba, po ktorej sa da chodit: x, z = hranice, y = vyska, boxy = prekazky [x0, x1, z0, z1] (naklad, stozar)
+    paluba: { x: [-1.55, 1.55], z: [-3.0, 3.0], y: 0.57, boxy: [[-1.3, -0.3, -1.0, -0.15], [0.35, 1.25, -0.6, 0.2], [0.45, 1.4, 0.2, 1.3], [-1.25, -0.55, 0.3, 1.1], [-0.15, 0.15, -2.75, -2.45]] } } },
   katamaran: { nazov: 'Veľký katamarán', sklad: 40, stat: { dlzka: 9.6, sirka: 0.45, hlbka: 0.55, zdvih: 0.7, pad: 6.5, plachta: 12, zat: 1.3, odpor: 0.7,
-    rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, nazov: 'Veľký katamarán' } },
+    rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, hit: 2.3, nazov: 'Veľký katamarán',
+    paluba: { x: [-2.0, 2.0], z: [-3.3, 3.8], y: 0.89, boxy: [[-1.35, 1.35, 0.35, 2.65], [-1.7, -0.15, -2.7, -1.9], [0.95, 1.5, -2.7, -2.1], [-0.2, 0.2, -1.4, -1.0]] } } },
 };
 
 export const vietor = { smer: 0.8, sila: 0.8 };       // smer = kam fuka (rovnaky uhol ako smer kanoe)
@@ -284,6 +289,72 @@ function postavModel(uroven) {
   return { objekty: o, plachta, padlo, K, S };
 }
 
+// ---------- hitboxy lodi ----------
+// Trup = obdlznik (polovica dlzky hl, polovica sirky hw). Lode sa navzajom odtlacaju, hrac sa neprebija cez trup,
+// breh a stromy kontroluje aktualizuj(). Lokalne suradnice lode: x = vpravo, z = dozadu (predok je -z).
+const BODY = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];   // body hitboxu (x: -hw..hw, z: -hl..hl)
+
+function kruhy(k, S = k.stat) {                  // retaz kruhov pozdlz trupu (kolizie lod-lod a lod-strom)
+  const hw = S.hit ?? 0.6, hl = S.dlzka / 2, n = Math.max(2, Math.round(hl / hw)), out = [];
+  const fx = -Math.sin(k.smer), fz = -Math.cos(k.smer);
+  for (let i = 0; i <= n; i++) { const d = (i / n * 2 - 1) * Math.max(hl - hw * 0.6, 0); out.push([k.poz.x + fx * d, k.poz.y + fz * d, hw]); }
+  return out;
+}
+
+export function naLokalne(k, x, z) {              // svetove -> lokalne suradnice lode
+  const dx = x - k.poz.x, dz = z - k.poz.y, s = Math.sin(k.smer), c = Math.cos(k.smer);
+  return [dx * c - dz * s, dx * s + dz * c];
+}
+export function zLokalnych(k, lx, lz) {           // lokalne -> svetove
+  const s = Math.sin(k.smer), c = Math.cos(k.smer);
+  return [k.poz.x + lx * c + lz * s, k.poz.y - lx * s + lz * c];
+}
+
+// odtlaci bod (hraca) von z trupu lode; vrati true, ak sa posunul
+export function odtlacOdLode(k, p, rHraca = 0.3) {
+  const { hl, hw } = k.hitbox(), [lx, lz] = naLokalne(k, p.x, p.z);
+  const ex = hw + rHraca, ez = hl + rHraca;
+  if (Math.abs(lx) >= ex || Math.abs(lz) >= ez) return false;
+  let nlx = lx, nlz = lz;
+  if (ex - Math.abs(lx) < ez - Math.abs(lz)) nlx = Math.sign(lx || 1) * ex; else nlz = Math.sign(lz || 1) * ez;
+  [p.x, p.z] = zLokalnych(k, nlx, nlz);
+  return true;
+}
+
+// lode sa navzajom odtlacaju (kruhy pozdlz trupu) a stratia rychlost v smere narazu
+export function kolizieLodi(lode) {
+  for (let i = 0; i < lode.length; i++) for (let j = i + 1; j < lode.length; j++) {
+    const a = lode[i], b = lode[j];
+    if (Math.hypot(a.poz.x - b.poz.x, a.poz.y - b.poz.y) > (a.stat.dlzka + b.stat.dlzka) / 2 + 4) continue;
+    const ka = kruhy(a), kb = kruhy(b);
+    let px = 0, pz = 0, n = 0;
+    for (const [ax, az, ar] of ka) for (const [bx, bz, br] of kb) {
+      const dx = ax - bx, dz = az - bz, d = Math.hypot(dx, dz), min = ar + br;
+      if (d < min && d > 1e-4) { px += dx / d * (min - d); pz += dz / d * (min - d); n++; }
+    }
+    if (!n) continue;
+    px /= n; pz /= n;
+    const ha = a.stat.hit ?? 1, hb = b.stat.hit ?? 1, wa = hb / (ha + hb), wb = 1 - wa;   // tazsia lod sa hybe menej
+    a.poz.x += px * wa; a.poz.y += pz * wa; b.poz.x -= px * wb; b.poz.y -= pz * wb;
+    const l = Math.hypot(px, pz) || 1, nx = px / l, nz = pz / l;
+    const vrel = (a.rych.x - b.rych.x) * nx + (a.rych.y - b.rych.y) * nz;
+    if (vrel < 0) { a.rych.x -= nx * vrel * wa * 1.4; a.rych.y -= nz * vrel * wa * 1.4; b.rych.x += nx * vrel * wb * 1.4; b.rych.y += nz * vrel * wb * 1.4; }
+  }
+}
+
+// pohyb hraca po palube (lokalne suradnice): vrati opravene [x, z]; P = paluba, boxy = prekazky
+export function drzNaPalube(P, lx, lz) {
+  lx = Math.max(P.x[0], Math.min(P.x[1], lx)); lz = Math.max(P.z[0], Math.min(P.z[1], lz));
+  const r = 0.28;
+  for (const [x0, x1, z0, z1] of P.boxy) {
+    if (lx > x0 - r && lx < x1 + r && lz > z0 - r && lz < z1 + r) {
+      const dl = lx - (x0 - r), dr = x1 + r - lx, dp = lz - (z0 - r), dz = z1 + r - lz, m = Math.min(dl, dr, dp, dz);
+      if (m === dl) lx = x0 - r; else if (m === dr) lx = x1 + r; else if (m === dp) lz = z0 - r; else lz = z1 + r;
+    }
+  }
+  return [lx, lz];
+}
+
 export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
   const model = new THREE.Group();
   scena.add(model);
@@ -315,7 +386,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
 
   const k = {
     model, padlo: null, plachta: null,
-    uroven: 1, stat: DRUHY[druh].stat || STATY[1], plachtaK: 1, druh, sklad: Array(DRUHY[druh].sklad).fill(null), vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0 },
+    uroven: 1, stat: DRUHY[druh].stat || STATY[1], plachtaK: 1, druh, sklad: Array(DRUHY[druh].sklad).fill(null), vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0, sklad: 0, tr: 0 },
     poz: new THREE.Vector2(x, z), rych: new THREE.Vector2(),
     y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0, ucinnost: 0,
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
@@ -329,12 +400,17 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       k.uroven = n;
       return n;
     },
-    vylepsi(kluc, n) { if (kluc in k.vyl) k.vyl[kluc] = Math.max(0, Math.min(VYL_MAX, n)); },
+    vylepsi(kluc, n) {
+      if (!(kluc in k.vyl)) return;
+      k.vyl[kluc] = n = Math.max(0, Math.min(VYL_MAX, n));
+      if (kluc === 'sklad') while (k.sklad.length < DRUHY[k.druh].sklad + n * SKLAD_PRIRASTOK) k.sklad.push(null);   // sklad len rastie
+    },
+    hitbox: () => ({ hl: k.stat.dlzka / 2, hw: k.stat.hit ?? 0.6 }),
     // aktualne staty = zaklad lode x vylepsenia
     efekt() {
       const V = k.vyl, S = k.stat;
-      return { ...S, pad: S.pad * (1 + 0.15 * V.pad), plachta: S.plachta * (1 + 0.2 * V.plachta),
-        zat: S.zat * (1 + 0.15 * V.kyl), odpor: (S.odpor ?? 1) * (1 - 0.07 * V.trup), dlz: S.dlzka };
+      return { ...S, pad: S.pad * (1 + 0.15 * V.pad) * (1 + 0.1 * V.tr), plachta: S.plachta * (1 + 0.2 * V.plachta) * (1 + 0.15 * V.tr),
+        zat: S.zat * (1 + 0.15 * V.kyl) * (1 + 0.08 * V.tr), odpor: (S.odpor ?? 1) * (1 - 0.07 * V.trup) * (1 - 0.06 * V.tr), dlz: S.dlzka };
     },
 
     aktualizuj(dt, t, ovladane) {
@@ -361,14 +437,25 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       const nfx = -Math.sin(k.smer), nfz = -Math.cos(k.smer), nrx = Math.cos(k.smer), nrz = -Math.sin(k.smer);
       k.rych.set(nfx * vf + nrx * vr, nfz * vf + nrz * vr);
 
-      // narazenie na breh (kontrola pred pridou / zadou)
+      // narazenie na breh a stromy: kontroluju sa len body hitboxu, ktore smeruju dopredu (z pasce sa da vzdy vycouvat)
       const voda = vyskaVody(k.poz.x, k.poz.y, t);
-      const sm = Math.sign(vf) || 1;
+      const hw = S.hit ?? 0.6, hl = DLZKA / 2;
       const nx = k.poz.x + k.rych.x * dt, nz = k.poz.y + k.rych.y * dt;
-      if (vyskaTerenu(nx + nfx * DLZKA / 2 * sm, nz + nfz * DLZKA / 2 * sm) > voda - 0.3) {
+      let narazil = false;
+      for (const [bx, bz] of BODY) {
+        const ox = rx * bx * hw - nfx * bz * hl * 0.95, oz = rz * bx * hw - nfz * bz * hl * 0.95;
+        if (ox * k.rych.x + oz * k.rych.y <= 0) continue;
+        if (vyskaTerenu(nx + ox, nz + oz) > voda - 0.3) { narazil = true; break; }
+      }
+      if (narazil) {
         if (Math.abs(vf) > 3) zvuky.uder('drevo');
         k.rych.multiplyScalar(-0.15);
       } else k.poz.set(nx, nz);
+      for (const [cx, cz, r] of kruhy(k, S)) for (const u of uzlyPri(cx, cz)) {     // stromy a balvany v plytkej vode
+        if (!u.rKolizia || u.zniceny) continue;
+        const dx = cx - u.x, dz = cz - u.z, d = Math.hypot(dx, dz), min = u.rKolizia + r;
+        if (d < min && d > 1e-4) { k.poz.x += dx / d * (min - d); k.poz.y += dz / d * (min - d); k.rych.multiplyScalar(0.7); }
+      }
 
       // vlny pod lodou
       const v = (dx, dz) => vyskaVody(k.poz.x + dx, k.poz.y + dz, t);
@@ -387,7 +474,8 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       if (plachta) {
         plachta.visible = k.plachtaV > 0.01 || k.uroven >= 2 || k.druh !== 'kanoe';
         plachta.rotation.y = tlm(plachta.rotation.y, THREE.MathUtils.clamp(rel * 0.6, -1.2, 1.2), 3, dt);
-        plachta.scale.set(K, K * (0.06 + 0.94 * k.plachtaV), K * (0.25 + 0.75 * k.plachtaV));
+        const KK = K * (k.druh === 'kanoe' ? 1 : 1 + 0.1 * k.vyl.tr);
+        plachta.scale.set(KK, KK * (0.06 + 0.94 * k.plachtaV), KK * (0.25 + 0.75 * k.plachtaV));
       }
 
       // brazda a sprej

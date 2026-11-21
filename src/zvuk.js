@@ -1,26 +1,32 @@
 // Zvuky bez suborov: vsetko sa generuje z bieleho sumu a tonov (Web Audio API).
+let hlavny = null, bHudba = null, bProstredie = null, bEfekty = null;
 let ctx = null, sum = null, more = null, vietor = null, vietorF = null;
 
 export function initZvuk() {
   if (ctx) { ctx.resume(); return; }
   ctx = new AudioContext();
+  hlavny = ctx.createGain(); hlavny.connect(ctx.destination);
+  bHudba = ctx.createGain(); bHudba.connect(hlavny);
+  bProstredie = ctx.createGain(); bProstredie.connect(hlavny);
+  bEfekty = ctx.createGain(); bEfekty.connect(hlavny);
+  nastavZvuk();
   sum = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = sum.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   // more: tlmeny sum, hlasitost sa vlni ako prichadzajuce vlny
   more = ctx.createGain(); more.gain.value = 0;
-  smycka().connect(filter('lowpass', 480)).connect(more).connect(ctx.destination);
+  smycka().connect(filter('lowpass', 480)).connect(more).connect(bProstredie);
   // vietor: pasmovy sum, hlasnejsi pri rychlosti
   vietor = ctx.createGain(); vietor.gain.value = 0;
   vietorF = filter('bandpass', 600, 0.6);
-  smycka().connect(vietorF).connect(vietor).connect(ctx.destination);
+  smycka().connect(vietorF).connect(vietor).connect(bProstredie);
   // dazd: siroky sum (siks) + nizsi sum (bubnovanie)
   dazdG = ctx.createGain(); dazdG.gain.value = 0;
   smycka().connect(filter('highpass', 1800)).connect(filter('lowpass', 9000)).connect(dazdG);
   smycka().connect(filter('bandpass', 700, 0.5)).connect(dazdG);
-  dazdG.connect(ctx.destination);
+  dazdG.connect(bProstredie);
   // noc: dva sverciky (ton 4-5 kHz zapinany a vypinany nizkou frekvenciou)
-  nocG = ctx.createGain(); nocG.gain.value = 0; nocG.connect(ctx.destination);
+  nocG = ctx.createGain(); nocG.gain.value = 0; nocG.connect(bProstredie);
   for (const [f, lf] of [[4300, 7.3], [5100, 10.9]]) {
     const o = ctx.createOscillator(), amp = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
     o.frequency.value = f; amp.gain.value = 0.5;
@@ -32,6 +38,17 @@ export function initZvuk() {
 }
 let dazdG = null, nocG = null, ohenG = null;
 
+// hlasitosti zo nastaveni (0..1; hudba/prostredie/efekty su samostatne zbernice, vsetko ide cez hlavnu)
+export const hlasitost = { hlavna: 1, hudba: 1, prostredie: 1, efekty: 1 };
+export function nastavZvuk() {
+  if (!ctx) return;
+  const n = ctx.currentTime;
+  hlavny.gain.setTargetAtTime(hlasitost.hlavna, n, 0.05);
+  bHudba.gain.setTargetAtTime(hlasitost.hudba, n, 0.05);
+  bProstredie.gain.setTargetAtTime(hlasitost.prostredie, n, 0.05);
+  bEfekty.gain.setTargetAtTime(hlasitost.efekty, n, 0.05);
+}
+
 // ohen: tichy hukot (nizky sum) + nahodne praskanie; sila 0..1 podla vzdialenosti k najblizsiemu ohnu
 let dalsiePraskanie = 0;
 export function ohen(sila) {
@@ -39,7 +56,7 @@ export function ohen(sila) {
   const n = ctx.currentTime;
   if (!ohenG) {
     ohenG = ctx.createGain(); ohenG.gain.value = 0;
-    smycka().connect(filter('lowpass', 320)).connect(ohenG).connect(ctx.destination);
+    smycka().connect(filter('lowpass', 320)).connect(ohenG).connect(bProstredie);
   }
   ohenG.gain.setTargetAtTime(sila * 0.09, n, 0.3);
   if (sila > 0.02 && n > dalsiePraskanie) {
@@ -71,7 +88,7 @@ export function hrom(blizkost = 0.5) {
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.exponentialRampToValueAtTime(h * (1 - i * 0.18), t0 + 0.08);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dl);
-    s.connect(f).connect(g).connect(ctx.destination);
+    s.connect(f).connect(g).connect(bProstredie);
     s.start(t0, Math.random() * 1.5, dl + 0.1);
   }
   ton(48, 1.6, 0.25 * h, 28);
@@ -99,7 +116,7 @@ function nota(f, t0) {
   if (!ozvena) {                                 // ozvena: oneskorenie so spatnou vazbou
     ozvena = ctx.createDelay(); ozvena.delayTime.value = 0.42;
     const sp = ctx.createGain(); sp.gain.value = 0.38;
-    ozvena.connect(sp).connect(ozvena); ozvena.connect(filter('lowpass', 1800)).connect(ctx.destination);
+    ozvena.connect(sp).connect(ozvena); ozvena.connect(filter('lowpass', 1800)).connect(bHudba);
   }
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t0);
@@ -110,7 +127,7 @@ function nota(f, t0) {
     o.frequency.value = f * nas; og.gain.value = h;
     o.connect(og).connect(g); o.start(t0); o.stop(t0 + 1.5);
   }
-  g.connect(ctx.destination); g.connect(ozvena);
+  g.connect(bHudba); g.connect(ozvena);
 }
 
 function burst(trvanie, typ, f, hlasitost, q = 1) {
@@ -119,7 +136,7 @@ function burst(trvanie, typ, f, hlasitost, q = 1) {
   const g = ctx.createGain(), n = ctx.currentTime;
   g.gain.setValueAtTime(hlasitost, n);
   g.gain.exponentialRampToValueAtTime(0.001, n + trvanie);
-  s.connect(filter(typ, f, q)).connect(g).connect(ctx.destination);
+  s.connect(filter(typ, f, q)).connect(g).connect(bEfekty);
   s.start(n, Math.random() * 1.5, trvanie + 0.05);
 }
 function ton(f, trvanie, hlasitost, f2 = f) {
@@ -127,7 +144,7 @@ function ton(f, trvanie, hlasitost, f2 = f) {
   const o = ctx.createOscillator(), g = ctx.createGain(), n = ctx.currentTime;
   o.frequency.setValueAtTime(f, n); o.frequency.exponentialRampToValueAtTime(f2, n + trvanie);
   g.gain.setValueAtTime(hlasitost, n); g.gain.exponentialRampToValueAtTime(0.001, n + trvanie);
-  o.connect(g).connect(ctx.destination); o.start(n); o.stop(n + trvanie + 0.05);
+  o.connect(g).connect(bEfekty); o.start(n); o.stop(n + trvanie + 0.05);
 }
 
 export const zvuky = {

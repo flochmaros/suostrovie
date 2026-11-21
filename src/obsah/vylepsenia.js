@@ -39,10 +39,23 @@ const VYL = [
   { kluc: 'pad', meno: 'Silnejšie pádlo / vesla', ikona: '🏓', cena: [[['bambus', 4], ['vlakno', 4]], [['bambus', 8], ['vlakno', 8], ['kamen', 3]], [['drevo', 10], ['bambus', 12], ['vlakno', 12], ['musla', 6]]] },
   { kluc: 'plachta', meno: 'Lepšia plachta', ikona: '🧵', plachta: true, cena: [[['list', 8], ['vlakno', 8]], [['list', 14], ['vlakno', 14], ['bambus', 4]], [['list', 22], ['vlakno', 22], ['bambus', 8], ['musla', 6]]] },
   { kluc: 'trup', meno: 'Hladší trup (menší odpor vody)', ikona: '💨', cena: [[['drevo', 6], ['vlakno', 4]], [['drevo', 12], ['vlakno', 8], ['kamen', 4]], [['drevo', 20], ['vlakno', 14], ['kamen', 8], ['musla', 6]]] },
+  { kluc: 'sklad', meno: 'Väčší sklad (+4 políčka)', ikona: '📦', cena: [[['drevo', 6], ['vlakno', 6]], [['drevo', 12], ['vlakno', 10], ['bambus', 6]], [['drevo', 20], ['vlakno', 16], ['bambus', 10], ['kamen', 4]]] },
   { kluc: 'kyl', meno: 'Väčší kýl (obratnosť)', ikona: '🧭', cena: [[['drevo', 5], ['kamen', 2]], [['drevo', 10], ['kamen', 5], ['vlakno', 6]], [['drevo', 16], ['kamen', 8], ['vlakno', 12], ['bambus', 6]]] },
 ];
 for (const v of VYL) v.cena.forEach((suroviny, i) => R({
   id: `lod_${v.kluc}_${i + 1}`, skupina: 'Vylepšiť najbližšiu loď', meno: `${v.meno} ${'I'.repeat(i + 1)}`, ikona: v.ikona, suroviny,
   podmienka: () => { const l = ctx.lod(); return !!l && l.vyl[v.kluc] === i && (!v.plachta || !!l.plachta); },
   akcia: () => ctx.lod().vylepsi(v.kluc, i + 1),
+}));
+
+// ---------- vylepsenia konkretnej lode (3 stupne; kanoe ma svoje urovne vyssie): vacsia plachta, pevnejsi trup, rychlejsie padlo/vesla ----------
+const LOD_VYL = {
+  pretekove: [['Dlhší karbónový sťažeň', '🏁', [['bambus', 10], ['vlakno', 8], ['list', 6]]], ['Vystužený trup', '🏁', [['drevo', 10], ['bambus', 12], ['vlakno', 10], ['musla', 4]]], ['Aerodynamické plaváky', '🏁', [['bambus', 20], ['vlakno', 16], ['kamen', 6], ['musla', 8]]]],
+  barza: [['Väčšia štvorcová plachta', '📦', [['list', 14], ['vlakno', 12], ['drevo', 8]]], ['Vystužené klady', '📦', [['drevo', 24], ['vlakno', 14], ['kamen', 6]]], ['Dlhé kormidlové veslo', '📦', [['drevo', 30], ['bambus', 14], ['vlakno', 18], ['musla', 6]]]],
+  katamaran: [['Génua (predná plachta)', '⛵', [['list', 24], ['vlakno', 18], ['bambus', 10]]], ['Vystužené trupy', '⛵', [['drevo', 36], ['vlakno', 22], ['kamen', 10]]], ['Navigačné lano a kormidlo', '⛵', [['drevo', 40], ['bambus', 20], ['vlakno', 30], ['kamen', 12], ['musla', 10]]]],
+};
+for (const [druh, stupne] of Object.entries(LOD_VYL)) stupne.forEach(([meno, ikona, suroviny], i) => R({
+  id: `lod_${druh}_tr${i + 1}`, skupina: 'Vylepšiť najbližšiu loď', meno: `${DRUHY[druh].nazov}: ${meno}`, ikona, suroviny,
+  podmienka: () => { const l = ctx.lod(); return l?.druh === druh && l.vyl.tr === i; },
+  akcia: () => ctx.lod().vylepsi('tr', i + 1),
 }));

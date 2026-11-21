@@ -7,6 +7,7 @@ import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { postavModel } from './postava.js';
 import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
+import { drzNaPalube, naLokalne } from './kanoe.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
@@ -116,6 +117,44 @@ export function vytvorHraca(scena) {
       J.telo.position.y = tlm(J.telo.position.y, t.ty, 12, dt);
       // kraul: ruky sa tocia dokola (bez tlmenia, inak by preskakovali)
       if (stav === 'plavanie' && v > 0.6) { J.rL.rotation.x = faza % 6.283; J.rP.rotation.x = (faza + Math.PI) % 6.283; J.rL.rotation.z = -0.25; J.rP.rotation.z = 0.25; }
+    },
+
+    // ---------- chodza po palube lode (model hraca je dietaom lode, suradnice su lokalne) ----------
+    pal: { x: 0, y: 0, z: 0, vx: 0, vz: 0, vy: 0 },
+    // postavi hraca na palubu na najblizsie miesto k svetovej polohe (x, z)
+    naPalubu(lod, x, z) {
+      const P = lod.stat.paluba, [lx, lz] = naLokalne(lod, x, z), [px, pz] = drzNaPalube(P, lx, lz);
+      Object.assign(h.pal, { x: px, y: P.y, z: pz, vx: 0, vz: 0, vy: 0 });
+      lod.model.add(model);
+      model.position.set(px, P.y, pz);
+      h.naZemi = true; h.plava = false; h.potapa = false;
+    },
+    aktualizujNaPalube(dt, yaw, lod) {
+      const P = lod.stat.paluba, pal = h.pal;
+      const vpred = (klavesy.has('KeyW') ? 1 : 0) - (klavesy.has('KeyS') ? 1 : 0);
+      const vbok = (klavesy.has('KeyD') ? 1 : 0) - (klavesy.has('KeyA') ? 1 : 0);
+      let mx = -Math.sin(yaw) * vpred + Math.cos(yaw) * vbok, mz = -Math.cos(yaw) * vpred - Math.sin(yaw) * vbok;
+      const dlzka = Math.hypot(mx, mz);
+      if (dlzka > 0) { mx /= dlzka; mz /= dlzka; }
+      const s = Math.sin(lod.smer), c = Math.cos(lod.smer);
+      const rychlost = (klavesy.has('ShiftLeft') ? 6.5 : 4) * (h.nasobok ?? 1);
+      pal.vx = tlm(pal.vx, (mx * c - mz * s) * rychlost, 12, dt);
+      pal.vz = tlm(pal.vz, (mx * s + mz * c) * rychlost, 12, dt);
+      [pal.x, pal.z] = drzNaPalube(P, pal.x + pal.vx * dt, pal.z + pal.vz * dt);
+      pal.vy -= 24 * dt; pal.y += pal.vy * dt;
+      h.naZemi = pal.y <= P.y + 0.02;
+      if (pal.y < P.y) { pal.y = P.y; pal.vy = 0; }
+      if (h.naZemi && stlacene('Space')) pal.vy = 7;
+      if (uder >= 0) h.smer = tlmUhol(h.smer, yaw, 20, dt);
+      else if (dlzka > 0) h.smer = tlmUhol(h.smer, Math.atan2(-mx, -mz), 14, dt);
+      model.position.set(pal.x, pal.y, pal.z);
+      model.rotation.set(0, h.smer - lod.smer, 0);
+      lod.model.updateMatrixWorld(true);
+      model.getWorldPosition(h.poz);
+      h.rych.set(pal.vx * c + pal.vz * s, 0, -pal.vx * s + pal.vz * c);   // svetova rychlost (pre zvuky a zvieratka)
+      h.vy = pal.vy; h.plava = false; h.potapa = false;
+      const v = Math.hypot(pal.vx, pal.vz);
+      h.animuj(dt, !h.naZemi ? 'vzduch' : v > 0.5 ? 'chodza' : 'stoj', v);
     },
 
     aktualizuj(dt, yaw, t) {

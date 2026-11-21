@@ -5,7 +5,7 @@ import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
-import { vytvorKanoe, vietor, aktualizujVietor, DRUHY } from './kanoe.js';
+import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
@@ -17,6 +17,7 @@ import './obsah/jedlo.js';
 import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti } from './more.js';
 import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU } from './pocasie.js';
+import { initNastavenia } from './nastavenia.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
@@ -57,7 +58,7 @@ const kam = vytvorKameru(kamera);
 hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z);
 
 // ---------- stav + ukladanie ----------
-let vKanoe = false, cas = 0;
+let vKanoe = false, naPalube = false, cas = 0;   // vKanoe = sedi pri kormidle/padle, naPalube = chodi po palube (barza, katamaran)
 const objavene = new Set();
 const KLUC = 'suostrovie-ulozenie-v3';
 try {
@@ -70,7 +71,7 @@ try {
       if (!DRUHY[d.d]) continue;
       const l = novaLod(d.d, d.x, d.z); l.smer = d.s;
       if (d.u) l.nastavUroven(d.u);
-      if (d.v) Object.assign(l.vyl, d.v);
+      if (d.v) for (const [kl, n] of Object.entries(d.v)) l.vylepsi(kl, n);
       if (Array.isArray(d.sk)) d.sk.slice(0, l.sklad.length).forEach((p, i) => { l.sklad[i] = p && PREDMETY[p.typ] ? p : null; });
     }
     kanoe = lode[Math.max(0, Math.min(u.aktivna | 0, lode.length - 1))] || null;
@@ -84,7 +85,7 @@ try {
     nacitajPocasie(u.pocasie);
     nacitajOhne(u.ohne);
     nacitajStavby(u.stavby);
-    if (u.vKanoe && kanoe) nastup();
+    if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
 } catch (e) { /* nova hra */ }
 if (!lode.length) novaLod('kanoe', start.kanoe.x, start.kanoe.z);
@@ -93,7 +94,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      vKanoe, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby() }));
+      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby() }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -107,24 +108,45 @@ function oznam(text) {
 }
 
 // ---------- kanoe: nastup / vystup ----------
-function nastup() {
-  vKanoe = true;
+// nastup: kanoe a pretekove = sadnes si; barza a katamaran = vstupis na palubu (kormidlo: E pri kormidle)
+function sadniSa() {
+  vKanoe = true; naPalube = false;
   kanoe.model.add(hrac.model);
   hrac.model.position.copy(kanoe.SEDADLO);
   hrac.model.rotation.set(0, 0, 0);
 }
+function nastup() {
+  if (kanoe.stat.paluba) { naPalube = true; vKanoe = false; hrac.naPalubu(kanoe, hrac.poz.x, hrac.poz.z); }
+  else sadniSa();
+}
+function vstan() {                                  // od kormidla na palubu (vedla sedadla)
+  const [x, z] = zLokalnych(kanoe, kanoe.SEDADLO.x + 0.9, kanoe.SEDADLO.z);
+  vKanoe = false; naPalube = true;
+  hrac.naPalubu(kanoe, x, z);
+  hrac.poz.set(x, hrac.pal.y, z);
+}
 function miestoNaVystup(t) {
-  for (let r = 1.5; r <= 9; r += 0.5) for (let i = 0; i < 24; i++) {
+  const { hl, hw } = kanoe.hitbox();
+  for (let r = 1.5; r <= 12; r += 0.5) for (let i = 0; i < 24; i++) {
     const a = i / 24 * Math.PI * 2, x = kanoe.poz.x + Math.cos(a) * r, z = kanoe.poz.y + Math.sin(a) * r;
+    const [lx, lz] = naLokalne(kanoe, x, z);
+    if (Math.abs(lx) < hw + 0.5 && Math.abs(lz) < hl + 0.5) continue;     // musi byt mimo trupu
     if (vyskaTerenu(x, z) > vyskaVody(x, z, t) + 0.15) return [x, z];
   }
   return null;
 }
+function zlez() { vKanoe = false; naPalube = false; scena.add(hrac.model); hrac.rych.set(0, 0, 0); }
 function vystup([x, z]) {
-  vKanoe = false;
-  scena.add(hrac.model);
+  zlez();
   hrac.poz.set(x, vyskaTerenu(x, z), z);
-  hrac.rych.set(0, 0, 0); hrac.vy = 0;
+  hrac.vy = 0;
+}
+function vystupDoVody() {                             // skok z lode do vody (na pravom boku, mimo trupu)
+  const { hw } = kanoe.hitbox();
+  const [x, z] = zLokalnych(kanoe, hw + 0.9, naPalube ? hrac.pal.z : kanoe.SEDADLO.z);
+  zlez();
+  hrac.poz.set(x, vyskaVody(x, z, cas) - 0.3, z);
+  hrac.vy = -3;                                       // splach pri dopade
 }
 
 // ---------- udalosti hraca ----------
@@ -202,11 +224,12 @@ udalostiPreziti.priSmrti = () => document.exitPointerLock();
 udalostiPreziti.priZobudeni = () => {
   oziv();
   const s = start.hrac;
-  if (vKanoe) vystup([s.x, s.z]);
+  if (vKanoe || naPalube) vystup([s.x, s.z]);
   hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
   zamkni();
 };
 initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
+const menu = initNastavenia(g, $('start'));
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initInventar(() => hrac.drz(vybranyPredmet()));
 vykresliInventar();
@@ -256,16 +279,18 @@ function aktualizuj(dt) {
   aktualizujVietor(cas);
   if (poc) vietor.sila = 0.3 + 0.7 * poc.vietorSila;
   const letim = aktualizujDev(dt, g);
-  if (!vKanoe) kanoe = lodBlizko(1e9) || kanoe;                    // na brehu je aktivna najblizsia lod
-  const lx = vKanoe ? kanoe.poz.x : hrac.poz.x, lz = vKanoe ? kanoe.poz.y : hrac.poz.z;
+  if (!vKanoe && !naPalube) kanoe = lodBlizko(1e9) || kanoe;                    // na brehu je aktivna najblizsia lod
+  const lx = vKanoe || naPalube ? kanoe.poz.x : hrac.poz.x, lz = vKanoe || naPalube ? kanoe.poz.y : hrac.poz.z;
   for (const l of lode) if (!(vKanoe && l === kanoe) && Math.hypot(l.poz.x - lx, l.poz.y - lz) < 250) l.aktualizuj(dt, cas, false);
+  kolizieLodi(lode);
   const dosahLode = 4.5 + kanoe.stat.dlzka * 0.12;
   if (stlacene('Tab')) { if (prepniBatoh(!jeOtvoreny() || rezimOkna() === 'stavba', 'batoh')) document.exitPointerLock(); else zamkni(); }
+  if (stlacene('KeyM')) oznam(menu.prepniTicho() ? '🔇 Zvuk vypnutý (M)' : '🔊 Zvuk zapnutý (M)');
   if (stlacene('KeyB') && !stavPreziti.mrtvy && !vKanoe) {   // stavebne menu
     if (jeOtvoreny() && rezimOkna() === 'stavba') { prepniBatoh(false); zamkni(); }
     else { prepniBatoh(true, 'stavba'); document.exitPointerLock(); }
   }
-  if (stlacene('KeyR') && !stavPreziti.mrtvy && (vKanoe || Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode)) {
+  if (stlacene('KeyR') && !stavPreziti.mrtvy && (vKanoe || naPalube || Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode)) {
     if (jeOtvoreny()) { prepniBatoh(false); zamkni(); } else otvorOkno('sklad', kanoe.sklad, `Sklad: ${kanoe.stat.nazov}`);
   }
   for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
@@ -296,15 +321,34 @@ function aktualizuj(dt) {
   if (vKanoe) {
     kanoe.aktualizuj(dt, cas, true);
     hrac.animuj(dt, 'sedi', 0, kanoe.faza);
-    const miesto = miestoNaVystup(cas);
-    if (miesto) napoveda = '<kbd>E</kbd> vystúpiť na breh';
+    hrac.poz.set(kanoe.poz.x, kanoe.y, kanoe.poz.y);
+    const palubna = !!kanoe.stat.paluba;
+    const miesto = palubna ? null : miestoNaVystup(cas);
     const more = !miesto && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
-    if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
-    if (miesto && stlacene('KeyE')) vystup(miesto);
-    else if (more && stlacene('KeyE')) zoberVsetko(more.akcia());
+    napoveda = miesto ? '<kbd>E</kbd> vystúpiť na breh' : more ? `<kbd>E</kbd> ${more.text}` : palubna ? '<kbd>E</kbd> vstať a chodiť po palube' : '<kbd>E</kbd> skočiť do vody';
+    if (stlacene('KeyE')) {
+      if (miesto) vystup(miesto);
+      else if (more) zoberVsetko(more.akcia());
+      else if (palubna) vstan();
+      else vystupDoVody();
+    }
+  } else if (naPalube) {
+    hrac.nasobok = rychlostNasobok();
+    if (!letim && zivy) hrac.aktualizujNaPalube(dt, kam.yaw, kanoe);
+    if (stlacene('Mys0') && zivy) hrac.uder();
+    const [lx2, lz2] = [hrac.pal.x, hrac.pal.z], sed = kanoe.SEDADLO;
+    const uKormidla = Math.hypot(lx2 - sed.x, lz2 - sed.z) < 1.9;
+    const more = najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
+    napoveda = uKormidla ? '<kbd>E</kbd> sadnúť si ku kormidlu · <kbd>R</kbd> sklad' : more ? `<kbd>E</kbd> ${more.text}` : '<kbd>E</kbd> zísť z lode · <kbd>R</kbd> sklad';
+    if (stlacene('KeyE')) {
+      if (uKormidla) sadniSa();
+      else if (more) zoberVsetko(more.akcia());
+      else { const m = miestoNaVystup(cas); if (m) vystup(m); else vystupDoVody(); }
+    }
   } else {
     hrac.nasobok = rychlostNasobok();
     if (!letim && zivy) hrac.aktualizuj(dt, kam.yaw, cas);
+    for (const l of lode) if (Math.hypot(l.poz.x - hrac.poz.x, l.poz.y - hrac.poz.z) < 25) odtlacOdLode(l, hrac.poz);   // trup lode je pevny
     if (stlacene('Mys0') && zivy) hrac.uder();
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
