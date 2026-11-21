@@ -117,13 +117,14 @@ hrac.priUdere = () => {
   zvuky.uder(material);
   if (dmg <= 0.01) { oznam(zdroj.nastroj === 'krompac' ? 'Potrebuješ krompáč' : 'Potrebuješ nástroj'); return; }
   if (nastroj?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nastroj.ikona} ${nastroj.meno} sa zlomil(a)!`);
+  kam.zatras(material === 'list' ? 0.012 : 0.03);
   const d = Math.max(u.rKolizia, 0.3);
   for (let i = 0; i < 14; i++) triesky.vypust(u.x - fx * d, hrac.poz.y + 1.1, u.z - fz * d,
     -fx * 2 + (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2.5, -fz * 2 + (Math.random() - 0.5) * 3, FARBA_TRIESOK[material], 0.9);
   const vynos = poskod(u, fx, fz, dmg);
   if (!vynos) { if (zdroj.nastroj && !nastroj?.nastroj) oznam('Rukami to pôjde pomaly – vyrob si nástroj (Tab)'); return; }
   zobrate.add(u.id);
-  if (material === 'drevo' && u.rKolizia > 0.2) setTimeout(() => zvuky.pad(), 1100);
+  if (material === 'drevo' && u.rKolizia > 0.2) setTimeout(() => { zvuky.pad(); kam.zatras(0.05); }, 1100);
   for (const [id, n] of vynos) {
     const navyse = pridaj(id, n);
     if (n - navyse > 0) oznam(`+${n - navyse} ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);

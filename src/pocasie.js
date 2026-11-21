@@ -278,9 +278,9 @@ export function aktualizujPocasie(dt, cas, stred) {
   // --- obloha (Sky) ---
   const u = g.obloha.material.uniforms;
   u.sunPosition.value.copy(SUN);
-  u.turbidity.value = 2.2 + twi * 4.5 + cover * 2;
-  u.rayleigh.value = 1.8 + twi * 1.3;
-  u.mieCoefficient.value = 0.004 + twi * 0.008;
+  u.turbidity.value = 1.3 + twi * 4.5 + cover * 2;
+  u.rayleigh.value = 0.8 + twi * 1.8;
+  u.mieCoefficient.value = 0.002 + twi * 0.008;
   g.obloha.position.copy(g.kamera.position);
 
   // --- hlavne svetlo: slnko, v noci mesiac ---

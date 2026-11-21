@@ -12,9 +12,10 @@ const kopa = id => PREDMETY[id]?.kopa ?? 20;
 const trvMax = id => PREDMETY[id]?.nastroj?.trvanlivost ?? 0;   // 0 = nie je nastroj
 
 // prida n kusov; vrati kolko sa NEzmestilo
+const nove = new Set();                           // policka, do ktorych prave nieco pribudlo (animacia pri dalsom vykresleni)
 export function pridaj(id, n = 1) {
-  for (const s of sloty) if (n && s && s.typ === id && s.pocet < kopa(id)) { const k = Math.min(n, kopa(id) - s.pocet); s.pocet += k; n -= k; }
-  for (let i = 0; n && i < sloty.length; i++) if (!sloty[i]) { const k = Math.min(n, kopa(id)); sloty[i] = { typ: id, pocet: k }; if (trvMax(id)) sloty[i].trv = trvMax(id); n -= k; }
+  sloty.forEach((s, i) => { if (n && s && s.typ === id && s.pocet < kopa(id)) { const k = Math.min(n, kopa(id) - s.pocet); s.pocet += k; n -= k; nove.add(i); } });
+  for (let i = 0; n && i < sloty.length; i++) if (!sloty[i]) { const k = Math.min(n, kopa(id)); sloty[i] = { typ: id, pocet: k }; if (trvMax(id)) sloty[i].trv = trvMax(id); n -= k; nove.add(i); }
   return n;
 }
 export const pocet = id => sloty.reduce((a, s) => a + (s && s.typ === id ? s.pocet : 0), 0);
@@ -72,7 +73,7 @@ const popisPredmetu = s => {
   const p = PREDMETY[s.typ], t = trvMax(s.typ);
   return `${p.meno} – ${p.popis}${t ? ` (trvanlivosť ${s.trv ?? t}/${t})` : ''}`;
 };
-const policko = (s, i) => `<div class="slot${i === vybrany ? ' vybrany' : ''}" data-i="${i}"${s ? ` title="${popisPredmetu(s)}"` : ''}>`
+const policko = (s, i) => `<div class="slot${i === vybrany ? ' vybrany' : ''}${nove.has(i) ? ' pop' : ''}" data-i="${i}"${s ? ` title="${popisPredmetu(s)}"` : ''}>`
   + (i < 8 ? `<span class="cislo">${i + 1}</span>` : '')
   + (s ? `<span class="ikona">${PREDMETY[s.typ].ikona}</span>${s.pocet > 1 ? `<span class="pocet">${s.pocet}</span>` : ''}${trvanlivostHtml(s)}` : '') + '</div>';
 
@@ -98,6 +99,7 @@ function receptyHtml() {
 
 export function vykresli() {
   $('lista').innerHTML = sloty.slice(0, 8).map(policko).join('');
+  nove.clear();
   $('batoh').style.display = otvoreny ? 'flex' : 'none';
   if (!otvoreny) return;
   $('batoh-mriezka').innerHTML = sloty.map(policko).join('');

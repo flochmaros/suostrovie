@@ -9,6 +9,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 export const VRSTVA_VODA = 1;
 export const SLNKO = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(150));
@@ -79,6 +80,22 @@ export function vytvorGrafiku() {
   const bloom = new UnrealBloomPass(velkost.clone(), 0.45, 0.3, 3.0);   // ziaria len odlesky slnka (jas > 3)
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  // farebne ladenie (po tone mappingu): sytost, kontrast, tiene do modra / svetla do tepla, vignetacia
+  composer.addPass(new ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+        c.rgb = mix(vec3(l), c.rgb, 1.3);
+        c.rgb = (c.rgb - 0.5) * 1.1 + 0.5;
+        c.rgb *= mix(vec3(0.96, 0.99, 1.05), vec3(1.05, 1.0, 0.94), smoothstep(0.25, 0.85, l));
+        vec2 d = vUv - 0.5;
+        c.rgb *= 1.0 - dot(d, d) * 0.5;
+        gl_FragColor = vec4(clamp(c.rgb, 0.0, 1.0), c.a);
+      }`,
+  }));
 
   const uObrazovka = { value: velkost.clone() };
 

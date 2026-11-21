@@ -10,7 +10,8 @@ const tlm = THREE.MathUtils.damp;
 export const CITLIVOST = 0.0032;
 
 export function vytvorKameru(kamera) {
-  const k = { yaw: -Math.PI / 2, pitch: 0.28, vzdialenost: 6, akt: 6, ciel: new THREE.Vector3(), prvy: true };
+  const k = { yaw: -Math.PI / 2, pitch: 0.28, vzdialenost: 6, akt: 6, ciel: new THREE.Vector3(), prvy: true, otras: 0 };
+  k.zatras = sila => { k.otras = Math.max(k.otras, sila); };
   const p = new THREE.Vector3();
 
   k.aktualizuj = (dt, t, cielPoz, { vKanoe = false, smerKanoe = 0, rychlost = 0, podVodu = false } = {}) => {
@@ -42,6 +43,11 @@ export function vytvorKameru(kamera) {
       if (kamera.position.y < min) kamera.position.y = min;
     }
     kamera.lookAt(k.ciel);
+    if (k.otras > 0.001) {                                  // zatrasenie pri udere / pade stromu, rychlo dozneje
+      kamera.rotation.x += (Math.random() - 0.5) * k.otras;
+      kamera.rotation.y += (Math.random() - 0.5) * k.otras;
+      k.otras *= Math.exp(-dt * 14);
+    }
     const fov = 70 + Math.min(rychlost, 16) * 0.9;
     if (Math.abs(kamera.fov - fov) > 0.05) { kamera.fov = tlm(kamera.fov, fov, 3, dt); kamera.updateProjectionMatrix(); }
   };

@@ -67,6 +67,32 @@ export function aktualizujZvuk(t, { silaVetra = 0.5, rychlost = 0, pobrezie = 0,
   more.gain.setTargetAtTime(podVodou ? 0.04 : 0.05 + 0.05 * Math.sin(t * 0.55) ** 2 + pobrezie * 0.12, n, 0.4);
   vietor.gain.setTargetAtTime(podVodou ? 0 : 0.012 + silaVetra * 0.02 + Math.min(rychlost, 16) * 0.004, n, 0.4);
   vietorF.frequency.setTargetAtTime(450 + Math.min(rychlost, 16) * 40, n, 0.5);
+  // hudba: obcas kratka fraza z pentatoniky (ako drevena marimba s ozvenou), pod vodou ticho
+  if (!podVodou && n > dalsiaFraza) {
+    const zaklad = 220 * 2 ** (STUPNE[Math.floor(Math.random() * 3)] / 12);
+    for (let i = 0, d = 0; i < 2 + Math.floor(Math.random() * 4); i++, d += 0.35 + Math.random() * 0.5)
+      nota(zaklad * 2 ** (STUPNE[Math.floor(Math.random() * STUPNE.length)] / 12), n + d);
+    dalsiaFraza = n + 9 + Math.random() * 14;
+  }
+}
+const STUPNE = [0, 2, 4, 7, 9, 12, 14, 16];   // durova pentatonika v poltonoch
+let dalsiaFraza = 6, ozvena = null;
+function nota(f, t0) {
+  if (!ozvena) {                                 // ozvena: oneskorenie so spatnou vazbou
+    ozvena = ctx.createDelay(); ozvena.delayTime.value = 0.42;
+    const sp = ctx.createGain(); sp.gain.value = 0.38;
+    ozvena.connect(sp).connect(ozvena); ozvena.connect(filter('lowpass', 1800)).connect(ctx.destination);
+  }
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.03, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.4);
+  for (const [nas, h] of [[1, 1], [4, 0.15]]) {  // zaklad + vyssi alikvot = dreveny zvuk
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.frequency.value = f * nas; og.gain.value = h;
+    o.connect(og).connect(g); o.start(t0); o.stop(t0 + 1.5);
+  }
+  g.connect(ctx.destination); g.connect(ozvena);
 }
 
 function burst(trvanie, typ, f, hlasitost, q = 1) {

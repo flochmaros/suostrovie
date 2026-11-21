@@ -207,6 +207,14 @@ float kaustika(vec2 p, float t) {
 }
 `;
 export const KAUSTIKA_GLSL = KAUSTIKA;
+// hodnotovy sum 0..1 pre farbu terenu
+const SUM_T = `
+float hashT(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float sumT(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hashT(i), hashT(i + vec2(1, 0)), f.x), mix(hashT(i + vec2(0, 1)), hashT(i + 1.0), f.x), f.y);
+}
+`;
 export const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, envMapIntensity: 0.3,
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });   // ostrov vyhra nad morskym dnom (z-fighting)
 matTeren.onBeforeCompile = sh => {
@@ -214,12 +222,19 @@ matTeren.onBeforeCompile = sh => {
   sh.uniforms.uPriliv = uPriliv;
   sh.vertexShader = 'varying vec3 vSvetP;\n' + sh.vertexShader.replace('#include <begin_vertex>',
     '#include <begin_vertex>\nvSvetP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-  sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nvarying vec3 vSvetP;\n' + KAUSTIKA + sh.fragmentShader
+  sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nvarying vec3 vSvetP;\n' + KAUSTIKA + SUM_T + sh.fragmentShader
     .replace('#include <color_fragment>', `#include <color_fragment>
       float nadVodou = vSvetP.y - uPriliv;
       float jemny = sin(vSvetP.x * 2.3 + sin(vSvetP.z * 1.7)) * sin(vSvetP.z * 2.1 + sin(vSvetP.x * 1.3))
                   + 0.5 * sin(vSvetP.x * 7.1 + vSvetP.z * 3.3) * sin(vSvetP.z * 6.3 - vSvetP.x * 2.9);
       diffuseColor.rgb *= 1.0 + jemny * 0.045;
+      // trava nie je jednoliata: suchsie zltkave a sviezejsie tmave flaky + drobna zrnitost (aj piesok)
+      float zelen = smoothstep(0.0, 0.06, diffuseColor.g - diffuseColor.r) * step(0.0, nadVodou);
+      float flak = sumT(vSvetP.xz * 0.07) * 0.7 + sumT(vSvetP.xz * 0.21) * 0.3;
+      float zrno = sumT(vSvetP.xz * 1.3) * 0.6 + sumT(vSvetP.xz * 4.7) * 0.4;
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.4, 1.18, 0.55), smoothstep(0.55, 0.78, flak) * zelen * 0.75);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.7, 0.92, 0.68), smoothstep(0.42, 0.2, flak) * zelen);
+      diffuseColor.rgb *= 1.0 + (zrno - 0.5) * (0.1 + 0.3 * zelen);
       diffuseColor.rgb *= 1.0 - 0.32 * (1.0 - smoothstep(-0.1, 1.0, nadVodou)) * step(-0.6, nadVodou);`)
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       float hl = uPriliv - vSvetP.y;

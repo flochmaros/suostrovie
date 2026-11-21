@@ -18,7 +18,8 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 
 ## Technika
 - Bez buildu: `index.html` + ES moduly v `src/`, Three.js 0.160.0 cez importmap z jsDelivr.
-- Spustenie: `python server.py` v tomto priečinku (server bez cache) → http://localhost:8125 (alebo `.claude/launch.json` „hra“).
+- **Web (verejný):** https://flochmaros.github.io/suostrovie/ – repo `flochmaros/suostrovie`, GitHub Pages z vetvy `main`; každý push sa do ~1 min objaví na webe.
+- Spustenie lokálne: `python server.py` v tomto priečinku (server bez cache) → http://localhost:8125 (alebo `.claude/launch.json` „hra“).
 - Komentáre v kóde po slovensky bez diakritiky; názvy premenných môžu byť slovensky.
 - Svet je deterministický zo `SEED` (`src/svet.js`): rovnaký seed = rovnaké ostrovy.
 

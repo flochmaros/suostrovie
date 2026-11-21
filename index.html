@@ -24,6 +24,8 @@
   .slot { position: relative; width: 56px; height: 56px; border-radius: 10px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.25);
           display: flex; align-items: center; justify-content: center; box-sizing: border-box; pointer-events: auto; }
   .slot.vybrany { border-color: var(--zlta); background: rgba(255,210,122,.22); }
+  .slot.pop { animation: pop .45s ease-out; }
+  @keyframes pop { 0% { transform: scale(1); } 30% { transform: scale(1.22); box-shadow: 0 0 14px rgba(255,230,150,.9); } 100% { transform: scale(1); } }
   .slot .ikona { font-size: 30px; line-height: 1; }
   .slot .cislo { position: absolute; top: 2px; left: 6px; font-size: 11px; opacity: .75; }
   .slot .pocet { position: absolute; bottom: 1px; right: 6px; font-size: 14px; font-weight: 800; }

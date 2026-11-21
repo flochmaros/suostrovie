@@ -6,5 +6,7 @@ class BezCache(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
 
-print('Hra bezi na http://localhost:8125')
-ThreadingHTTPServer(('127.0.0.1', 8125), BezCache).serve_forever()
+import os
+PORT = int(os.environ.get('PORT', 8125))   # launch.json moze dat iny port, ked je 8125 obsadeny
+print(f'Hra bezi na http://localhost:{PORT}')
+ThreadingHTTPServer(('127.0.0.1', PORT), BezCache).serve_forever()
