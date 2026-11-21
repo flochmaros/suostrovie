@@ -9,15 +9,16 @@ export const MAPA_KRUH = (() => {               // makky biely kruh
   return new THREE.CanvasTexture(c);
 })();
 
-export function vytvorCastice(scena, { pocet = 600, velkost = 0.3, aditivne = false, vrstva = 1 } = {}) {
+export function vytvorCastice(scena, { pocet = 600, velkost = 0.3, aditivne = false, vrstva = 1, jas = 1, nepriehladnost = 1 } = {}) {
   const poz = new Float32Array(pocet * 3), farby = new Float32Array(pocet * 4);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(poz, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(farby, 4));
   const body = new THREE.Points(geo, new THREE.PointsMaterial({
-    size: velkost, map: MAPA_KRUH, vertexColors: true, transparent: true, depthWrite: false,
+    size: velkost, map: MAPA_KRUH, vertexColors: true, transparent: true, depthWrite: false, opacity: nepriehladnost,
     blending: aditivne ? THREE.AdditiveBlending : THREE.NormalBlending,
   }));
+  body.material.color.setScalar(jas);             // jas > 1 = HDR farba, ktoru zachyti bloom (ohen)
   body.frustumCulled = false;
   body.layers.set(vrstva);
   scena.add(body);

@@ -10,6 +10,7 @@ const HLAD_ZA_S = 100 / (25 * 60);   // prazdny za ~25 min
 const SMAD_ZA_S = 100 / (15 * 60);   // prazdny za ~15 min
 const UBYTOK_ZDRAVIA = 0.5;          // za sekundu pri hlade/smade 0 (kazde zvlast)
 const OBNOVA_ZDRAVIA = 0.6;          // za sekundu pri hlade aj smade > 60
+const TEPLO_OHNA = 0.5;              // za sekundu navyse pri horiacom ohni (ak nie si hladny/smadny)
 
 let blesk = 0;            // cervene zablesnutie po zraneni (0..1)
 let casVarovania = 0;     // rate-limit varovani
@@ -23,8 +24,8 @@ function varuj(text) {
   if (udalosti.priVarovani) udalosti.priVarovani(text);
 }
 
-// dt v sekundach; akcie: { beh, plava, vKanoe, padluje, teplo (nasobok smadu, 1 = normal, ~1.5 na slnku) }
-export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = false, padluje = false, teplo = 1 } = {}) {
+// dt v sekundach; akcie: { beh, plava, vKanoe, padluje, teplo (nasobok smadu, 1 = normal, ~1.5 na slnku), priOhni (pri horiacom taboraku) }
+export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = false, padluje = false, teplo = 1, priOhni = false } = {}) {
   if (stav.mrtvy) return;
   dt = Math.min(dt, 0.25);
   let akt = 1;
@@ -36,6 +37,10 @@ export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = fal
   if (stav.smad <= 0) zranTichy(UBYTOK_ZDRAVIA * dt, 'smad');
   if (!stav.mrtvy && stav.hlad > 60 && stav.smad > 60 && stav.zdravie < 100) {
     stav.zdravie = clamp(stav.zdravie + OBNOVA_ZDRAVIA * dt);
+  }
+  // teplo ohna: pomale hojenie, ak nie si hladny ani smadny
+  if (!stav.mrtvy && priOhni && stav.hlad > 25 && stav.smad > 25 && stav.zdravie < 100) {
+    stav.zdravie = clamp(stav.zdravie + TEPLO_OHNA * dt);
   }
 
   casVarovania = Math.max(0, casVarovania - dt);

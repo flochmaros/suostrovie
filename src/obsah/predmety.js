@@ -64,3 +64,10 @@ predmet('aloe', { meno: 'Aloe', ikona: '🪴', popis: 'Šťava z aloe hojí a os
   model: [new THREE.ConeGeometry(0.06, 0.5, 4).rotateZ(Math.PI / 2).translate(0, 0.05, 0), mat(0x6f9a6a)] });
 predmet('taro', { meno: 'Taro', ikona: '🥔', popis: 'Škrobový koreň, treba ho uvariť.', jedlo: { sytost: 12, voda: 0 },
   model: [new THREE.IcosahedronGeometry(0.11, 1).scale(1, 0.85, 1).translate(0, 0.1, 0), mat(0x8a6a58)] });
+
+// ---- tabor ----
+// polozit: 'taborak' = klavesa F polozi predmet pred postavu (spracuva main.js + ohen.js)
+predmet('taborak', { meno: 'Táborák', ikona: '🔥', kopa: 5, polozit: 'taborak', popis: 'Kruh kameňov s drevom. Polož (F), prikladaj drevo (E), pečie jedlo a hreje.',
+  model: [spoj(...[0, 1, 2, 3, 4, 5].map(i => fv(new THREE.IcosahedronGeometry(0.07, 0).translate(Math.cos(i) * 0.16, 0.05, Math.sin(i) * 0.16), 0x8f8c86)),
+    fv(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 5).rotateZ(1.2).translate(0, 0.08, 0), 0x6a4a2e),
+    fv(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 5).rotateZ(-1.2).rotateY(1.5).translate(0, 0.08, 0), 0x6a4a2e)), MAT_V] });

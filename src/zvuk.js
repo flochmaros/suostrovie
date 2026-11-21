@@ -30,7 +30,25 @@ export function initZvuk() {
     o.start(); l.start();
   }
 }
-let dazdG = null, nocG = null;
+let dazdG = null, nocG = null, ohenG = null;
+
+// ohen: tichy hukot (nizky sum) + nahodne praskanie; sila 0..1 podla vzdialenosti k najblizsiemu ohnu
+let dalsiePraskanie = 0;
+export function ohen(sila) {
+  if (!ctx) return;
+  const n = ctx.currentTime;
+  if (!ohenG) {
+    ohenG = ctx.createGain(); ohenG.gain.value = 0;
+    smycka().connect(filter('lowpass', 320)).connect(ohenG).connect(ctx.destination);
+  }
+  ohenG.gain.setTargetAtTime(sila * 0.09, n, 0.3);
+  if (sila > 0.02 && n > dalsiePraskanie) {
+    // praskanie: kratky ostry sum + obcas hlbsi "puk" polena
+    burst(0.02 + Math.random() * 0.04, 'highpass', 1500 + Math.random() * 3500, sila * (0.05 + Math.random() * 0.12));
+    if (Math.random() < 0.15) burst(0.09, 'bandpass', 500 + Math.random() * 300, sila * 0.18, 2);
+    dalsiePraskanie = n + Math.random() * Math.random() * 0.35;
+  }
+}
 
 // pocasie: sila dazda 0..1, sila nocnej atmosfery 0..1 (vola pocasie.js kazdy snimok)
 export function dazd(sila, podVodou = false) {
@@ -122,5 +140,6 @@ export const zvuky = {
     : (burst(0.12, 'bandpass', 900, 0.35, 2), ton(140, 0.12, 0.25, 90)),
   pad: () => { burst(0.9, 'lowpass', 300, 0.6); ton(70, 0.5, 0.3, 40); },
   zober: () => ton(700, 0.12, 0.07, 1100),
+  syc: () => { burst(0.6, 'highpass', 3500, 0.06); burst(0.4, 'bandpass', 1200, 0.05, 0.5); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
 };
