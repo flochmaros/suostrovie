@@ -14,7 +14,7 @@ export function vytvorKameru(kamera) {
   k.zatras = sila => { k.otras = Math.max(k.otras, sila); };
   const p = new THREE.Vector3();
 
-  k.aktualizuj = (dt, t, cielPoz, { vKanoe = false, smerKanoe = 0, rychlost = 0, podVodu = false } = {}) => {
+  k.aktualizuj = (dt, t, cielPoz, { vKanoe = false, smerKanoe = 0, rychlost = 0, podVodu = false, extra = 0 } = {}) => {
     k.yaw -= mys.dx * CITLIVOST;
     k.pitch = THREE.MathUtils.clamp(k.pitch + mys.dy * CITLIVOST, -0.6, 1.35);
     k.vzdialenost = THREE.MathUtils.clamp(k.vzdialenost + mys.koliesko * 1.0, 2.5, 25);
@@ -25,7 +25,7 @@ export function vytvorKameru(kamera) {
     k.ciel.z = tlm(k.ciel.z, cielPoz.z, 25, dt);
     k.ciel.y = tlm(k.ciel.y, cielPoz.y, 14, dt);
 
-    const ciel = vKanoe ? k.vzdialenost + 3.5 : k.vzdialenost;
+    const ciel = vKanoe ? k.vzdialenost + 3.5 + extra : k.vzdialenost;
     // kolizia s terenom: skrat vzdialenost, ak by medzi hracom a kamerou bol kopec
     let d = ciel;
     for (let i = 1; i <= 10; i++) {

@@ -12,6 +12,7 @@ import { vyskaTerenu } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { VRSTVA_VODA } from './grafika.js';
 import { MAPA_KRUH } from './castice.js';
+import { postavDruh } from './lode_modely.js';
 
 const tlm = THREE.MathUtils.damp;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -22,18 +23,23 @@ export const STATY = [null,
   { dlzka: 5.0, sirka: 0.42, hlbka: 0.36, zdvih: 0.36, pad: 5.5, plachta: 0, zat: 1.0, nazov: 'Jednoduché kanoe' },
   { dlzka: 5.6, sirka: 0.46, hlbka: 0.42, zdvih: 0.42, pad: 6.2, plachta: 5.5, zat: 1.1, nazov: 'Kanoe s plachtou' },
   { dlzka: 6.4, sirka: 0.54, hlbka: 0.48, zdvih: 0.5, pad: 7.0, plachta: 6.8, zat: 1.35, nazov: 'Veľké kanoe' },
-  { dlzka: 7.2, sirka: 0.5, hlbka: 0.5, zdvih: 0.55, pad: 7.6, plachta: 8.0, zat: 1.5, nazov: 'Dvojtrupová plachetnica' },
+  { dlzka: 7.2, sirka: 0.5, hlbka: 0.5, zdvih: 0.55, pad: 7.6, plachta: 8.0, zat: 1.5, nazov: 'Dvojtrupová plachetnica', rozchod: 2.2, boky: [-0.4, 0.4, 2.3, 3.1], rollK: 0.5 },
 ];
 
-// typy kanoe (na rozny ucel): nasobice k zakladnym statom urovne; dlz/sir = zmena tvaru modelu, farba = odtien trupu
-export const TYPY = {
-  zakladne: { nazov: 'Základné', pad: 1, plachta: 1, zat: 1, odpor: 1, dlz: 1, sir: 1, roll: 1, farba: 0xffffff },
-  pretekove: { nazov: 'Pretekárske (rýchle, menej obratné)', pad: 1.3, plachta: 1.15, zat: 0.75, odpor: 0.8, dlz: 1.18, sir: 0.8, roll: 1.5, farba: 0xffb08a },
-  rybarske: { nazov: 'Rybárske (obratné, stabilné)', pad: 0.95, plachta: 0.9, zat: 1.6, odpor: 1.05, dlz: 0.88, sir: 1.12, roll: 0.5, farba: 0xb9d6a0 },
-  nakladne: { nazov: 'Nákladné (pomalé, veľmi stabilné)', pad: 0.8, plachta: 1.25, zat: 0.7, odpor: 1.15, dlz: 1.1, sir: 1.45, roll: 0.25, farba: 0xc9b2a0 },
-};
 // vylepsenia (kazde 0..3): pad = silnejsie padlo, plachta = lepsia plachta, trup = hladsi trup (mensi odpor), kyl = obratnost
 export const VYL_MAX = 3;
+
+// druhy lodi: kanoe (4 urovne, STATY) + lode s vlastnym modelom (lode_modely.js). sklad = pocet policok ulozneho priestoru.
+// sedadlo = kde sedi hrac, boky = kde sa kresli brazda, sym = trup symetricky (naklon z vln z oboch bokov), kam = dalsia vzdialenost kamery
+export const DRUHY = {
+  kanoe: { nazov: 'Kanoe', sklad: 6 },
+  pretekove: { nazov: 'Pretekárske kanoe', sklad: 4, stat: { dlzka: 7.4, sirka: 0.3, hlbka: 0.3, zdvih: 0.45, pad: 9, plachta: 7, zat: 1.25, odpor: 0.8,
+    rozchod: 1.7, boky: [-0.3, 0.3], rollK: 1, sym: true, sedadlo: [0, 0.3, 1.0], kam: 1, nazov: 'Pretekárske kanoe' } },
+  barza: { nazov: 'Nákladná pltť (barža)', sklad: 36, stat: { dlzka: 7.4, sirka: 1.0, hlbka: 0.4, zdvih: 0.3, pad: 5, plachta: 5.5, zat: 0.8, odpor: 1.7,
+    rozchod: 1.4, boky: [-1.3, 1.3], rollK: 0.3, sym: true, sedadlo: [0, 0.6, 2.4], kam: 3, nazov: 'Nákladná pltť (barža)' } },
+  katamaran: { nazov: 'Veľký katamarán', sklad: 40, stat: { dlzka: 9.6, sirka: 0.45, hlbka: 0.55, zdvih: 0.7, pad: 6.5, plachta: 12, zat: 1.3, odpor: 0.7,
+    rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, nazov: 'Veľký katamarán' } },
+};
 
 export const vietor = { smer: 0.8, sila: 0.8 };       // smer = kam fuka (rovnaky uhol ako smer kanoe)
 export function aktualizujVietor(t) {
@@ -44,7 +50,7 @@ export function aktualizujVietor(t) {
 // ---------- textury (canvas, vytvoria sa raz) ----------
 function nahoda(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 let texTrup = null, texPlatno = null;
-function texturaTrupu() {                    // pruhy dosiek: v (okolo trupu) = os y platna
+export function texturaTrupu() {                    // pruhy dosiek: v (okolo trupu) = os y platna
   if (texTrup) return texTrup;
   const c = document.createElement('canvas'); c.width = 128; c.height = 288;
   const g = c.getContext('2d'), r = nahoda(7), N = 9, ph = c.height / N;
@@ -63,7 +69,7 @@ function texturaTrupu() {                    // pruhy dosiek: v (okolo trupu) = 
   texTrup.colorSpace = THREE.SRGBColorSpace; texTrup.anisotropy = 4; texTrup.wrapS = THREE.RepeatWrapping; texTrup.repeat.set(2, 1);
   return texTrup;
 }
-function texturaPlatna() {                   // platno so vodorovnymi sevmi, uv = suradnice tvaru v metroch
+export function texturaPlatna() {                   // platno so vodorovnymi sevmi, uv = suradnice tvaru v metroch
   if (texPlatno) return texPlatno;
   const c = document.createElement('canvas'); c.width = 128; c.height = 128;
   const g = c.getContext('2d'), r = nahoda(11);
@@ -83,7 +89,7 @@ function texturaPlatna() {                   // platno so vodorovnymi sevmi, uv 
 
 // ---------- geometria ----------
 // trup: polovica elipsy v priereze, uzsi a vyssi na koncoch
-function trup(dlzka, sirka, hlbka, zdvih, plny = false) {
+export function trup(dlzka, sirka, hlbka, zdvih, plny = false) {
   return new ParametricGeometry((u, v, ciel) => {
     const z = (u - 0.5) * dlzka, s = Math.abs(u - 0.5) * 2;
     const w = Math.max(sirka * Math.pow(Math.max(1 - s * s, 0), 0.55), 0.015);   // nie 0: nulova normala = NaN v shaderi
@@ -92,16 +98,16 @@ function trup(dlzka, sirka, hlbka, zdvih, plny = false) {
     ciel.set(Math.cos(a) * w, -Math.sin(a) * d + zdvih * s * s, z);
   }, 28, plny ? 12 : 10);
 }
-const polSirka = (S, z) => { const s = Math.abs(z) / (S.dlzka / 2); return S.sirka * Math.pow(Math.max(1 - s * s, 0), 0.55); };
+export const polSirka = (S, z) => { const s = Math.abs(z) / (S.dlzka / 2); return S.sirka * Math.pow(Math.max(1 - s * s, 0), 0.55); };
 const vyskaOkraja = (S, z) => { const s = Math.abs(z) / (S.dlzka / 2); return 0.32 + S.zdvih * s * s; };
 
-function spoj(a, b, r, mat, seg = 6) {       // valec medzi dvoma bodmi (lano, ztuha)
+export function spoj(a, b, r, mat, seg = 6) {       // valec medzi dvoma bodmi (lano, ztuha)
   const d = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), seg), mat);
   m.position.copy(a).addScaledVector(d, 0.5);
   m.quaternion.setFromUnitVectors(UP, d.normalize());
   return m;
 }
-function vazby(krivka, tt, r, mat) {         // lanove obvazy: torusy kolmo na osu tyce
+export function vazby(krivka, tt, r, mat) {         // lanove obvazy: torusy kolmo na osu tyce
   return tt.map(t => {
     const m = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.3, 5, 10), mat);
     m.position.copy(krivka.getPoint(t));
@@ -161,7 +167,7 @@ function kadlub(uroven, S, x, mat) {
   return o;
 }
 
-function padloModel(mat) {
+export function padloModel(mat) {
   const padlo = new THREE.Group();
   padlo.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.028, 1.7, 7), mat.svetle));
   const rukov = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.24, 6).rotateZ(Math.PI / 2), mat.svetle);
@@ -179,7 +185,7 @@ function padloModel(mat) {
   return padlo;
 }
 
-function plachtaModel(k, uroven, mat) {
+export function plachtaModel(k, uroven, mat) {
   const plachta = new THREE.Group();
   const tvar = new THREE.Shape();
   tvar.moveTo(0, 0); tvar.quadraticCurveTo(0.4, 1.8, 0.2, 3.4); tvar.quadraticCurveTo(1.3, 1.6, 2.5, 0.5); tvar.quadraticCurveTo(1.2, 0.1, 0, 0);
@@ -278,7 +284,7 @@ function postavModel(uroven) {
   return { objekty: o, plachta, padlo, K, S };
 }
 
-export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
+export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
   const model = new THREE.Group();
   scena.add(model);
 
@@ -294,45 +300,41 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
   const m4 = new THREE.Matrix4(), c = new THREE.Color();
   let vlastne = [];
 
-  // tvar a farba trupu podla typu (model sedadla/hraca sa nemeni)
-  function aplikujTyp() {
-    const T = TYPY[k.typ];
+  // vymeni vlastne deti modelu (hrac pripojeny k modelu ostava a presunie sa na sedadlo)
+  function zamen(b) {
     for (const o of vlastne) {
-      o.scale.set(T.sir, 1, T.dlz);
-      o.traverse(m => { const mt = m.material; if (mt && !Array.isArray(mt) && mt.map === texTrup) mt.color.setHex(T.farba); });
+      model.remove(o);
+      o.traverse(m => { m.geometry?.dispose(); if (m.material && !Array.isArray(m.material)) m.material.dispose(); });
     }
+    vlastne = b.objekty;
+    for (const o of vlastne) model.add(o);
+    k.stat = b.S; k.plachta = b.plachta; k.padlo = b.padlo; k.plachtaK = b.K;
+    k.SEDADLO.set(...(b.S.sedadlo || [0, 0.27, 0.6]));
+    for (const d of model.children) if (!vlastne.includes(d)) d.position.copy(k.SEDADLO);
   }
 
   const k = {
     model, padlo: null, plachta: null,
-    uroven: 1, stat: STATY[1], plachtaK: 1, typ: 'zakladne', vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0 },
+    uroven: 1, stat: DRUHY[druh].stat || STATY[1], plachtaK: 1, druh, sklad: Array(DRUHY[druh].sklad).fill(null), vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0 },
     poz: new THREE.Vector2(x, z), rych: new THREE.Vector2(),
     y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0, ucinnost: 0,
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
     rychlost: () => k.rych.length(),
 
-    // prestavba modelu na inu uroven (1..4); model ostava ten isty, vymenia sa len vlastne deti
+    // prestavba modelu na inu uroven kanoe (1..4); ostatne druhy maju jeden model
     nastavUroven(n) {
+      if (k.druh !== 'kanoe') return k.uroven;
       n = Math.max(1, Math.min(4, Math.round(Number(n)) || 1));
-      for (const o of vlastne) {
-        model.remove(o);
-        o.traverse(m => { m.geometry?.dispose(); if (m.material && !Array.isArray(m.material)) m.material.dispose(); });
-      }
-      const b = postavModel(n);
-      vlastne = b.objekty;
-      for (const o of vlastne) model.add(o);
-      k.uroven = n; k.stat = b.S; k.plachta = b.plachta; k.padlo = b.padlo; k.plachtaK = b.K;
-      for (const d of model.children) if (!vlastne.includes(d)) d.position.copy(k.SEDADLO);   // hrac ostava sediet
-      aplikujTyp();
+      zamen(postavModel(n));
+      k.uroven = n;
       return n;
     },
-    nastavTyp(id) { if (TYPY[id]) { k.typ = id; aplikujTyp(); } return k.typ; },
     vylepsi(kluc, n) { if (kluc in k.vyl) k.vyl[kluc] = Math.max(0, Math.min(VYL_MAX, n)); },
-    // aktualne staty = zaklad urovne x typ x vylepsenia (pouziva aj HUD/dev)
+    // aktualne staty = zaklad lode x vylepsenia
     efekt() {
-      const T = TYPY[k.typ], V = k.vyl, S = k.stat;
-      return { pad: S.pad * T.pad * (1 + 0.15 * V.pad), plachta: S.plachta * T.plachta * (1 + 0.2 * V.plachta),
-        zat: S.zat * T.zat * (1 + 0.15 * V.kyl), odpor: T.odpor * (1 - 0.07 * V.trup), dlz: S.dlzka * T.dlz };
+      const V = k.vyl, S = k.stat;
+      return { ...S, pad: S.pad * (1 + 0.15 * V.pad), plachta: S.plachta * (1 + 0.2 * V.plachta),
+        zat: S.zat * (1 + 0.15 * V.kyl), odpor: (S.odpor ?? 1) * (1 - 0.07 * V.trup), dlz: S.dlzka };
     },
 
     aktualizuj(dt, t, ovladane) {
@@ -343,7 +345,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
         tah = (klavesy.has('KeyW') ? 1 : 0) - (klavesy.has('KeyS') ? 0.6 : 0);
         zatacanie = (klavesy.has('KeyA') ? 1 : 0) - (klavesy.has('KeyD') ? 1 : 0);
       }
-      k.plachtaV = tlm(k.plachtaV, ovladane && k.uroven >= 2 && klavesy.has('ShiftLeft') ? 1 : 0, 2.5, dt);
+      k.plachtaV = tlm(k.plachtaV, ovladane && k.plachta && klavesy.has('ShiftLeft') ? 1 : 0, 2.5, dt);
       const rel = Math.atan2(Math.sin(vietor.smer - k.smer), Math.cos(vietor.smer - k.smer));
       k.ucinnost = (1 + Math.cos(rel)) / 2;
 
@@ -371,26 +373,26 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       // vlny pod lodou
       const v = (dx, dz) => vyskaVody(k.poz.x + dx, k.poz.y + dz, t);
       const hP = v(nfx * DLZKA * 0.45, nfz * DLZKA * 0.45), hZ = v(-nfx * DLZKA * 0.45, -nfz * DLZKA * 0.45);
-      const rozchod = k.uroven === 4 ? 2.2 : 1.5;
-      const hR = v(nrx * rozchod, nrz * rozchod), hL = v(-nrx * 1.5, -nrz * 1.5);
+      const rozchod = S.rozchod ?? 1.5, rozL = S.sym ? rozchod : 1.5;
+      const hR = v(nrx * rozchod, nrz * rozchod), hL = v(-nrx * rozL, -nrz * rozL);
       const hS = (hP + hZ + hR + hL + v(0, 0)) / 5;
       k.y = tlm(k.y, hS - 0.08, 7, dt);
       k.pitch = tlm(k.pitch, Math.atan2(hP - hZ, DLZKA * 0.9) + Math.min(Math.abs(vf), 14) * 0.004, 5, dt);   // pri rychlosti dvihne pridu
-      k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + 1.5) * (k.uroven === 4 ? 0.5 : 1) * TYPY[k.typ].roll + k.uhlRych * vf * 0.025, 5, dt);
+      k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + rozL) * (S.rollK ?? 1) + k.uhlRych * vf * 0.025, 5, dt);
       model.position.set(k.poz.x, k.y, k.poz.y);
       model.rotation.set(k.pitch, k.smer, k.roll, 'YXZ');
 
       // plachta po vetre
       const plachta = k.plachta, padlo = k.padlo, K = k.plachtaK;
       if (plachta) {
-        plachta.visible = k.plachtaV > 0.01 || k.uroven >= 2;
+        plachta.visible = k.plachtaV > 0.01 || k.uroven >= 2 || k.druh !== 'kanoe';
         plachta.rotation.y = tlm(plachta.rotation.y, THREE.MathUtils.clamp(rel * 0.6, -1.2, 1.2), 3, dt);
         plachta.scale.set(K, K * (0.06 + 0.94 * k.plachtaV), K * (0.25 + 0.75 * k.plachtaV));
       }
 
       // brazda a sprej
       const rychl = k.rych.length();
-      const bokyStop = k.uroven === 4 ? [-0.4, 0.4, 2.3, 3.1] : [-0.35, 0.35];
+      const bokyStop = S.boky ?? [-0.35, 0.35];
       casStopy -= dt;
       if (rychl > 0.8 && casStopy <= 0) {
         casStopy = THREE.MathUtils.clamp(0.4 / rychl, 0.02, 0.08);
@@ -420,8 +422,8 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       if (brazda.instanceColor) brazda.instanceColor.needsUpdate = true;
 
       // padlo: striedanie stran, pri prechode do vody splach + zvuk
-      padlo.visible = ovladane;
-      if (ovladane) {
+      if (padlo) padlo.visible = ovladane;
+      if (padlo && ovladane) {
         const aktivne = tah !== 0 || zatacanie !== 0;
         const stara = Math.sin(k.faza * 0.5) > 0;
         k.faza += dt * (aktivne ? 5 : 0);
@@ -436,6 +438,6 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }) {
       }
     },
   };
-  k.nastavUroven(1);
+  if (druh === 'kanoe') k.nastavUroven(1); else zamen(postavDruh(druh));
   return k;
 }

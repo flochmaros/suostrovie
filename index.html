@@ -32,28 +32,54 @@
   .slot .trv { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 4px; border-radius: 2px; background: rgba(0,0,0,.45); overflow: hidden; }
   .slot .trv i { display: block; height: 100%; border-radius: 2px; }
   .slot .pocet { text-shadow: 0 1px 3px #000a; }
-  #batoh { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 20px; padding: 20px 22px; pointer-events: auto;
-           max-height: 86vh; box-sizing: border-box; background: rgba(18, 38, 50, .62); box-shadow: 0 12px 40px #0006; }
-  #batoh h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: .5px; }
-  #batoh h3 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--zlta); opacity: .95; }
-  #batoh h3:first-child { margin-top: 0; }
-  #batoh-mriezka { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; padding: 8px; border-radius: 12px; background: rgba(0,0,0,.18); }
-  #batoh-mriezka .slot { cursor: grab; transition: background .12s, border-color .12s; }
-  #batoh-mriezka .slot:hover { background: rgba(255,255,255,.26); border-color: rgba(255,255,255,.5); }
-  #batoh .stlpec2 { width: 280px; border-left: 1px solid var(--okraj); padding-left: 20px; display: flex; flex-direction: column; min-height: 0; }
-  #vyroba { overflow-y: auto; padding-right: 6px; max-height: calc(86vh - 90px); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent; }
-  .recept { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.1); border: 1px solid transparent; margin-bottom: 6px; cursor: pointer; font-size: 13px; transition: background .12s, transform .08s; }
+  #batoh, #stavba { display: none; position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%); padding: 22px 26px; pointer-events: auto;
+           max-height: 84vh; box-sizing: border-box; background: rgba(14, 32, 44, .8); box-shadow: 0 16px 50px #0008; border-radius: 20px; gap: 26px; }
+  #batoh h2, #stavba h2 { margin: 0 0 12px; font-size: 22px; letter-spacing: .5px; display: flex; align-items: baseline; gap: 10px; }
+  #batoh h2 small, #stavba h2 small { font-size: 12px; font-weight: 600; opacity: .65; letter-spacing: 0; }
+  .okno-zatvor { margin-left: auto; font-size: 12px; font-weight: 600; opacity: .6; }
+  #sklad-mriezka { grid-template-columns: repeat(6, 66px) !important; }
+  #sklad-mriezka, #batoh-mriezka { display: grid; grid-template-columns: repeat(8, 66px); gap: 7px; padding: 10px; border-radius: 14px; background: rgba(0,0,0,.22); }
+  #batoh .slot { width: 66px; height: 66px; border-radius: 12px; }
+  #batoh .slot .ikona { font-size: 36px; }
+  #batoh .slot .pocet { font-size: 15px; right: 7px; bottom: 3px; }
+  #batoh .slot .trv { bottom: 6px; }
+  #batoh-mriezka .slot:nth-child(-n+8) { background: rgba(255,210,122,.1); }
+  #sklad-mriezka .slot, #batoh-mriezka .slot { cursor: grab; transition: background .12s, border-color .12s; }
+  #sklad-mriezka .slot:hover, #batoh-mriezka .slot:hover { background: rgba(255,255,255,.26); border-color: rgba(255,255,255,.5); }
+  #detail { margin-top: 12px; min-height: 58px; padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,.22); font-size: 14px; line-height: 1.45; box-sizing: border-box; }
+  #detail b { font-size: 16px; color: var(--zlta); }
+  #detail .tichy { opacity: .6; }
+  #batoh .stlpec2 { width: 400px; border-left: 1px solid var(--okraj); padding-left: 26px; display: flex; flex-direction: column; min-height: 0; }
+  .zalozky { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .zalozka { padding: 5px 14px; border-radius: 16px; background: rgba(255,255,255,.1); border: 1px solid transparent; font-size: 13px; font-weight: 800; cursor: pointer; transition: background .12s; }
+  .zalozka:hover { background: rgba(255,255,255,.2); }
+  .zalozka.aktivna { background: var(--zlta); color: #3a2a10; text-shadow: none; }
+  #vyroba { overflow-y: auto; padding-right: 6px; max-height: calc(84vh - 150px); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent; }
+  .recept { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.1); border: 1px solid transparent; margin-bottom: 8px; cursor: pointer; font-size: 14px; transition: background .12s, transform .08s; }
   .recept.moze { border-color: rgba(255,210,122,.55); background: rgba(255,210,122,.14); }
   .recept.moze:hover { background: rgba(255,210,122,.28); transform: translateX(2px); }
   .recept.nedostupny { cursor: default; background: rgba(255,255,255,.06); }
   .recept.nedostupny .ikona, .recept.nedostupny b { opacity: .6; }
-  .recept .ikona { font-size: 28px; flex: none; }
+  .recept .ikona { font-size: 34px; flex: none; }
   .recept .telo { min-width: 0; }
-  .recept .suroviny { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; }
-  .recept .ma { opacity: .95; }
-  .recept .chyba { color: #ffb3a8; font-weight: 800; }
-  .recept .stav { margin-top: 3px; font-size: 11.5px; color: var(--zlta); font-weight: 700; }
-  .recept .stav.chybaj { color: #ffb3a8; font-weight: 600; opacity: .9; }
+  .recept .suroviny, .karta .suroviny { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; }
+  .recept .ma, .karta .ma { opacity: .95; }
+  .recept .chyba, .karta .chyba { color: #ffb3a8; font-weight: 800; }
+  .recept .stav, .karta .stav { margin-top: 3px; font-size: 12px; color: var(--zlta); font-weight: 700; }
+  .recept .stav.chybaj, .karta .stav.chybaj { color: #ffb3a8; font-weight: 600; opacity: .9; }
+  #stavba { flex-direction: column; gap: 0; width: min(760px, 94vw); }
+  #stavba-zoznam { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; overflow-y: auto; max-height: calc(84vh - 190px); padding: 2px 6px 2px 0; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent; }
+  .karta { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 12px; border-radius: 14px; background: rgba(255,255,255,.08); border: 1px solid transparent; cursor: pointer; font-size: 13px; transition: background .12s, transform .1s; }
+  .karta.moze { border-color: rgba(255,210,122,.55); background: rgba(255,210,122,.14); }
+  .karta.moze:hover { background: rgba(255,210,122,.28); transform: translateY(-2px); }
+  .karta.nedostupny { cursor: default; }
+  .karta .velka { font-size: 52px; line-height: 1.1; }
+  .karta.nedostupny .velka, .karta.nedostupny b { opacity: .6; }
+  .karta b { font-size: 16px; margin-top: 4px; }
+  .karta .popis { opacity: .75; font-size: 12px; margin: 4px 0 6px; line-height: 1.35; }
+  .karta .suroviny { justify-content: center; }
+  .karta .mas { font-size: 11.5px; opacity: .8; margin-top: 2px; }
+  #stavba-pata { margin-top: 12px; font-size: 13px; opacity: .8; }
   .prazdne { opacity: .8; font-size: 14px; line-height: 1.5; }
   code { word-break: break-all; font-size: 12px; background: rgba(0,0,0,.25); padding: 1px 4px; border-radius: 4px; }
   #duch { display: none; position: fixed; font-size: 34px; transform: translate(-50%, -50%); pointer-events: none; z-index: 10; }
@@ -105,8 +131,15 @@
   </div>
   <div id="lista" class="panel"></div>
   <div id="batoh" class="panel">
-    <div><h2>Batoh</h2><div id="batoh-mriezka"></div></div>
-    <div class="stlpec2"><h2>Výroba</h2><div id="vyroba"></div></div>
+    <div><h2>Batoh <small>ťahaj myšou · prvých 8 = lišta (1–8)</small></h2><div id="batoh-mriezka"></div><div id="detail"></div></div>
+    <div id="sklad-box" style="display:none; border-left: 1px solid var(--okraj); padding-left: 26px"><h2 id="sklad-nazov">Sklad lode</h2><div id="sklad-mriezka"></div></div>
+    <div id="stlpec2" class="stlpec2"><h2><span id="vyroba-nazov">Výroba</span><span class="okno-zatvor"><kbd>Tab</kbd> zavrieť · <kbd>B</kbd> stavba</span></h2><div id="vyroba-tabs" class="zalozky"></div><div id="vyroba"></div></div>
+  </div>
+  <div id="stavba" class="panel">
+    <h2>Stavba <small>vyrob diel, vyber ho v lište a polož (F)</small><span class="okno-zatvor"><kbd>B</kbd> zavrieť · <kbd>Tab</kbd> batoh</span></h2>
+    <div id="stavba-tabs" class="zalozky"></div>
+    <div id="stavba-zoznam"></div>
+    <div id="stavba-pata"></div>
   </div>
 </div>
 <div id="zranenie"></div>
@@ -116,7 +149,7 @@
   <h1>Súostrovie</h1>
   <div class="hrat">Klikni a hraj</div>
   <p><kbd>WASD</kbd> pohyb · <kbd>Shift</kbd> beh · <kbd>Medzerník</kbd> skok · <kbd>C</kbd> potápanie · myš = kamera, koliesko = zoom</p>
-  <p><kbd>Ľavé tlačidlo</kbd> úder (stromy, kríky, kamene) · <kbd>E</kbd> zdvihnúť / nastúpiť / vystúpiť · <kbd>Tab</kbd> batoh · <kbd>1–8</kbd> výber</p>
+  <p><kbd>Ľavé tlačidlo</kbd> úder (stromy, kríky, kamene) · <kbd>E</kbd> zdvihnúť / nastúpiť / vystúpiť · <kbd>Tab</kbd> batoh · <kbd>B</kbd> stavba · <kbd>R</kbd> sklad lode · <kbd>1–8</kbd> výber</p>
   <p><kbd>F</kbd> zjesť / vypiť / položiť vybraný predmet (táborák) · <kbd>E</kbd> pri ohni: priložiť drevo / upiecť surové jedlo</p>
   <p>Stavba: vyber podlahu / stenu / strechu, <kbd>F</kbd> položiť (mriežka 2 m, otáča sa podľa pohľadu) · úder do dielu ho rozoberie</p>
   <p><kbd>F2</kbd> dev režim</p>

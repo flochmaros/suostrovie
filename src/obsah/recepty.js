@@ -26,3 +26,6 @@ recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [
 recept({ id: 'podlaha', skupina: 'Stavba', vysledok: ['podlaha', 1], suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });
 recept({ id: 'stena', skupina: 'Stavba', vysledok: ['stena', 1], suroviny: [['drevo', 4], ['vlakno', 2]] });
 recept({ id: 'strecha', skupina: 'Stavba', vysledok: ['strecha', 1], suroviny: [['list', 6], ['palica', 3], ['vlakno', 2]] });
+
+// lodenica: polozi sa klavesou F pri brehu; v nej sa stavaju a vylepsuju lode
+recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['kamen', 6]] });
