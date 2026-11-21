@@ -5,8 +5,9 @@ import { klavesy, stlacene } from './vstup.js';
 import { ostrovVBunke, vyskaTerenu, BUNKA, BIOM_MENO, prestavSvet } from './svet.js';
 import { nastavHustotu, nasobokHustoty } from './vegetacia.js';
 import { PREDMETY } from './obsah/predmety.js';
-import { sloty, pridaj, vykresli } from './inventar.js';
+import { sloty, pridaj, pocet, vykresli } from './inventar.js';
 import { tlmUhol } from './hrac.js';
+import { VYL_MAX } from './kanoe.js';
 
 export const dev = {
   zapnuty: false,
@@ -57,7 +58,9 @@ const html = () => `
   <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button></div>
 </div>
 <div class="obsah" data-t="predmety" hidden>
-  <button data-a="vsetko">Daj všetko (10×)</button><button data-a="vyprazdni">Vyprázdni batoh</button>
+  <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.ikona || ''} ${v.meno || k}</option>`).join('')}</select>
+    <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
+  <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
 </div>
 <div class="obsah" data-t="lode" hidden>
   <div class="skup"><b>Úroveň kanoe</b><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button></div>
@@ -122,6 +125,8 @@ export function initDev(c) {
   // klik do scény pri otvorenom dev paneli vráti myš do hry (panel ostáva)
   platno().addEventListener('click', () => { if (dev.zapnuty) zamkni(); });
 
+  panel.addEventListener('change', e => { if (e.target.type === 'checkbox') e.target.blur(); });
+  panel.addEventListener('click', e => { if (e.target.closest('button')) e.target.closest('button').blur(); });
   panel.addEventListener('input', e => {
     const t = e.target;
     if (t.dataset.p) dev[t.dataset.p] = t.checked;
@@ -135,8 +140,8 @@ export function initDev(c) {
     if (t.dataset.a === 'hraj') return zamkni();
     const { hrac, kanoe } = ctx;
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
-    if (t.dataset.vyl) for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? 3 : 0);
-    if (t.dataset.k) { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); }
+    if (t.dataset.vyl) { for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? VYL_MAX : 0); ctx.oznam(t.dataset.vyl === '1' ? 'Vylepšenia na maximum' : 'Vylepšenia vynulované'); }
+    if (t.dataset.k) { if (kanoe.druh !== 'kanoe') ctx.oznam('Najbližšia loď nie je kanoe'); else { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); } }
     if (t.dataset.h) { nastavHustotu(+t.dataset.h); prestavSvet(); ctx.oznam(`Hustota vegetácie ${t.dataset.h}×`); }
     const a = t.dataset.a;
     if (a === 'teleport') {
@@ -157,7 +162,14 @@ export function initDev(c) {
       }
     }
     if (a === 'start') { const s = ctx.start; if (ctx.jeVKanoe()) ctx.vystup([s.x, s.z]); hrac.poz.set(s.x, vyskaTerenu(s.x, s.z) + 1, s.z); }
-    if (a === 'vsetko') { for (const id of Object.keys(PREDMETY)) pridaj(id, PREDMETY[id].nastroj ? 1 : 10); vykresli(); ctx.oznam('Pridané všetky predmety'); }
+    if (a === 'daj') {
+      const id = panel.querySelector('#dev-pred').value, n = Math.max(1, +panel.querySelector('#dev-pocet').value || 1);
+      const zv = pridaj(id, n); vykresli(); ctx.oznam(zv ? `Batoh je plný (nezmestilo sa ${zv}×)` : `+${n}× ${PREDMETY[id].meno || id}`);
+    }
+    if (a === 'nastroje') {
+      let zv = 0; for (const id of Object.keys(PREDMETY)) if (PREDMETY[id].nastroj && !pocet(id)) zv += pridaj(id, 1);
+      vykresli(); ctx.oznam(zv ? 'Batoh je plný – nie všetky nástroje sa zmestili' : 'Pridané nástroje');
+    }
     if (a === 'vyprazdni') { sloty.fill(null); vykresli(); }
     if (a === 'cas') ctx.posunCas(60);
     if (a === 'hud') { const h = document.getElementById('hud'); h.style.display = h.style.display === 'none' ? '' : 'none'; }
