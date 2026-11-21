@@ -6,6 +6,7 @@ import { vyskaTerenu, ostrovPri, pasmo, polozPredmet } from './svet.js';
 import { zran, stav as stavPreziti } from './preziti.js';
 import { vytvorCastice } from './castice.js';
 import { zvuky } from './zvuk.js';
+import { modelKrab as modelKrabDetail } from './modely_nepriatelov.js';
 
 export const udalosti = { priZabiti: null, priFaze: null };       // priZabiti(id, def); priFaze(e, def) = boss zbesnel (50 % zivotov)
 const MAX_SPOLU = 8, DESPAWN = 80, MIN_VZD = 15, MAX_VZD = 42, VODA = 0.25;
@@ -19,22 +20,7 @@ const gul = (r, sx, sy, sz, m) => { const k = new THREE.Mesh(new THREE.SphereGeo
 const pivot = (x, y, z, ...deti) => { const p = new THREE.Group(); p.position.set(x, y, z); p.add(...deti); return p; };
 
 // ---------- modely (predok smeruje na +Z) ----------
-function modelKrab() {
-  const g = new THREE.Group(), telo = mM(0x4a3f86), svetle = mM(0x8a7fd0), oko = mM(0x111111, { emissive: 0xffe066, emissiveIntensity: 1.5 });
-  const trup = gul(0.3, 1, 0.5, 0.8, telo); trup.position.y = 0.22; g.add(trup);
-  for (const s of [-1, 1]) g.add(pivot(s * 0.12, 0.38, 0.2, box(0.03, 0.12, 0.03, svetle, 0, 0.06, 0), gul(0.04, 1, 1, 1, oko)));
-  const klieste = [], nohy = [];
-  for (const s of [-1, 1]) {
-    const k = gul(0.13, 0.8, 0.6, 1.1, svetle); k.position.set(0, 0, 0.3);
-    const rameno = pivot(s * 0.3, 0.24, 0.12, box(0.05, 0.05, 0.3, telo, 0, 0, 0.14), k);
-    rameno.rotation.y = -s * 0.35; g.add(rameno); klieste.push(rameno);
-    for (let i = 0; i < 3; i++) {
-      const n = pivot(s * 0.22, 0.2, -0.12 + i * 0.12, box(0.3, 0.035, 0.035, telo, s * 0.15, 0, 0));
-      n.rotation.z = -s * 0.35; g.add(n); nohy.push({ n, s, i });
-    }
-  }
-  return { g, tela: [telo, svetle], trup, nohy, klieste };
-}
+const modelKrab = () => modelKrabDetail(false);       // model je v modely_nepriatelov.js
 function modelJaster() {
   const g = new THREE.Group(), telo = mM(0x4a2820), brucho = mM(0x6b3a2a), oko = mM(0x111111, { emissive: 0xffaa22, emissiveIntensity: 2 });
   const pruh = mM(0x2a1008, { emissive: 0xff5a10, emissiveIntensity: 2.2, roughness: 0.4 });   // ziariace pruhy (bloom)
@@ -54,13 +40,7 @@ function modelJaster() {
   }
   return { g, tela: [telo, brucho], trup, hlava, chvost, koniec, pruh, nohy };
 }
-function modelObrovskyKrab() {            // ten isty krab, len iny odtien (skala sa nastavi podla def.scale)
-  const m = modelKrab();
-  const telo = mM(0x8a3a2a), svetle = mM(0xd4683a);
-  m.g.traverse(k => { if (k.isMesh) k.material = k.material === m.tela[0] ? telo : k.material === m.tela[1] ? svetle : k.material; });
-  m.tela = [telo, svetle];
-  return m;
-}
+const modelObrovskyKrab = () => modelKrabDetail(true);   // ten isty model, ine farby + machy/barnakle (skala podla def.scale)
 const MODELY = { nocny_krab: modelKrab, lavovy_jaster: modelJaster, obrovsky_krab: modelObrovskyKrab };
 
 // ---------- HP pruh nad nepriatelom ----------
@@ -135,28 +115,33 @@ function zabi(e) {
   udalosti.priZabiti?.(e.id, e.def);
 }
 
-// Zasah hraca: najblizsi nepriatel pred hracom (dosah, kuzel). Vrati nepriatela alebo null.
-export function udriNepriatela(x, z, fx, fz, dmg, dosah = 2.3) {
-  let naj = null, nd = dosah;
+// Zasah hraca: kuzel pred hracom. o = { dosah, kuzel (cos polovicneho uhla), vsetkych (meč: vsetci v kuzeli, inak najblizsi), knock (nasobok odhodenia) }.
+// Vrati pole zasiahnutych nepriatelov (prazdne = netrafil).
+export function udriNepriatela(x, z, fx, fz, dmg, o = {}) {
+  const dosah = o.dosah ?? 2.3, kuzel = o.kuzel ?? 0.45, knock = o.knock ?? 1;
+  const kandidati = [];
   for (const e of nepr) {
     if (e.mrtvy) continue;
     const dx = e.x - x, dz = e.z - z, l = Math.hypot(dx, dz) || 0.001, d = l - 0.3 - (e.def.polomer || 0);
-    if (d > nd || (d > 0.4 && (dx * fx + dz * fz) / l < 0.45)) continue;
-    nd = d; naj = e;
+    if (d > dosah || (d > 0.5 && (dx * fx + dz * fz) / l < kuzel)) continue;
+    kandidati.push({ e, d });
   }
-  if (!naj) return null;
-  const e = naj, dx = e.x - x, dz = e.z - z, l = Math.hypot(dx, dz) || 1;
+  kandidati.sort((a, b) => a.d - b.d);
+  const ciele = (o.vsetkych ? kandidati : kandidati.slice(0, 1)).map(k => k.e);
+  for (const e of ciele) zasiahni(e, x, z, dmg, knock);
+  return ciele;
+}
+function zasiahni(e, x, z, dmg, knock) {
+  const dx = e.x - x, dz = e.z - z, l = Math.hypot(dx, dz) || 1;
   e.hp -= dmg; e.blik = 0.25; e.barT = 5; vykresliBar(e); e.bar.s.visible = true;
-  const tz = e.def.boss ? 0.1 : 1; e.kx = dx / l * 6 * tz; e.kz = dz / l * 6 * tz;
+  const tz = e.def.boss ? 0.1 : 1; e.kx = dx / l * 6 * tz * knock; e.kz = dz / l * 6 * tz * knock;
   if (e.def.boss) { if (e.stav === 'tula') e.stav = 'honi'; }                        // boss sa nenecha prerusit
   else if (e.stav === 'napriah' || e.stav === 'utok') { e.stav = 'oddych'; e.t = 0.7; }     // zasah prerusi napriahnutie
   else if (e.stav !== 'utek') e.stav = 'honi';
   if (e.def.fazaHp && !e.faza2 && e.hp > 0 && e.hp <= e.def.zdravie * e.def.fazaHp) { e.faza2 = true; zvuky.napriah(); pustCastice(e.x, e.g.position.y + 1.5, e.z, 0xff5030, 40, 6); udalosti.priFaze?.(e, e.def); }
   pustCastice(e.x, e.g.position.y + 0.5, e.z, e.id === 'lavovy_jaster' ? 0xff9a3a : 0xc8c0ff, 10);
-  zvuky.zasah();
   if (e.hp <= 0) zabi(e);
   else if (!e.utek && e.def.utek && e.hp <= e.def.zdravie * e.def.utek) { e.utek = true; e.stav = 'utek'; }
-  return e;
 }
 
 // ---------- hlavna aktualizacia ----------
@@ -263,7 +248,7 @@ function animuj(e, dt, cas) {
     else n.rotation.x = Math.sin(e.ph + (s * i > 0 ? Math.PI : 0)) * 0.6 * pohyb;
   }
   if (e.krab) {
-    for (let k = 0; k < 2; k++) { const r = e.klieste[k]; r.rotation.x = -wk * (dupK ? 1.9 : 1.1) + sk * (dupK ? 1.4 : 0.6); r.rotation.y = (k ? 1 : -1) * (0.35 - wk * 0.3); }
+    e.animKrab(e, dt, cas, wk, sk, dupK, pohyb);     // nohy, klepeta, oci, usta (modely_nepriatelov.js)
     e.trup.rotation.x = -wk * 0.4;
   } else {
     e.hlava.rotation.x = -wk * 0.7 + sk * 0.5 + Math.sin(e.ph * 0.5) * 0.05;

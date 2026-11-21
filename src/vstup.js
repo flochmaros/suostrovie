@@ -20,7 +20,8 @@ export function initVstup(platno, onZamknutie) {
     mys.posledny = performance.now();
   });
   addEventListener('wheel', e => { mys.koliesko += Math.sign(e.deltaY); });
-  addEventListener('mousedown', e => { if (mys.zamknuta) jednorazove.add('Mys' + e.button); });
+  addEventListener('mousedown', e => { if (mys.zamknuta) { jednorazove.add('Mys' + e.button); klavesy.add('Mys' + e.button); } });
+  addEventListener('mouseup', e => klavesy.delete('Mys' + e.button));   // drzanie tlacidla (nabijanie silneho uderu)
 
   document.addEventListener('pointerlockchange', () => {
     mys.zamknuta = document.pointerLockElement === platno;

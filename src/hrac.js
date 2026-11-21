@@ -9,6 +9,7 @@ import { postavModel } from './postava.js';
 import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
 import { odtlacOdMajaka } from './majak.js';
 import { drzNaPalube, naLokalne } from './kanoe.js';
+import { UTOKY, KOMBO_OKNO } from './boj.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
@@ -22,7 +23,9 @@ export function vytvorHraca(scena) {
   model.add(J.telo);
   scena.add(model);
 
-  let faza = 0, cas = 0, uder = -1, zdvih = -1, vRuke = null, poslednySin = 0, bolVoVode = false;
+  // boj: nab = ako dlho drzis tlacidlo (nabijanie), utokT = cas v utoku, utokDef = definicia z boj.js
+  let nab = -1, utokT = -1, utokDef = null, buf = false, koniecCas = -9, kombo = 0, smerU = null, trefene = false, lastYaw = 0;
+  let faza = 0, cas = 0, zdvih = -1, vRuke = null, poslednySin = 0, bolVoVode = false;
 
   const h = {
     model, J,
@@ -30,10 +33,20 @@ export function vytvorHraca(scena) {
     vy: 0, naZemi: false, plava: false, potapa: false, dych: 1, smer: 0,
     priUdere: null, priKroku: null, priSplachu: null,      // udalosti pre zvuky a efekty
 
-    uder() { if (uder < 0 && !h.plava) { uder = 0; return true; } return false; },
+    zbran: 'pest', nabite: false, stopaAktivna: false,
+    autoCiel: null, priMachu: null,
+    get ruka() { return vRuke; },
+    // klik: zacne nabijanie (utok sa odpali pri pusteni tlacidla); pocas seku sa klik ulozi do fronty (kombo)
+    uder() {
+      if (h.plava) return false;
+      if (utokT >= 0) { buf = true; return true; }
+      if (nab < 0) { nab = 0; smerU = null; return true; }
+      return false;
+    },
     zdvihni() { zdvih = 0; },
     // predmet v pravej ruke (model z registra predmetov alebo nic)
     drz(predmet) {
+      h.zbran = predmet?.nastroj ? (predmet.nastroj.typ === 'mec' ? 'mec' : predmet.nastroj.typ === 'noz' ? 'noz' : 'sekera') : 'pest';
       if (vRuke) J.drziak.remove(vRuke);
       vRuke = null;
       if (predmet?.model) {
@@ -89,15 +102,48 @@ export function vytvorHraca(scena) {
         t.rL = 1.0 + Math.sin(padloFaza) * 0.45; t.rP = 1.0 - Math.sin(padloFaza) * 0.45; t.lL = t.lP = 0.7;
         t.rLz = -0.25; t.rPz = 0.25; t.chx = -0.1 + Math.cos(padloFaza) * 0.08;
       }
-      // uder (0.5 s): napriahnutie, sek, navrat
+      // ---- boj: nabijanie (drzanie tlacidla) a utoky podla zbrane (definicie v boj.js) ----
+      if (stav === 'plavanie' || stav === 'potapanie' || stav === 'sedi') { nab = -1; utokT = -1; buf = false; }
+      const zacniUtok = silny => {
+        const typ = h.zbran, T = UTOKY[typ];
+        let def;
+        if (silny) def = T.silny;
+        else { kombo = typ === 'mec' && cas - koniecCas < KOMBO_OKNO ? (kombo + 1) % T.kombo.length : 0; def = T.kombo[kombo]; }
+        utokDef = { ...def, typ, silny }; utokT = 0; trefene = false; buf = false; h.nabite = false;
+        smerU = h.autoCiel?.(lastYaw, def.dosah) ?? null;
+      };
+      const pozaUtoku = (pose, vahaT) => { for (const k in pose) t[k] = pose[k]; };
       let rychlo = false;
-      if (uder >= 0) {
-        uder += dt;
-        const u = uder / 0.5;
-        if (u < 0.4) { t.rP = 2.7; t.rPz = 0.3; t.lP = 1.2; t.chy = 0.55; t.chx = 0.05; }
-        else if (u < 0.65) { t.rP = -0.3; t.rPz = 0.1; t.lP = 0.1; t.chy = -0.35; t.chx = -0.3; rychlo = true; }
-        if (uder >= 0.22 && uder - dt < 0.22) h.priUdere?.();
-        if (u >= 1) uder = -1;
+      h.stopaAktivna = false;
+      if (nab >= 0) {
+        nab += dt;
+        h.nabite = nab >= 0.6;
+        if (!klavesy.has('Mys0')) { zacniUtok(nab >= 0.6); nab = -1; }
+        else {
+          pozaUtoku(UTOKY[h.zbran].silny.wind);
+          if (h.nabite) { t.chx += Math.sin(cas * 60) * 0.04; t.rP += Math.sin(cas * 45) * 0.06; t.ty -= 0.05; }   // naplno nabity = trasie sa
+        }
+      }
+      if (utokT >= 0) {
+        utokT += dt;
+        const D = utokDef, T = utokT, udier = T >= D.hit - 0.07;
+        pozaUtoku(udier ? D.strike : D.wind);
+        rychlo = true;
+        if (udier && T < D.hit + 0.12) h.stopaAktivna = !!D.trail;
+        if (udier && !D.machnute) { D.machnute = true; h.priMachu?.(D); }
+        if (T >= D.hit && !trefene) {
+          trefene = true;
+          const sm = smerU ?? lastYaw;
+          h.priUdere?.({ ...D, fx: -Math.sin(sm), fz: -Math.cos(sm) });
+        }
+        if (D.lunge && udier && T < D.hit + 0.1 && h.naZemi && !h.plava) {          // krok vpred pri seku
+          const sm = smerU ?? lastYaw, nx = h.poz.x - Math.sin(sm) * D.lunge * dt, nz = h.poz.z - Math.cos(sm) * D.lunge * dt;
+          if (vyskaTerenu(nx, nz) > 0.35) { h.poz.x = nx; h.poz.z = nz; }
+        }
+        if (T >= D.dlzka) {
+          utokT = -1; koniecCas = cas;
+          if (buf) zacniUtok(false);
+        }
       }
       if (zdvih >= 0) {
         zdvih += dt;
@@ -146,7 +192,8 @@ export function vytvorHraca(scena) {
       h.naZemi = pal.y <= P.y + 0.02;
       if (pal.y < P.y) { pal.y = P.y; pal.vy = 0; }
       if (h.naZemi && stlacene('Space')) pal.vy = 7;
-      if (uder >= 0) h.smer = tlmUhol(h.smer, yaw, 20, dt);
+      lastYaw = yaw;
+      if (utokT >= 0 || nab >= 0) h.smer = tlmUhol(h.smer, smerU ?? yaw, 22, dt);
       else if (dlzka > 0) h.smer = tlmUhol(h.smer, Math.atan2(-mx, -mz), 14, dt);
       model.position.set(pal.x, pal.y, pal.z);
       model.rotation.set(0, h.smer - lod.smer, 0);
@@ -205,7 +252,8 @@ export function vytvorHraca(scena) {
       }
 
       // smer postavy: pri udere sa otoci tam, kam pozera kamera
-      if (uder >= 0) h.smer = tlmUhol(h.smer, yaw, 20, dt);
+      lastYaw = yaw;
+      if (utokT >= 0 || nab >= 0) h.smer = tlmUhol(h.smer, smerU ?? yaw, 22, dt);
       else if (dlzka > 0) h.smer = tlmUhol(h.smer, Math.atan2(-mx, -mz), 14, dt);
       model.position.copy(h.poz);
       model.rotation.set(0, h.smer, 0);

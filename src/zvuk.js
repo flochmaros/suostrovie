@@ -160,6 +160,14 @@ export const zvuky = {
   majak: () => { [392, 523, 659, 784, 1047].forEach((f, i) => setTimeout(() => ton(f, 0.9, 0.09), i * 260)); burst(1.2, 'lowpass', 500, 0.2); },
   syc: () => { burst(0.6, 'highpass', 3500, 0.06); burst(0.4, 'bandpass', 1200, 0.05, 0.5); },
   zasah: () => { burst(0.1, 'bandpass', 1500, 0.3, 2); ton(200, 0.1, 0.2, 90); },
+  mach: (typ, silny) => { burst(silny ? 0.26 : 0.16, 'bandpass', typ === 'mec' ? 2600 : typ === 'pest' ? 1200 : 1800, 0.14, 0.8); ton(silny ? 380 : 620, silny ? 0.22 : 0.14, 0.04, 200); },
+  zasahZbran: (typ, silny) => {
+    if (typ === 'mec' || typ === 'noz') { burst(0.14, 'bandpass', 3500, 0.3, 2.5); ton(typ === 'mec' ? 240 : 320, 0.12, 0.18, 120); }
+    else if (typ === 'pest') burst(0.1, 'lowpass', 500, 0.4, 1);
+    else burst(0.12, 'bandpass', 900, 0.35, 2);
+    ton(100, 0.15, 0.3, 50);
+    if (silny) { ton(60, 0.3, 0.35, 35); burst(0.25, 'lowpass', 300, 0.3); }
+  },
   napriah: () => ton(160, 0.4, 0.12, 330),
   utokNepr: () => { burst(0.12, 'bandpass', 700, 0.3, 1.5); ton(260, 0.12, 0.2, 120); },
   smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },

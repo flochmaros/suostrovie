@@ -1,6 +1,7 @@
 // Start hry a hlavna slucka: spaja grafiku, svet, hraca, kanoe, kameru, inventar, zvuk a HUD.
 import * as THREE from 'three';
 import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
+import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
@@ -9,9 +10,9 @@ import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, od
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
-import { poskodenie, opotrebuj, poskodenieNepriatela } from './nastroje.js';
+import { poskodenie, opotrebuj } from './nastroje.js';
 import { initMajaky, aktualizujMajak, ulozMajaky, nacitajMajaky, majaky } from './majak.js';
-import { initNepriatelia, aktualizujNepriatelov, udriNepriatela, udalosti as nepUdalosti, zoznamNepriatelov, spawnPriHracovi } from './nepriatelia.js';
+import { initNepriatelia, aktualizujNepriatelov, udalosti as nepUdalosti, zoznamNepriatelov, spawnPriHracovi } from './nepriatelia.js';
 import { nastavLodenicu } from './obsah/vylepsenia.js';
 import { initLodenice, polozLodenicu, najblizsiaLodenica, miestoSpustenia, ulozLodenice, nacitajLodenice } from './lodenica.js';
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
@@ -166,8 +167,8 @@ function vystupDoVody() {                             // skok z lode do vody (na
 
 // ---------- udalosti hraca ----------
 const FARBA_TRIESOK = { drevo: 0x8a6240, kamen: 0x9a978f, list: 0x4f8a35 };
-hrac.priUdere = () => {
-  const fx = -Math.sin(hrac.smer), fz = -Math.cos(hrac.smer);
+hrac.priUdere = info => {
+  const fx = info.fx, fz = info.fz;
   const diel = najdiDiel(hrac.poz.x, hrac.poz.z, fx, fz);             // stavba ma prednost (je blizko pred hracom)
   if (diel) {
     zvuky.uder('drevo'); kam.zatras(0.02);
@@ -175,9 +176,8 @@ hrac.priUdere = () => {
     if (vynos) { zvuky.pad(); zoberVsetko(vynos); }
     return;
   }
-  const nast0 = vybranyPredmet();                  // najprv nepriatel pred hracom
-  if (udriNepriatela(hrac.poz.x, hrac.poz.z, fx, fz, poskodenieNepriatela(nast0?.nastroj ? nast0 : null) * dev.silaUderu)) {
-    kam.zatras(0.03);
+  const nast0 = vybranyPredmet();                  // najprv nepriatel (kuzel pred hracom, vid boj.js)
+  if (zasahni(hrac, info, nast0, dev.silaUderu)) {
     if (nast0?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nast0.ikona} ${nast0.meno} sa zlomil(a)!`);
     return;
   }
@@ -185,7 +185,7 @@ hrac.priUdere = () => {
   if (!u) return;
   const zdroj = ZDROJE[u.typ], material = zdroj.material;
   const nastroj = vybranyPredmet();
-  const dmg = poskodenie(nastroj?.nastroj ? nastroj : null, zdroj) * dev.silaUderu;
+  const dmg = poskodenie(nastroj?.nastroj ? nastroj : null, zdroj) * dev.silaUderu * Math.min(info.mult, 2);
   zvuky.uder(material);
   if (dmg <= 0.01) { oznam(zdroj.nastroj === 'krompac' ? 'Potrebuješ krompáč' : 'Potrebuješ nástroj'); return; }
   if (nastroj?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nastroj.ikona} ${nastroj.meno} sa zlomil(a)!`);
@@ -252,7 +252,9 @@ udalostiPreziti.priZobudeni = () => {
 initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
-initInventar(() => hrac.drz(vybranyPredmet()));
+initBoj({ scena, kamera, kam, hrac });
+let napovedaZbrane = false;
+initInventar(() => { hrac.drz(vybranyPredmet()); if (!napovedaZbrane && hrac.zbran !== 'pest') { napovedaZbrane = true; oznam('⚔ Ľavé tlačidlo = sek, klikaj rýchlo = kombo, podrž = silný úder'); } });
 initUlohy({ poz: () => (vKanoe || naPalube ? { x: kanoe.poz.x, z: kanoe.poz.y } : hrac.poz), lodUroven: () => Math.max(0, ...lode.filter(l => l.druh === 'kanoe').map(l => l.uroven || 1)), oznam, zvuk: () => zvuky.zober() });
 addEventListener('vyrobene', e => { const r = e.detail; if (r.vysledok) hlasUlohy('vyrob', r.vysledok[0]); if (r.id) hlasUlohy('vyrob', r.id); });
 addEventListener('stavaj', e => { if (stavPreziti.mrtvy || vKanoe) return; prepniBatoh(false); zamkni(); zacniStavat(e.detail); });   // klik na stavbu v menu B
@@ -342,6 +344,8 @@ function zoberVsetko(vynos) {
 
 // ---------- hlavna slucka ----------
 function aktualizuj(dt) {
+  aktualizujBoj(dt);
+  if (bojStav.hitstop > 0) { bojStav.hitstop -= dt; dt *= 0.08; }     // hitstop: kratke spomalenie pri zasahu
   cas += dt;
   aktualizujVietor(cas);
   if (poc) vietor.sila = Math.min(1.2, 0.3 + 0.7 * poc.vietorSila + pasmoVietor);
