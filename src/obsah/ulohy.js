@@ -27,6 +27,7 @@ export const KAPITOLY = [
     { id: 'k1_sprava', text: 'Nájdi fľašu so správou (na pláži štartovacieho ostrova) a prečítaj ju', typ: 'sprava', pocet: 1, odmena: [['kokos', 2]] },
     { id: 'k1_majak', text: 'Nájdi prvý maják (priplávaj do 30 m od neho; smer je v správe z fľaše)', typ: 'majak_blizko', ciel: 1, pocet: 1, odmena: [['palica', 4]] },
     { id: 'k1_krab', text: 'Poraz Obrovského kraba – strážcu majáka (uhýbaj pred nápřahom, pri dupote odstúp)', typ: 'zabi', ciel: 'obrovsky_krab', pocet: 1, odmena: [['banan', 4]] },
+    { id: 'k1_kyj', text: 'Z trofejí strážcu vyrob Klepetový kyj (Tab → Nástroje; Krabiu prilbu nájdeš vo Výstroji)', typ: 'vyrob', ciel: 'klepetovy_kyj', pocet: 1, odmena: [['vlakno', 4], ['drevo', 4]] },
     { id: 'k1_zapal', text: 'Zapáľ prvý maják (E pri päte: vlož 20 dreva, 15 kameňa, 10 vlákna a srdce strážcu)', typ: 'majak', ciel: 1, pocet: 1, odmena: [['vlakno', 8], ['kamen', 8]] },
   ] },
   { id: 'k2', meno: 'Ohnivé ostrovy', popis: 'Maják svieti a more je pokojnejšie. Za obzorom sa dymia sopky. Čierne sklo z nich ti dá lepšie nástroje.', ulohy: [

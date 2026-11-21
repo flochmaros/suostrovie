@@ -19,6 +19,9 @@ export const UTOKY = {
   pest: { kombo: [U(0.36, 0.16, { rP: 1.3, rPz: 0.15, lP: 1.7, chy: 0.45 }, { rP: 1.55, rPz: 0.05, lP: 0.05, chy: -0.4, chx: -0.1, tx: -0.12 }, { dosah: 1.6, lunge: 1.5 })], silny: SILNY({ dosah: 1.8 }) },
   noz: { kombo: [U(0.34, 0.14, { rP: 1.0, rPz: 0.25, lP: 1.9, chy: 0.5, chx: 0.1 }, { rP: 1.5, rPz: 0.05, lP: 0.05, chy: -0.45, chx: -0.15, tx: -0.15 }, { dosah: 1.8, lunge: 2 })], silny: SILNY({ dosah: 2 }) },
   sekera: { kombo: [U(0.55, 0.22, NAHOR, ZHORA, { dosah: 2, lunge: 1 })], silny: SILNY({ dosah: 2.2 }) },
+  // klepetovy kyj: velmi pomaly zvisly uder (dlhy napriah), obrovsky knockback a omracenie (stun = sekundy)
+  klepeto: { kombo: [U(1.0, 0.55, { ...NAHOR, rP: 3.1, chx: 0.25, tx: 0.15 }, { ...ZHORA, tx: -0.25 }, { mult: 2.2, knock: 3, stun: 1.2, dosah: 2.4, lunge: 1, kuzel: 0.5 })],
+    silny: SILNY({ dlzka: 0.95, hit: 0.45, mult: 3, knock: 4, stun: 1.6, dosah: 2.6 }) },
   mec: {
     kombo: [
       U(0.44, 0.16, { rP: 1.5, rPz: 1.5, lP: 0.5, chy: 1.0 }, { rP: 1.5, rPz: -0.2, lP: 0.1, chy: -1.05, tx: -0.08 }, { dosah: 2.6, vsetkych: true, lunge: 3, trail: true }),      // sek zlava
@@ -28,7 +31,7 @@ export const UTOKY = {
     silny: SILNY({ dosah: 2.8, vsetkych: true, trail: true }),
   },
 };
-export const typZbrane = p => { const t = p?.nastroj?.typ; return !t ? 'pest' : t === 'mec' ? 'mec' : t === 'noz' ? 'noz' : 'sekera'; };
+export const typZbrane = p => { const t = p?.nastroj?.typ; return !t ? 'pest' : t === 'mec' ? 'mec' : t === 'noz' ? 'noz' : t === 'klepeto' ? 'klepeto' : 'sekera'; };
 
 export const KOMBO_OKNO = 0.55;                      // za kolko sekund po seku sa dalsi klik berie ako kombo
 

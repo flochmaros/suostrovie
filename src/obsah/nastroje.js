@@ -58,6 +58,14 @@ function kyj() {
   const L = 0.72;
   return zloz([rukovat(L, 0.028, C.drevo, 0.058), kamenHlava(0, L + 0.02, 0.075, 0.07, 0.075, C.drevo), omotaj(0.12, 0.034)]);
 }
+// klepetovy kyj: rukovat + cervene klepeto (dva hroty) na konci
+function klepetovyKyj() {
+  const L = 0.7, R = 0xc8422c;
+  return zloz([rukovat(L, 0.03, C.tmavy, 0.045), omotaj(0.1, 0.04), omotaj(0.2, 0.04),
+    kamenHlava(0, L + 0.08, 0.1, 0.12, 0.085, R),
+    farba(new THREE.ConeGeometry(0.05, 0.2, 5).translate(0, L + 0.27, 0.045).rotateX(0.0), R),
+    farba(new THREE.ConeGeometry(0.045, 0.2, 5).translate(0, L + 0.25, -0.05), 0xa8321e)]);
+}
 function ostep(hrotHex, dlzka = 1.45) {
   const parts = [rukovat(dlzka, 0.02, C.bambus, 0.017), farba(new THREE.ConeGeometry(0.036, 0.2, 5).translate(0, dlzka + 0.08, 0), hrotHex), omotaj(dlzka - 0.02, 0.026)];
   for (const y of [0.3, 0.75, 1.15]) parts.push(farba(new THREE.TorusGeometry(0.02, 0.008, 4, 8).rotateX(Math.PI / 2).translate(0, y, 0), C.tmavy));
@@ -94,6 +102,9 @@ predmet('obsidianovy_mec', { kopa: 1, meno: 'Obsidiánový meč', ikona: ik('sha
 
 predmet('kyj', { kopa: 1, meno: 'Kyj', ikona: ik('wood-club', '#9a6638'), popis: 'Ťažká drevená palica.',
   nastroj: nastroj('kyj', 1.5, { drevo: 0.8, kamen: 0.1, list: 1.5 }, 60), drzanie: drzanie(0.15), model: kyj() });
+
+predmet('klepetovy_kyj', { kopa: 1, meno: 'Klepetový kyj', ikona: ik('claw-hammer', '#d0452f'), popis: 'Pomalý, ale drtivý. Veľký odhod a omráči nepriateľa. Zdvihni ho nad hlavu a buchni.',
+  nastroj: { ...nastroj('klepeto', 3, { drevo: 1, kamen: 0.15, list: 1.5 }, 90), zivocichy: 12 }, drzanie: drzanie(0.15), model: klepetovyKyj() });
 
 predmet('bambusova_ostep', { kopa: 1, meno: 'Bambusový oštep', ikona: ik('stone-spear', '#a5c75a'), popis: 'Ľahký oštep na lov a ryby.',
   nastroj: nastroj('ostep', 1.2, { drevo: 0.3, kamen: 0.05, list: 1 }, 30), drzanie: drzanie(0.5, 0.35), model: ostep(C.bambus) });

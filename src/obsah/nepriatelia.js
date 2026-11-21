@@ -24,7 +24,7 @@ export const NEPRIATELIA = {
   obrovsky_krab: { meno: 'Obrovský krab', zdravie: 60, rychlost: [0.4, 1.4, 2.2], zbadaj: 24, utok: 3.6, napriah: 1.0, oddych: 1.7,
     dmg: 22, knock: 12, utek: 0, pasmo: 1, noc: false, biom: null, max: 1, bar: [3, 0.3], vyska: 2.6,
     boss: true, scale: 3.6, polomer: 1.2, dupot: { dosah: 6.5, napriah: 1.8, dmg: 28, knock: 16 }, fazaHp: 0.5,
-    loot: [['srdce_strazcu_1', 1, 1, 1], ['krab', 3, 4, 1], ['musla', 2, 3, 1]] },
+    loot: [['srdce_strazcu_1', 1, 1, 1], ['krabi_pancier', 2, 2, 1], ['obrie_klepeto', 1, 1, 1], ['krab', 3, 4, 1], ['musla', 2, 3, 1]] },
 };
 
 const SUPINY = new THREE.MeshStandardMaterial({ color: 0x3a2a24, roughness: 0.5, metalness: 0.3, emissive: 0xff5a10, emissiveIntensity: 0.6 });
@@ -33,3 +33,14 @@ predmet('jasterie_supiny', { meno: 'Jašterie šupiny', ikona: ik('spiral-shell'
 
 predmet('srdce_strazcu_1', { meno: 'Srdce strážcu', kopa: 1, ikona: ik('hearts', '#e8473c'), popis: 'Ešte teplé srdce Obrovského kraba. Patrí do lampy majáka domovských ostrovov.',
   model: [new THREE.IcosahedronGeometry(0.16, 1).translate(0, 0.16, 0), new THREE.MeshStandardMaterial({ color: 0xc02a2a, roughness: 0.4, emissive: 0xff2010, emissiveIntensity: 0.9 })] });
+
+// ---- trofeje Obrovského kraba (z nich sa vyrába Klepetový kyj a Krabia prilba, obsah/recepty.js) ----
+const KRABI = new THREE.MeshStandardMaterial({ color: 0xc8422c, roughness: 0.55, metalness: 0.1 });
+predmet('krabi_pancier', { meno: 'Krabí pancier', ikona: ik('spiral-shell', '#d0452f'), popis: 'Tvrdý červený pancier strážcu. Trofej – hodí sa na výnimočnú výbavu.',
+  model: [new THREE.SphereGeometry(0.18, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1.2).translate(0, 0.04, 0), KRABI] });
+predmet('obrie_klepeto', { meno: 'Obrie klepeto', kopa: 5, ikona: ik('crab', '#d0452f'), popis: 'Odrezané klepeto Obrovského kraba. Trofej – ťažké ako kladivo.',
+  model: [new THREE.SphereGeometry(0.2, 10, 8).scale(1.3, 0.7, 0.8).translate(0, 0.15, 0), KRABI] });
+// nositelny predmet: pravy klik na lisku (alebo H), logiku ma src/vystroj.js
+predmet('krabia_prilba', { meno: 'Krabia prilba', kopa: 1, prilba: true, ikona: ik('spiral-shell', '#e0583a', ['crab', '#7a2414', .4, 330, 330]),
+  popis: 'Z panciera strážcu. Nasadená (pravý klik na lište alebo H) znižuje prijaté poškodenie o 25 %.',
+  model: [new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.03, 0), KRABI] });

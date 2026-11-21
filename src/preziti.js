@@ -67,8 +67,11 @@ function umri(pricina) {
 }
 
 // poskodenie od okolia (zralok, pad...). pricina: text/kod
+// vystroj (src/vystroj.js): nasadena krabia prilba = -25 % prijateho poskodenia
+export const vystroj = { prilba: false };
 export function zran(n, pricina = 'zranenie') {
   if (stav.mrtvy || n <= 0) return;
+  if (vystroj.prilba) n *= 0.75;
   stav.zdravie = clamp(stav.zdravie - n);
   blesk = Math.min(1, blesk + 0.4 + n / 40);
   if (stav.zdravie <= 0) umri(pricina);

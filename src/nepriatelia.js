@@ -128,10 +128,10 @@ export function udriNepriatela(x, z, fx, fz, dmg, o = {}) {
   }
   kandidati.sort((a, b) => a.d - b.d);
   const ciele = (o.vsetkych ? kandidati : kandidati.slice(0, 1)).map(k => k.e);
-  for (const e of ciele) zasiahni(e, x, z, dmg, knock);
+  for (const e of ciele) zasiahni(e, x, z, dmg, knock, o.stun || 0);
   return ciele;
 }
-function zasiahni(e, x, z, dmg, knock) {
+function zasiahni(e, x, z, dmg, knock, stun = 0) {
   const dx = e.x - x, dz = e.z - z, l = Math.hypot(dx, dz) || 1;
   e.hp -= dmg; e.blik = 0.25; e.barT = 5; vykresliBar(e); e.bar.s.visible = true;
   const tz = e.def.boss ? 0.1 : 1; e.kx = dx / l * 6 * tz * knock; e.kz = dz / l * 6 * tz * knock;
@@ -140,6 +140,7 @@ function zasiahni(e, x, z, dmg, knock) {
   else if (e.stav !== 'utek') e.stav = 'honi';
   if (e.def.fazaHp && !e.faza2 && e.hp > 0 && e.hp <= e.def.zdravie * e.def.fazaHp) { e.faza2 = true; zvuky.napriah(); pustCastice(e.x, e.g.position.y + 1.5, e.z, 0xff5030, 40, 6); udalosti.priFaze?.(e, e.def); }
   pustCastice(e.x, e.g.position.y + 0.5, e.z, e.id === 'lavovy_jaster' ? 0xff9a3a : 0xc8c0ff, 10);
+  if (stun && e.hp > 0) { e.omraceny = e.def.boss ? Math.min(stun, 0.5) : stun; if (!e.def.boss && (e.stav === 'napriah' || e.stav === 'utok')) { e.stav = 'oddych'; e.t = 0.3; } }   // omracenie
   if (e.hp <= 0) zabi(e);
   else if (!e.utek && e.def.utek && e.hp <= e.def.zdravie * e.def.utek) { e.utek = true; e.stav = 'utek'; }
 }
@@ -185,7 +186,10 @@ export function aktualizujNepriatelov(dt, cas, hrac, { pesi = true, noc = false 
     let ciel = 0, smer = e.hd;                       // ciel = rychlost, smer = kam
     e.t -= dt;
     const vidi = zivy && d < def.zbadaj;
-    switch (e.stav) {
+    if (e.omraceny > 0) {                           // omraceny: nehybe sa ani neutoci, nad hlavou mu krouzia hviezdicky
+      e.omraceny -= dt; e.t += dt; if (!def.boss && (e.stav === 'napriah' || e.stav === 'utok')) e.stav = 'oddych';
+      if ((e.hviezdT = (e.hviezdT || 0) - dt) <= 0) { e.hviezdT = 0.12; const a = cas * 9; pustCastice(e.x + Math.cos(a) * 0.5 * e.sc, e.g.position.y + (def.vyska || 1) + 0.4, e.z + Math.sin(a) * 0.5 * e.sc, 0xffe050, 1, 0.3); }
+    } else switch (e.stav) {
       case 'tula':
         if (vidi) { e.stav = 'honi'; break; }
         if (e.t <= 0) { e.t = rnd(1.5, 4); e.hd = rnd(0, 6.28); e.v = Math.random() < 0.4 ? 0 : vTula; }

@@ -29,6 +29,7 @@ import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiD
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { UI } from './ikony.js';
+import { initVystroj } from './vystroj.js';
 import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
 import { initUlohy, hlas as hlasUlohy, aktualizujUlohy, prepniOkno as prepniDennik, jeOknoOtvorene as jeDennik, ulozUlohy, nacitajUlohy, stavUloh } from './ulohy.js';
@@ -52,7 +53,7 @@ const novaLod = (druh, x, z) => { const l = vytvorKanoe(scena, x, z, { pena, zvu
 initZivocichy(scena);
 initNepriatelia(scena);
 initMajaky(scena, { oznam: t => oznam(t), nastavPostel: p => { postel = p; } });   // majaky, strazca, flase so spravami (src/majak.js)
-nepUdalosti.priZabiti = (id, def) => { hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); };
+nepUdalosti.priZabiti = (id, def) => { hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); if (def.boss) setTimeout(() => oznam('🏆 Z trofejí strážcu sa dá vyrobiť niečo výnimočné…'), 600); };
 udalosti.priSplachu = (x, y, z, s) => {
   zvuky.splach(Math.min(s, 1) * 0.6);
   for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
@@ -253,6 +254,7 @@ initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vK
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initBoj({ scena, kamera, kam, hrac });
+initVystroj(hrac, t => oznam(t));
 let napovedaZbrane = false;
 initInventar(() => { hrac.drz(vybranyPredmet()); if (!napovedaZbrane && hrac.zbran !== 'pest') { napovedaZbrane = true; oznam('⚔ Ľavé tlačidlo = sek, klikaj rýchlo = kombo, podrž = silný úder'); } });
 initUlohy({ poz: () => (vKanoe || naPalube ? { x: kanoe.poz.x, z: kanoe.poz.y } : hrac.poz), lodUroven: () => Math.max(0, ...lode.filter(l => l.druh === 'kanoe').map(l => l.uroven || 1)), oznam, zvuk: () => zvuky.zober() });

@@ -4,6 +4,7 @@
 // akcia: () => void (zavola sa namiesto pridania vysledku; vrati false = zrusi vyrobu a vrati suroviny)
 // (vysledny predmet musi byt v obsah/predmety.js alebo obsah/nastroje.js)
 import { ik } from '../ikony.js';
+import { pocet } from '../inventar.js';
 export const RECEPTY = [];
 export function recept(def) { RECEPTY.push(def); }
 
@@ -36,3 +37,8 @@ recept({ id: 'strecha', stavba: 'strecha', skupina: 'Stavba', meno: 'Strecha', i
 
 // lodenica: polozi sa klavesou F pri brehu; v nej sa stavaju a vylepsuju lode
 recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['kamen', 6]] });
+
+// trofeje bossov: recepty sa zobrazia, az ked hrac niekedy mal trofej (pamata si to v localStorage)
+const MA_TROFEJ = () => { try { if (pocet('krabi_pancier') + pocet('obrie_klepeto') > 0) localStorage.setItem('hra_trofej', '1'); return localStorage.getItem('hra_trofej') === '1'; } catch (e) { return true; } };
+recept({ id: 'klepetovy_kyj', skupina: N, vysledok: ['klepetovy_kyj', 1], podmienka: MA_TROFEJ, suroviny: [['obrie_klepeto', 1], ['krabi_pancier', 2], ['drevo', 1], ['vlakno', 1]] });
+recept({ id: 'krabia_prilba', skupina: 'Výstroj', vysledok: ['krabia_prilba', 1], podmienka: MA_TROFEJ, suroviny: [['krabi_pancier', 3], ['vlakno', 1]] });

@@ -46,7 +46,7 @@ export function vytvorHraca(scena) {
     zdvihni() { zdvih = 0; },
     // predmet v pravej ruke (model z registra predmetov alebo nic)
     drz(predmet) {
-      h.zbran = predmet?.nastroj ? (predmet.nastroj.typ === 'mec' ? 'mec' : predmet.nastroj.typ === 'noz' ? 'noz' : 'sekera') : 'pest';
+      h.zbran = predmet?.nastroj ? (predmet.nastroj.typ === 'mec' ? 'mec' : predmet.nastroj.typ === 'noz' ? 'noz' : predmet.nastroj.typ === 'klepeto' ? 'klepeto' : 'sekera') : 'pest';
       if (vRuke) J.drziak.remove(vRuke);
       vRuke = null;
       if (predmet?.model) {
