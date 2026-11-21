@@ -2,6 +2,7 @@
 // Teren sa kresli do malych platien po dlazdiciach (1 dlazdica = 1 bunka sveta 520 m) a uklada sa do cache.
 // Dlazdice sa generuju postupne (casovy limit na snimok), aby hra nezasekavala.
 // Suradnice: sever = -z (hore), vychod = +x (vpravo) -> na mape px = x, py = z.
+import { majaky } from './majak.js';
 import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma } from './svet.js';
 
 const RES = 96;                 // pixelov na dlazdicu (5.4 m na pixel)
@@ -263,6 +264,16 @@ function bodka(ctx, x, y, r, vypln) {
   ctx.fillStyle = vypln; ctx.fill();
   ctx.lineWidth = Math.max(1.5, r * 0.35); ctx.strokeStyle = '#000a'; ctx.stroke();
 }
+// ikona majaka: zhasnuty = siva veza, zapaleny = zlta so ziarou
+function kresliMajak(c, x, y, lit, v) {
+  c.save(); c.translate(x, y);
+  if (lit) { const g = c.createRadialGradient(0, -v, 1, 0, -v, v * 2.6); g.addColorStop(0, 'rgba(255,220,100,.8)'); g.addColorStop(1, 'rgba(255,220,100,0)'); c.fillStyle = g; c.fillRect(-v * 3, -v * 3.6, v * 6, v * 5); }
+  c.beginPath(); c.moveTo(-v * 0.5, v * 0.7); c.lineTo(-v * 0.3, -v * 0.8); c.lineTo(v * 0.3, -v * 0.8); c.lineTo(v * 0.5, v * 0.7); c.closePath();
+  c.fillStyle = lit ? '#f4e6c0' : '#9a9a9a'; c.fill(); c.lineWidth = Math.max(1.5, v * 0.16); c.strokeStyle = '#000b'; c.stroke();
+  c.fillStyle = lit ? '#ffd24a' : '#666'; c.fillRect(-v * 0.32, -v * 1.25, v * 0.64, v * 0.45); c.strokeRect(-v * 0.32, -v * 1.25, v * 0.64, v * 0.45);
+  c.beginPath(); c.moveTo(-v * 0.42, -v * 1.25); c.lineTo(0, -v * 1.7); c.lineTo(v * 0.42, -v * 1.25); c.closePath(); c.fillStyle = lit ? '#c0392b' : '#555'; c.fill(); c.stroke();
+  c.restore();
+}
 const smerHraca = hra => hra.vKanoe && hra.kanoe ? hra.kanoe.smer : hra.kam.yaw;
 
 // ---------- minimapa ----------
@@ -272,6 +283,7 @@ function kresliMinimapu(hra) {
   fronta = chyba.sort((a, b) => a[1] - b[1]).map(a => a[0]);
   const r = W / 2;
   kresliPasma(c, W, W, x => (x - p.x) * m + r, z => (z - p.z) * m + r, false, m);
+  for (const mj of majaky) if (mj.objaveny) { const dx = (mj.x - p.x) * m, dy = (mj.z - p.z) * m; if (Math.hypot(dx, dy) < r - 12) kresliMajak(c, r + dx, r + dy, mj.lit, 8); }
   // lode
   for (const l of hra.lode) {
     const aktivna = l === hra.kanoe;
@@ -355,6 +367,7 @@ function kresliMapu(hra) {
       }
   }
 
+  for (const mj of majaky) if (mj.objaveny) kresliMajak(c, X(mj.x), Z(mj.z), mj.lit, 15);
   // lode a hrac
   for (const l of hra.lode) {
     if (l === hra.kanoe && hra.vKanoe) continue;

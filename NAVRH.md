@@ -18,9 +18,9 @@ Stroskotanec na súostroví. Fľaše so správami od starého moreplavca: kedysi
 Kniha s kapitolami podľa pásiem, úlohy sa plnia samy (`src/obsah/ulohy.js`), odmeny/recepty. Prvá kapitola = návod.
 
 ## Poradie práce
-1. ✅/⏳ Pásma + biomy podľa vzdialenosti + obsidián a obsidiánové nástroje
-2. ⏳ Vlny podľa pásma + prevrátenie slabej lode
-3. ⏳ Denník úloh (kapitola 1–2)
-4. Boj + prví nepriatelia (nočné kraby, lávový jašter)
-5. Prvý maják + strážca + fľaše so správami
+1. ✅ Pásma + biomy podľa vzdialenosti + obsidián a obsidiánové nástroje
+2. ✅ Vlny podľa pásma + prevrátenie slabej lode
+3. ✅ Denník úloh (kapitola 1–2)
+4. ✅ Boj + prví nepriatelia (nočné kraby, lávový jašter)
+5. ✅ Prvý maják + strážca + fľaše so správami
 6. Ďalšie pásma

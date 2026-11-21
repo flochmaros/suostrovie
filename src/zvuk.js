@@ -157,6 +157,11 @@ export const zvuky = {
     : (burst(0.12, 'bandpass', 900, 0.35, 2), ton(140, 0.12, 0.25, 90)),
   pad: () => { burst(0.9, 'lowpass', 300, 0.6); ton(70, 0.5, 0.3, 40); },
   zober: () => ton(700, 0.12, 0.07, 1100),
+  majak: () => { [392, 523, 659, 784, 1047].forEach((f, i) => setTimeout(() => ton(f, 0.9, 0.09), i * 260)); burst(1.2, 'lowpass', 500, 0.2); },
   syc: () => { burst(0.6, 'highpass', 3500, 0.06); burst(0.4, 'bandpass', 1200, 0.05, 0.5); },
+  zasah: () => { burst(0.1, 'bandpass', 1500, 0.3, 2); ton(200, 0.1, 0.2, 90); },
+  napriah: () => ton(160, 0.4, 0.12, 330),
+  utokNepr: () => { burst(0.12, 'bandpass', 700, 0.3, 1.5); ton(260, 0.12, 0.2, 120); },
+  smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
 };

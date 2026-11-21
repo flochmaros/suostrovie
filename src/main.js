@@ -9,7 +9,9 @@ import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, od
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
-import { poskodenie, opotrebuj } from './nastroje.js';
+import { poskodenie, opotrebuj, poskodenieNepriatela } from './nastroje.js';
+import { initMajaky, aktualizujMajak, ulozMajaky, nacitajMajaky, majaky } from './majak.js';
+import { initNepriatelia, aktualizujNepriatelov, udriNepriatela, udalosti as nepUdalosti, zoznamNepriatelov, spawnPriHracovi } from './nepriatelia.js';
 import { nastavLodenicu } from './obsah/vylepsenia.js';
 import { initLodenice, polozLodenicu, najblizsiaLodenica, miestoSpustenia, ulozLodenice, nacitajLodenice } from './lodenica.js';
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
@@ -47,6 +49,9 @@ const lode = [];
 let kanoe = null;
 const novaLod = (druh, x, z) => { const l = vytvorKanoe(scena, x, z, { pena, zvuky }, druh); lode.push(l); return l; };
 initZivocichy(scena);
+initNepriatelia(scena);
+initMajaky(scena, { oznam: t => oznam(t), nastavPostel: p => { postel = p; } });   // majaky, strazca, flase so spravami (src/majak.js)
+nepUdalosti.priZabiti = (id, def) => { hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); };
 udalosti.priSplachu = (x, y, z, s) => {
   zvuky.splach(Math.min(s, 1) * 0.6);
   for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
@@ -93,6 +98,7 @@ try {
     nacitajOhne(u.ohne);
     nacitajStavby(u.stavby);
     nacitajUlohy(u.ulohy);
+    nacitajMajaky(u.majaky);
     if (Array.isArray(u.postel)) postel = u.postel;
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
@@ -103,7 +109,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), postel }));
+      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -167,6 +173,12 @@ hrac.priUdere = () => {
     zvuky.uder('drevo'); kam.zatras(0.02);
     const vynos = uderDiel(diel);
     if (vynos) { zvuky.pad(); zoberVsetko(vynos); }
+    return;
+  }
+  const nast0 = vybranyPredmet();                  // najprv nepriatel pred hracom
+  if (udriNepriatela(hrac.poz.x, hrac.poz.z, fx, fz, poskodenieNepriatela(nast0?.nastroj ? nast0 : null) * dev.silaUderu)) {
+    kam.zatras(0.03);
+    if (nast0?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nast0.ikona} ${nast0.meno} sa zlomil(a)!`);
     return;
   }
   const u = najdiCiel(uzlyPri(hrac.poz.x, hrac.poz.z), hrac.poz.x, hrac.poz.z, fx, fz);
@@ -444,6 +456,7 @@ function aktualizuj(dt) {
     }
   }
   const tStavba = aktualizujStavby({ kamera, hlava: new THREE.Vector3(hrac.poz.x, hrac.poz.y + 1.55, hrac.poz.z), yaw: kam.yaw, t: cas, hrac: hrac.poz, aktivne: !vKanoe && !naPalube && zivy && !jeOtvoreny() });
+  { const mj = aktualizujMajak(dt, cas, { hrac, tma: 1 - Math.min(1, poc?.svetlo ?? 1), pesi: !vKanoe && !naPalube && zivy && !jeOtvoreny() }); if (mj && !tStavba) napoveda = mj; }
   if (tStavba) napoveda = tStavba;                       // rezim umiestnovania stavby (nahlad, klik, otacanie)
   $('napoveda').innerHTML = napoveda;
 
@@ -463,6 +476,7 @@ function aktualizuj(dt) {
   $('nacitanie').textContent = hotovo ? '' : 'Načítavam ostrovy…';
   aktualizujUzly(dt, cas);
   aktualizujZivocichy(dt, cas, hrac.poz, kanoe.poz, vKanoe);
+  { const h = hodinaHry(); aktualizujNepriatelov(dt, cas, hrac, { pesi: !vKanoe && !naPalube, noc: h >= 19.5 || h < 5.5 }); }
   aktualizujMore(dt, cas, hrac.poz, podVodou, kanoe.poz, vKanoe);
   const ohne = aktualizujOhne(dt, cas, hrac.poz, vietor);
   aktualizujFunkcne(dt, { dazd: poc.dazd, svetlo: poc.svetlo });
@@ -496,7 +510,8 @@ snimok();
 
 // ---------- ladenie z konzoly: hra.sim(sekundy, ['KeyW'], ['Mys0']) odohra cas bez cakania na snimky ----------
 window.hra = {
-  g, hrac, get kanoe() { return kanoe; }, lode, kam, scena, zobrate, sloty,
+  g, hrac, get kanoe() { return kanoe; }, lode, kam, scena, zobrate, sloty, stavPreziti,
+  nepriatelia: zoznamNepriatelov, spawn: druh => spawnPriHracovi(druh, hrac.poz),
   get vKanoe() { return vKanoe; },
   sim(sekundy, drz = [], stlac1 = []) {
     drz.forEach(k => klavesy.add(k));
@@ -506,6 +521,6 @@ window.hra = {
     g.vykresli();
   },
   posunCas(s) { cas += s; },
-  ulohy: stavUloh, hlasUlohy,
+  ulohy: stavUloh, hlasUlohy, majaky,
   otoc(yaw, pitch) { kam.yaw = yaw; if (pitch !== undefined) kam.pitch = pitch; mys.posledny = performance.now(); },
 };

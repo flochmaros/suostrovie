@@ -8,6 +8,9 @@ import { PREDMETY } from './obsah/predmety.js';
 import { sloty, pridaj, pocet, vykresli } from './inventar.js';
 import { tlmUhol } from './hrac.js';
 import { VYL_MAX } from './kanoe.js';
+import { NEPRIATELIA } from './obsah/nepriatelia.js';
+import { spawnPriHracovi } from './nepriatelia.js';
+import { majaky } from './majak.js';
 
 export const dev = {
   zapnuty: false,
@@ -55,12 +58,15 @@ const html = () => `
 </div>
 <div class="obsah" data-t="teleport" hidden>
   <div class="skup"><b>Biom</b><select id="dev-biom">${Object.entries(BIOM_MENO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><button data-a="teleport">Na najbližší</button></div>
-  <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button></div>
+  <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button><button data-a="majak">K majáku 1</button></div>
 </div>
 <div class="obsah" data-t="predmety" hidden>
   <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
     <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
   <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
+</div>
+<div class="obsah" data-t="svet" hidden data-dev-nepr>
+  <div class="skup"><b>Nepriateľ</b>${Object.entries(NEPRIATELIA).map(([k, v]) => `<button data-nepr="${k}">${v.meno}</button>`).join('')}</div>
 </div>
 <div class="obsah" data-t="lode" hidden>
   <div class="skup"><b>Úroveň kanoe</b><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button></div>
@@ -139,6 +145,7 @@ export function initDev(c) {
     if (t.dataset.t) return otvorTab(t.dataset.t);
     if (t.dataset.a === 'hraj') return zamkni();
     const { hrac, kanoe } = ctx;
+    if (t.dataset.nepr) ctx.oznam(spawnPriHracovi(t.dataset.nepr, ctx.hrac.poz) ? `Spawn: ${NEPRIATELIA[t.dataset.nepr].meno}` : 'Nie je kde spawnovať');
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
     if (t.dataset.vyl) { for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? VYL_MAX : 0); ctx.oznam(t.dataset.vyl === '1' ? 'Vylepšenia na maximum' : 'Vylepšenia vynulované'); }
     if (t.dataset.k) { if (kanoe.druh !== 'kanoe') ctx.oznam('Najbližšia loď nie je kanoe'); else { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); } }
@@ -161,6 +168,7 @@ export function initDev(c) {
         if (vyskaTerenu(x, z) < -1.2) { kanoe.poz.set(x, z); kanoe.rych.set(0, 0); return; }
       }
     }
+    if (a === 'majak' && majaky[0]) { const m = majaky[0], [x, z] = m.budenie; if (ctx.jeVKanoe()) ctx.vystup([x, z]); hrac.poz.set(x, vyskaTerenu(x, z) + 1, z); ctx.oznam('Teleport: ' + m.def.meno); }
     if (a === 'start') { const s = ctx.start; if (ctx.jeVKanoe()) ctx.vystup([s.x, s.z]); hrac.poz.set(s.x, vyskaTerenu(s.x, s.z) + 1, s.z); }
     if (a === 'daj') {
       const id = panel.querySelector('#dev-pred').value, n = Math.max(1, +panel.querySelector('#dev-pocet').value || 1);

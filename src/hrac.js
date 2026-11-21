@@ -7,6 +7,7 @@ import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { postavModel } from './postava.js';
 import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
+import { odtlacOdMajaka } from './majak.js';
 import { drzNaPalube, naLokalne } from './kanoe.js';
 
 const tlm = THREE.MathUtils.damp;
@@ -185,6 +186,7 @@ export function vytvorHraca(scena) {
       }
 
       odtlacOdStien(h.poz);                                            // steny zo stavania
+      odtlacOdMajaka(h.poz);                                           // maják je pevny
       const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y));
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
       h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / 20 : dt / 4), 0, 1);

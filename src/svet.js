@@ -433,6 +433,21 @@ export function najblizsiPredmet(x, z, d = 2.0) {
   return naj;
 }
 
+// polozi predmet na zem (napr. loot z nepriatela); vrati false, ak tam nie je nahrata bunka
+let dropId = 0;
+export function polozPredmet(typ, x, z) {
+  const zaznam = nahrate.get(Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA));
+  if (!zaznam || !PREDMETY[typ]) return false;
+  const [geo, mat] = PREDMETY[typ].model;
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, Math.max(vyskaTerenu(x, z), 0.05), z);
+  m.rotation.y = Math.random() * 6.28;
+  m.castShadow = true;
+  m.userData = { id: `d${Date.now().toString(36)}_${dropId++}`, typ };
+  zaznam.skupina.add(m);
+  return true;
+}
+
 export function zober(m) {
   zobrate.add(m.userData.id);
   m.parent.remove(m);

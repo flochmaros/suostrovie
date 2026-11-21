@@ -26,3 +26,9 @@ export function opotrebuj(slotIndex, n = 1) {
   vykresli();
   return false;
 }
+
+// kolko hp ubere uder nepriatelovi: nastroj.zivocichy, inak odvodene od sily; bez nastroja = 1
+export function poskodenieNepriatela(def) {
+  const n = def?.nastroj;
+  return n ? (n.zivocichy ?? Math.max(1, n.sila * 1.5)) : 1;
+}

@@ -28,9 +28,11 @@ export const priliv = t => PRILIV_A * Math.sin(t * 2 * Math.PI / PRILIV_T);
 // globalny nasobok amplitudy vln podla pasma (tlmene sa nastavuje v aktualizuj; rovnaka hodnota ide do uniformu uVlnySila)
 export const uVlnySila = { value: 1 };
 const SILA_PASMA = [1, 1, 1.5, 1.8, 2.8, 2.2];    // index = pasmo 1..5
+export const upokojenePasma = new Map();           // pasmo -> nasobok vln (zapaleny maják upokoji more v pasme, src/majak.js)
+const sila = i => SILA_PASMA[i] * (upokojenePasma.get(i) ?? 1);
 export function silaPasma(p) {                     // plynula interpolacia podla pasmoPlynule (1.0..5.0)
   const i = Math.max(1, Math.min(4, Math.floor(p))), q = Math.min(1, p - i);
-  return SILA_PASMA[i] + (SILA_PASMA[i + 1] - SILA_PASMA[i]) * q;
+  return sila(i) + (sila(i + 1) - sila(i)) * q;
 }
 export function vyskaVody(x, z, t) {
   let h = 0;

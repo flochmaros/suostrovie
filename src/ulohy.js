@@ -5,6 +5,8 @@ import { pocet, pridaj, vykresli as vykresliInventar } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { diely } from './stavba.js';
 import { pasmo } from './svet.js';
+import { polohaMajaka, jeZapaleny, precitane, textSpravy } from './majak.js';
+import { SPRAVY } from './obsah/spravy.js';
 
 const $ = id => document.getElementById(id);
 let ctx = { poz: () => ({ x: 0, z: 0 }), lodUroven: () => 0, oznam: () => {}, zvuk: () => {} };
@@ -26,6 +28,10 @@ function postup(u) {
     case 'postav': return [diely.filter(d => d.typ === u.ciel).length, n];
     case 'pasmo': { const p = ctx.poz(); return [pasmo(p.x, p.z) >= u.ciel ? 1 : 0, 1]; }
     case 'lod': return [ctx.lodUroven() >= u.ciel ? 1 : 0, 1];
+    case 'sprava': return [precitane.size, n];
+    case 'majak_blizko': { const m = polohaMajaka(u.ciel), p = ctx.poz(); return [m && Math.hypot(m.x - p.x, m.z - p.z) < 30 ? 1 : 0, 1]; }
+    case 'majak': return [jeZapaleny(u.ciel) ? 1 : 0, 1];
+    case 'zabi': return [udal['zabi:' + u.ciel] || 0, n];
     case 'vyrob': return [udal['vyrob:' + u.ciel] || 0, n];
     default: return [udal[u.typ] || 0, n];   // ohen, upec, zjedz
   }
@@ -100,7 +106,13 @@ function vykresliOkno() {
         const od = (u.odmena || []).filter(r => PREDMETY[r[0]]).map(([id, c]) => `${c}× ${PREDMETY[id].ikona}`).join(' ');
         return `<div class="uloha${ok ? ' hotova' : ''}"><span class="odskrt">${ok ? '☑' : '☐'}</span><span>${u.text}${!ok && n > 1 ? ` <b>${Math.min(x, n)}/${n}</b>` : ''}${od ? ` <small>odmena ${od}</small>` : ''}</span></div>`;
       }).join('') + '</div>';
-  }).join('');
+  }).join('') + vykresliSpravy();
+}
+function vykresliSpravy() {
+  const p = [...precitane].sort((a, b) => a - b).filter(i => SPRAVY[i]);
+  return `<div class="kap"><h3>✉ Správy z fliaš <small>${p.length}/${SPRAVY.length}</small></h3>` + (p.length
+    ? p.map(i => `<div class="uloha"><span>✉</span><span>${SPRAVY[i].nadpis}<small style="font-weight:500;opacity:.85">${textSpravy(i)}</small></span></div>`).join('')
+    : '<p class="tichy">Zatiaľ si nenašiel žiadnu. Fľaše sa povaľujú na plážach.</p>') + '</div>';
 }
 
 export const jeOknoOtvorene = () => otvorene;
