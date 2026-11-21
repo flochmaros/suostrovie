@@ -37,8 +37,9 @@ export function vyrob(r) {
   const zaloha = sloty.map(s => s && { ...s });
   const vratit = () => { zaloha.forEach((s, i) => { sloty[i] = s; }); return false; };
   r.suroviny.forEach(([id, n]) => odober(id, n));
-  if (r.akcia) return r.akcia() === false ? vratit() : true;
-  if (pridaj(r.vysledok[0], r.vysledok[1] ?? 1) > 0) return vratit();
+  if (r.akcia) { if (r.akcia() === false) return vratit(); }
+  else if (pridaj(r.vysledok[0], r.vysledok[1] ?? 1) > 0) return vratit();
+  dispatchEvent(new CustomEvent('vyrobene', { detail: r }));   // dennik uloh (ulohy.js)
   return true;
 }
 // presun z policka a na policko b (rovnaky typ = spoj, inak vymen)
