@@ -25,6 +25,7 @@ import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori,
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
+import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
 
 const $ = id => document.getElementById(id);
@@ -35,6 +36,8 @@ initSvet(scena);
 const ocean = vytvorOcean(g);
 const pena = vytvorCastice(scena, { pocet: 700, velkost: 0.28, aditivne: true });
 const triesky = vytvorCastice(scena, { pocet: 300, velkost: 0.11 });
+const dymPece = vytvorCastice(scena, { pocet: 120, velkost: 0.7, nepriehladnost: 0.35 });
+nastavDym(dymPece);
 const start = startovaciaPozicia();
 const hrac = vytvorHraca(scena);
 // lode: kanoe = aktivna lod (ta, v ktorej sedis, alebo najblizsia k hracovi)
@@ -61,6 +64,7 @@ hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z
 // ---------- stav + ukladanie ----------
 let vKanoe = false, naPalube = false, cas = 0;   // vKanoe = sedi pri kormidle/padle, naPalube = chodi po palube (barza, katamaran)
 const objavene = new Set();
+let postel = null;                                  // [x, z] hamaky, kde si naposledy spal (miesto prebudenia)
 const KLUC = 'suostrovie-ulozenie-v3';
 try {
   const u = JSON.parse(localStorage.getItem(KLUC));
@@ -86,6 +90,7 @@ try {
     nacitajPocasie(u.pocasie);
     nacitajOhne(u.ohne);
     nacitajStavby(u.stavby);
+    if (Array.isArray(u.postel)) postel = u.postel;
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
 } catch (e) { /* nova hra */ }
@@ -95,7 +100,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby() }));
+      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -224,7 +229,7 @@ udalostiPreziti.priVarovani = t => oznam(t);
 udalostiPreziti.priSmrti = () => document.exitPointerLock();
 udalostiPreziti.priZobudeni = () => {
   oziv();
-  const s = start.hrac;
+  const s = postel ? { x: postel[0], z: postel[1] } : start.hrac;   // zobudis sa pri hamake, ak si v nej spal
   if (vKanoe || naPalube) vystup([s.x, s.z]);
   hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
   zamkni();
@@ -236,6 +241,32 @@ initInventar(() => hrac.drz(vybranyPredmet()));
 addEventListener('stavaj', e => { if (stavPreziti.mrtvy || vKanoe) return; prepniBatoh(false); zamkni(); zacniStavat(e.detail); });   // klik na stavbu v menu B
 vykresliInventar();
 hrac.drz(vybranyPredmet());
+
+// ---------- funkcne stavby: sluzby pre funkcne.js + spanok v hamake ----------
+const hodinaHry = () => ((9 + cas / (24 * 60) * 24) % 24 + 24) % 24;   // 9 = START_HODINA v pocasie.js, den = 24 min
+function sluzbyStavieb() {
+  return { vybrany: vybranyPredmet(), pocet, odober, pridaj, zjedz, smad: stavPreziti.smad, hodina: hodinaHry(), oznam,
+    otvorSklad: (pole, nazov) => otvorOkno('sklad', pole, nazov), spi };
+}
+let spim = false;
+function spi(d, noc) {
+  if (spim) return;
+  if (stavPreziti.hlad < 15 || stavPreziti.smad < 15) return oznam('Si príliš hladný alebo smädný na spánok');
+  spim = true;
+  postel = [d.x - Math.sin(d.u) * 1.2, d.z - Math.cos(d.u) * 1.2];
+  const z = $('zatmenie'); z.style.opacity = 1;
+  setTimeout(() => {
+    const h = hodinaHry(), dalej = noc ? ((6 - h + 24) % 24) : 1;   // noc -> do 6:00, cez den 1 hodina
+    cas += dalej * 60;                                                // 1 herna hodina = 60 s
+    stavPreziti.hlad = Math.max(5, stavPreziti.hlad - dalej * 2.5);
+    stavPreziti.smad = Math.max(5, stavPreziti.smad - dalej * 3);
+    stavPreziti.zdravie = Math.min(100, stavPreziti.zdravie + dalej * 8);
+    hrac.poz.set(postel[0], vyskaTerenu(postel[0], postel[1]), postel[1]);
+    oznam(noc ? '☀️ Dobré ráno! Vyspal si sa do rána' : '😴 Zdriemol si si hodinku');
+    oznam('🛏️ Tu sa zobudíš, ak omdlieš');
+    setTimeout(() => { z.style.opacity = 0; spim = false; }, 700);
+  }, 1300);
+}
 
 // ---------- HUD ----------
 let poslednyOstrov = null, casNapisu = 0;
@@ -352,9 +383,11 @@ function aktualizuj(dt) {
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
     const ohen = !blizko && !predmet && najblizsiOhen(hrac.poz.x, hrac.poz.z);   // taborak ma prednost pred zberom
-    const ulovok = !blizko && !predmet && !ohen && najdiUlovok(hrac.poz.x, hrac.poz.z);
-    const zber = !blizko && !predmet && !ohen && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
-    const more = !blizko && !predmet && !ohen && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
+    const funk = !blizko && !predmet && !ohen && najdiFunkcnu(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));   // truhlica, pec, hamaka...
+    const obs = funk && obsluha(funk, sluzbyStavieb());
+    const ulovok = !blizko && !predmet && !ohen && !funk && najdiUlovok(hrac.poz.x, hrac.poz.z);
+    const zber = !blizko && !predmet && !ohen && !funk && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
+    const more = !blizko && !predmet && !ohen && !funk && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
     if (ohen) {                                            // taborak: upiect vybrane jedlo, inak prilozit drevo
       const d = vybranyPredmet(), mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
       const peci = hori(ohen) && d && daSaUpiect(d.id);
@@ -367,14 +400,16 @@ function aktualizuj(dt) {
       }
     } else if (vybranyPredmet()?.polozit === 'taborak') napoveda = '<kbd>F</kbd> položiť táborák';
     else if (vybranyPredmet()?.polozit === 'stavba') napoveda = `<kbd>F</kbd> umiestniť: ${vybranyPredmet().meno.toLowerCase()}`;
-    const lodUk = !blizko && !predmet && !ohen && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
+    const lodUk = !blizko && !predmet && !ohen && !funk && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
     if (blizko) napoveda = `<kbd>E</kbd> nastúpiť: ${kanoe.stat.nazov} · <kbd>R</kbd> sklad`;
     else if (lodUk) napoveda = '<kbd>E</kbd> lodenica – stavba a vylepšenie lodí';
     else if (ohen) { /* napoveda uz je */ }
+    else if (obs) napoveda = obs.text;
     else if (predmet) napoveda = `<kbd>E</kbd> zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
     else if (ulovok) napoveda = `<kbd>E</kbd> ${ulovok.text}`;
     else if (zber) napoveda = `<kbd>E</kbd> ${zber.text}`;
     else if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
+    if (obs?.akcia && stlacene('KeyE')) { obs.akcia(); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.zober(); }
     if ((ulovok || zber || more) && stlacene('KeyE')) { zoberVsetko((ulovok || zber || more).akcia()); hrac.zdvihni(); }
     if (blizko && stlacene('KeyE')) nastup();
     else if (lodUk && stlacene('KeyE')) otvorOkno('lodenica');
@@ -406,6 +441,8 @@ function aktualizuj(dt) {
   aktualizujZivocichy(dt, cas, hrac.poz, kanoe.poz, vKanoe);
   aktualizujMore(dt, cas, hrac.poz, podVodou, kanoe.poz, vKanoe);
   const ohne = aktualizujOhne(dt, cas, hrac.poz, vietor);
+  aktualizujFunkcne(dt, { dazd: poc.dazd, svetlo: poc.svetlo });
+  dymPece.aktualizuj(dt);
   for (const id of ohne.upecene) {
     const navyse = pridaj(id, 1);
     oznam(navyse ? 'Batoh je plný' : `Upečené: ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);

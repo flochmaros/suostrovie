@@ -111,7 +111,7 @@ export function obsluha(d, h) {
   }
   if (d.typ === 'zberac_vody') {
     const n = Math.floor(st.v);
-    if (n < 1) return { text: `Zberač je prázdny – naplní ho dážď 🌧 (${Math.round(st.v / VODA_MAX * 100)} %)`, akcia: () => {} };
+    if (n < 1) return { text: `Zberač je prázdny – naplní ho dážď 🌧 (${Math.round(st.v / VODA_MAX * 100)} %)`, akcia: null };
     return { text: `<kbd>E</kbd> napiť sa 💧 (${n}/${VODA_MAX})`, akcia: () => {
       if (h.smad >= 98) return h.oznam('Nie si smädný');
       h.zjedz({ id: 'dazdova_voda', jedlo: { sytost: 0, voda: VODA_DUSOK } }); st.v -= 1; h.oznam('💧 Napil si sa dažďovej vody');
@@ -135,7 +135,7 @@ export function obsluha(d, h) {
     if (pec && h.pocet('drevo') && st.p < PEC_PALIVO_MAX - PEC_DREVO / 2)
       return { text: `<kbd>E</kbd> ${st.p > 0 ? 'priložiť' : 'zapáliť'} drevo${inf}`, akcia: () => { h.odober('drevo', 1); st.p = Math.min(PEC_PALIVO_MAX, st.p + PEC_DREVO); } };
     const co = pec ? 'surové jedlo (ryba, krab, taro, huba, banán)' : 'rybu alebo ovocie (banán, mango, ananás)';
-    return { text: `Vyber do ruky ${co}${pec && !st.p ? ' a pridaj 🪵 drevo' : ''}${inf}`, akcia: () => {} };
+    return { text: `Vyber do ruky ${co}${pec && !st.p ? ' a pridaj 🪵 drevo' : ''}${inf}`, akcia: null };
   }
   if (d.typ === 'hamaka') {
     const noc = h.hodina >= 19 || h.hodina < 5;
