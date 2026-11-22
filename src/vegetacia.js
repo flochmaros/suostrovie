@@ -146,7 +146,7 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
       const b = bod();
       if (druh === 'trava') {
         const maska = o.biom === 'savana' ? -0.7 : -0.2;
-        if (b.y > 1.5 && perlin.noise(b.x * 0.05, b.z * 0.05, o.seed) > maska && sklon(b) < 1.4) {
+        if (b.y > (o.plazH ? Math.max(0.6, o.plazH(b.x, b.z) - 0.3) : 1.5) && perlin.noise(b.x * 0.05, b.z * 0.05, o.seed) > maska && sklon(b) < 1.4) {
           pridaj('trava', Math.floor(r() * 2), b.x, b.y - 0.05, b.z, 0.9 + r() * 0.8, 0.25);
           travaBunky.add(Math.floor(b.x / BUNKA_TRAVY) + ',' + Math.floor(b.z / BUNKA_TRAVY));
         }

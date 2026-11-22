@@ -385,9 +385,9 @@ function trstina(seed) {
     const top = P(1);
     for (const l of listovaKorunka(3, 1.1, 0.07, fL1, fL2, r, 0, 0.4)) casti.push(l.translate(top.x + Math.cos(uhol) * d, top.y, top.z + Math.sin(uhol) * d));
   }
-  for (let i = 0; i < 2; i++) {                        // zrela purpurova trstina
+  for (let i = 0; i < 2; i++) {                        // zrela (cervenohneda) trstina
     const h = 2.6 + r() * 0.7, uhol = i * 3.1 + 0.7, d = 0.3;
-    const { geo, P } = steblo(h, 0.045, 0.1, uhol, 6, C(0x7a3a5a), C(0x4a2438), 4);
+    const { geo, P } = steblo(h, 0.045, 0.1, uhol, 6, C(0x8a5a3c), C(0x5a3a28), 4);
     plody.push(geo.translate(Math.cos(uhol) * d, 0, Math.sin(uhol) * d));
     const top = P(1);
     for (const l of listovaKorunka(3, 1.0, 0.07, fL1, fL2, r, 0, 0.4)) plody.push(l.translate(top.x + Math.cos(uhol) * d, top.y, top.z + Math.sin(uhol) * d));
@@ -483,10 +483,10 @@ function huba(seed, cervena) {
 function ker(seed) {
   const r = rng(seed);
   const casti = [], plody = [];
-  const farba = C([0x3f7f2e, 0x4c8a35, 0x2f6a2a][Math.floor(r() * 3)]);
-  for (let i = 0; i < 3 + r() * 3; i++) {
-    const g = chumac(0.45 + r() * 0.4, farba, seed + i * 3);
-    g.translate((r() - 0.5) * 1.1, 0.35 + r() * 0.4, (r() - 0.5) * 1.1);
+  const farba = C([0x4a7432, 0x56783a, 0x3e6230][Math.floor(r() * 3)]);
+  for (let i = 0; i < 5 + r() * 3; i++) {             // viac mensich, sploštenych chumacov = menej "gula"
+    const g = chumac(0.3 + r() * 0.3, farba, seed + i * 3).scale(1.2, 0.7, 1.2);
+    g.translate((r() - 0.5) * 1.3, 0.25 + r() * 0.45, (r() - 0.5) * 1.3);
     casti.push(g);
   }
   for (let i = 0; i < 4; i++) {                        // suche paliky vytrcajuce z kra
@@ -552,7 +552,7 @@ function papradie(seed) {
 
 function trava(seed) {
   const r = rng(seed), poz = [], farby = [], idx = [];
-  const ck = C(0x3d6e25), cs = C(0x9cc25a);
+  const ck = C(0x46682a), cs = C(0xa6b464);
   for (let b = 0; b < 9; b++) {
     const a = r() * 6.28, dx = Math.cos(a), dz = Math.sin(a), h = 0.45 + r() * 0.5, ohyb = 0.15 + r() * 0.35;
     const ox = (r() - 0.5) * 0.35, oz = (r() - 0.5) * 0.35, w = 0.035 + r() * 0.02;

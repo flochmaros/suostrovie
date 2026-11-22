@@ -265,10 +265,13 @@ export const matTeren = new THREE.MeshStandardMaterial({ vertexColors: true, rou
 matTeren.onBeforeCompile = sh => {
   sh.uniforms.uCas = uCas; sh.uniforms.uNoc = uNoc;
   sh.uniforms.uPriliv = uPriliv;
-  sh.vertexShader = 'varying vec3 vSvetP;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-    '#include <begin_vertex>\nvSvetP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-  sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nuniform float uNoc;\nvarying vec3 vSvetP;\n' + KAUSTIKA + SUM_T + sh.fragmentShader
+  sh.vertexShader = 'varying vec3 vSvetP;\nattribute vec4 aPiesok;\nvarying vec4 vPiesok;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\nvSvetP = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvPiesok = aPiesok;');
+  sh.fragmentShader = 'uniform float uCas;\nuniform float uPriliv;\nuniform float uNoc;\nvarying vec3 vSvetP;\nvarying vec4 vPiesok;\n' + KAUSTIKA + SUM_T + sh.fragmentShader
     .replace('#include <color_fragment>', `#include <color_fragment>
+      // prechod piesok -> trava: nie ostra ciara, ale trsy travy v piesku (sum v 2 velkostiach)
+      float trs = sumT(vSvetP.xz * 0.8) * 0.55 + sumT(vSvetP.xz * 3.1) * 0.45;
+      diffuseColor.rgb = mix(vPiesok.rgb, diffuseColor.rgb, smoothstep(0.42, 0.58, vPiesok.w + (trs - 0.5) * 0.8));
       float nadVodou = vSvetP.y - uPriliv;
       float jemny = sin(vSvetP.x * 2.3 + sin(vSvetP.z * 1.7)) * sin(vSvetP.z * 2.1 + sin(vSvetP.x * 1.3))
                   + 0.5 * sin(vSvetP.x * 7.1 + vSvetP.z * 3.3) * sin(vSvetP.z * 6.3 - vSvetP.x * 2.9);
@@ -294,21 +297,39 @@ function C(h) { return new THREE.Color(h); }
 // farby terenu podla biomu: tr = [nizsia, vyssia] trava, piesok (plaz), dno, skala (strme svahy), hl (flaky), hlPrah (kolko flakov),
 // plaz = vyska, od ktorej zacina vegetacia
 const TEREN = {
-  palmovy:   { tr: [0x6aa83a, 0x4f8f2e], plaz: 1.4 },
-  dzungla:   { tr: [0x3f8a28, 0x2a6320], plaz: 1.4 },
-  skalnaty:  { tr: [0x7f9a48, 0x63783e], plaz: 1.4 },
-  atol:      { tr: [0x86bf4e, 0x6aa83a], piesok: 0xf2e2b4, dno: 0xe6d6a6, skala: 0xa6a094, hl: 0xc9b27a, hlPrah: 0.2, plaz: 0.9 },
-  sopecny:   { tr: [0x4a5a38, 0x2e2a28], piesok: 0x2b2927, dno: 0x3a3835, skala: 0x34302e, hl: 0x5a3226, hlPrah: -0.15, plaz: 0.7 },
-  mangrovy:  { tr: [0x4d6b34, 0x3b5a2c], piesok: 0x6e5f45, dno: 0x5a5040, skala: 0x5f5a4c, hl: 0x4a4030, hlPrah: 0.1, plaz: 0.3 },
-  bambusovy: { tr: [0x79a83a, 0x5c8c2e], plaz: 1.4 },
-  savana:    { tr: [0xb2ad5c, 0x8fa23f], piesok: 0xe6cf98, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
-  plytcina:  { tr: [0x7ab548, 0x5f9a37], piesok: 0xf0dcaa, dno: 0xe0cc9a, plaz: 1.5 },
-  ovocny:    { tr: [0x7cb842, 0x5ea330], plaz: 1.4 },
+  palmovy:   { tr: [0x7a9a48, 0x5f7f3a], plaz: 1.4 },
+  dzungla:   { tr: [0x557a36, 0x3e5e2c], plaz: 1.3 },
+  skalnaty:  { tr: [0x86905a, 0x6c7449], plaz: 1.4 },
+  atol:      { tr: [0x93aa5a, 0x7a944a], piesok: 0xf2e2b4, dno: 0xe6d6a6, skala: 0xa6a094, hl: 0xc9b27a, hlPrah: 0.2, plaz: 0.9 },
+  sopecny:   { tr: [0x4e5c3a, 0x2e2a28], piesok: 0x2b2927, dno: 0x3a3835, skala: 0x34302e, hl: 0x5a3226, hlPrah: -0.15, plaz: 0.7, tmavy: true },
+  mangrovy:  { tr: [0x55703a, 0x435c30], piesok: 0x6e5f45, dno: 0x5a5040, skala: 0x5f5a4c, hl: 0x4a4030, hlPrah: 0.1, plaz: 0.3, tmavy: true },
+  bambusovy: { tr: [0x7f9c48, 0x64823b], plaz: 1.4 },
+  savana:    { tr: [0xb0a662, 0x97984e], piesok: 0xe6cf98, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
+  plytcina:  { tr: [0x8aa858, 0x709048], piesok: 0xf0dcaa, dno: 0xe0cc9a, plaz: 1.5 },
+  ovocny:    { tr: [0x82a24c, 0x67893d], plaz: 1.4 },
 };
 for (const t of Object.values(TEREN)) {
   t.tr = t.tr.map(C);
   for (const k of ['piesok', 'dno', 'skala', 'hl']) t[k] = t[k] === undefined ? FARBY[k === 'hl' ? 'hlina' : k] : C(t[k]);
   t.hlPrah ??= 0.35;
+}
+const SUCHA = C(0xa89c5c), SVIEZA = C(0x5c8a3a), TMAVY_PIESOK = C(0x9a8462), KORAL = C(0xeae2d2);
+
+// kde konci plaz a zacina trava: sirka plaze sa meni pozdlz pobrezia (niekde siroky piesok, inde trava az k vode)
+export function hranicaPlaze(o, x, z) {
+  const n = perlin.noise(x * 0.08, z * 0.08, o.seed + 1);
+  const s = perlin.noise(x * 0.018, z * 0.018, o.seed + 31);
+  return Math.max(0.35, TEREN[o.biom].plaz + n * 0.5 + s * 2.4);
+}
+// typ useku pobrezia: m > 0 skaly, m < 0 tmavsi piesok; kor = koralova drt
+function typBrehu(o, x, z) {
+  return { m: perlin.noise(x * 0.025, z * 0.025, o.seed + 41), kor: perlin.noise(x * 0.03, z * 0.03, o.seed + 57) };
+}
+// kazdy ostrov ma trochu iny odtien travy (podla seedu ostrova)
+function odtienOstrova(o, farba) {
+  const r = rng(o.seed * 31 + 7), hsl = {};
+  farba.getHSL(hsl);
+  return new THREE.Color().setHSL(hsl.h + (r() - 0.5) * 0.05, hsl.s * (0.62 + r() * 0.3), hsl.l * (0.92 + r() * 0.14));
 }
 
 function postavTeren(o) {
@@ -319,26 +340,98 @@ function postavTeren(o) {
   for (let i = 0; i < poz.count; i++) poz.setY(i, vyskaOstrova(o, o.x + poz.getX(i), o.z + poz.getZ(i)));
   geo.computeVertexNormals();
 
-  const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), c = new THREE.Color(), t2 = new THREE.Color(), t3 = new THREE.Color();
-  const T = TEREN[o.biom], [tr1, tr2] = T.tr;
+  // color = trava/hora, aPiesok = farba plaze (rgb) + kolko travy (w); shader ich zmiesa (trsy travy na okraji plaze)
+  const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), piesky = new Float32Array(poz.count * 4);
+  const t2 = new THREE.Color(), t3 = new THREE.Color(), ps = new THREE.Color();
+  const T = TEREN[o.biom], tr1 = odtienOstrova(o, T.tr[0]), tr2 = odtienOstrova(o, T.tr[1]);
+  const S = THREE.MathUtils.smoothstep;
   for (let i = 0; i < poz.count; i++) {
     const x = poz.getX(i) + o.x, z = poz.getZ(i) + o.z, h = poz.getY(i), strmost = 1 - nor.getY(i);
     const n = perlin.noise(x * 0.08, z * 0.08, o.seed + 1);
-    const hranica = T.plaz + n * 0.6;                       // kde konci plaz (nerovno)
+    const hranica = hranicaPlaze(o, x, z);
+    // trava: nizko a pri vode sviezejsia, hore a na svahoch suchsia (olivova / slamova)
     t2.copy(tr1).lerp(tr2, THREE.MathUtils.clamp((h - 2) / (o.H * 0.8) + n * 0.4, 0, 1));
+    if (!T.tmavy) {
+      const vlh = perlin.noise(x * 0.015, z * 0.015, o.seed + 77);
+      const sucho = THREE.MathUtils.clamp((h - hranica) / (o.H * 0.9 + 4) + strmost * 1.5 - vlh * 0.8 - 0.05, 0, 1);
+      t2.lerp(SUCHA, sucho * 0.55);
+      t2.lerp(SVIEZA, (1 - S(h, hranica, hranica + 4)) * 0.25 + Math.max(0, vlh) * 0.25);
+    }
     if (perlin.noise(x * 0.04, z * 0.04, o.seed + 5) > T.hlPrah) t2.lerp(T.hl, 0.5);   // flaky hliny
+    // plaz: dno -> piesok; podla useku brehu skaly / tmavsi piesok / koralova drt
     farbaDna(h, x, z, t3);
-    c.copy(T.dno).lerp(t3, 1 - THREE.MathUtils.smoothstep(h, -9, -4)).lerp(T.piesok, THREE.MathUtils.smoothstep(h, -2, 0.3));
-    c.lerp(t2, THREE.MathUtils.smoothstep(h, hranica, hranica + 0.8));
-    c.lerp(T.skala, THREE.MathUtils.smoothstep(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3));
-    c.offsetHSL(0, 0, n * 0.03);
-    farby.set([c.r, c.g, c.b], i * 3);
+    ps.copy(T.dno).lerp(t3, 1 - S(h, -9, -4)).lerp(T.piesok, S(h, -2, 0.3));
+    if (!T.tmavy) {
+      const { m, kor } = typBrehu(o, x, z), nad = S(h, -1.5, 0.2);
+      ps.lerp(TMAVY_PIESOK, S(-m, 0.2, 0.4) * 0.8 * nad);
+      ps.lerp(KORAL, S(kor, 0.2, 0.4) * 0.7 * nad);
+      ps.lerp(T.skala, S(m, 0.2, 0.35) * (0.45 + 0.4 * perlin.noise(x * 0.35, z * 0.35, 3)) * nad);
+    }
+    const sk = S(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3);
+    t2.lerp(T.skala, sk); ps.lerp(T.skala, sk);
+    t2.offsetHSL(0, 0, n * 0.03); ps.offsetHSL(0, 0, n * 0.03);
+    farby.set([t2.r, t2.g, t2.b], i * 3);
+    piesky.set([ps.r, ps.g, ps.b, S(h, hranica - 0.4, hranica + 1.8)], i * 4);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(farby, 3));
+  geo.setAttribute('aPiesok', new THREE.BufferAttribute(piesky, 4));
   const teren = new THREE.Mesh(geo, matTeren);
   teren.position.set(o.x, 0, o.z);
   teren.receiveShadow = true;
   return teren;
+}
+
+// naplaveniny na ciare prilivu: drevo, riasy, musle (+ kamene na skalnatych usekoch) - len ozdoba, lacne InstancedMesh
+const NAPL = (() => {
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.9 });
+  return {
+    riasa: { geo: new THREE.IcosahedronGeometry(0.28, 0).scale(1.7, 0.1, 0.7), mat, farby: [0x4a4a26, 0x5c4c2c, 0x3e4424] },
+    drevo: { geo: new THREE.CylinderGeometry(0.05, 0.08, 1.6, 5).rotateZ(Math.PI / 2), mat, farby: [0xa09684, 0x8a7f70, 0xb5ab98] },
+    musla: { geo: new THREE.ConeGeometry(0.05, 0.08, 5).rotateX(-1.3), mat, farby: [0xf0e6d6, 0xe8c0a8, 0xd8ccb8] },
+    kamen: { geo: new THREE.IcosahedronGeometry(0.45, 0).scale(1, 0.55, 0.85), mat, farby: [0x8a857c, 0x76726a, 0x9a948a] },
+  };
+})();
+function postavNaplaveniny(o, skupina, r) {
+  if (TEREN[o.biom].tmavy) return;
+  const body = { riasa: [], drevo: [], musla: [], kamen: [] };
+  const N = Math.round(o.R * 1.3);
+  for (let k = 0; k < N; k++) {
+    const a = k / N * 6.283 + r() * 0.05, ca = Math.cos(a), sa = Math.sin(a);
+    // od mora k ostrovu najdi vysku ~0,6 m (najvyssi priliv je +0,6 m)
+    let d = o.R * 1.7, h = -1;
+    for (; d > o.R * 0.2; d -= 2) { h = vyskaOstrova(o, o.x + ca * d, o.z + sa * d); if (h > 0.55) break; }
+    if (h < 0.55 || h > 1.6) continue;
+    d += r() * 1.2;
+    const x0 = o.x + ca * d, z0 = o.z + sa * d, tx = -sa, tz = ca;
+    if (hranicaPlaze(o, x0, z0) < 0.7) continue;           // trava az k vode = bez naplavenin
+    const { m } = typBrehu(o, x0, z0);
+    const pridaj = (typ, s, roz) => {
+      const t = (r() - 0.5) * 3, q = (r() - 0.5) * roz;
+      const x = x0 + tx * t + ca * q, z = z0 + tz * t + sa * q;
+      body[typ].push([x, vyskaOstrova(o, x, z), z, r() * 6.28, s * (0.7 + r() * 0.6), Math.floor(r() * 3)]);
+    };
+    if (m > 0.22) { for (let j = 0; j < 2; j++) pridaj('kamen', 0.6 + r() * 1.4, 4); continue; }
+    const ria = 2 + Math.floor(r() * 4);
+    for (let j = 0; j < ria; j++) pridaj('riasa', 1, 0.8);
+    if (r() < 0.22) pridaj('drevo', 0.7 + r() * 0.9, 1.5);
+    for (let j = 0; j < 2; j++) if (r() < 0.7) pridaj('musla', 1, 2.5);
+  }
+  const mt = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
+  for (const [typ, zoznam] of Object.entries(body)) {
+    if (!zoznam.length) continue;
+    const D = NAPL[typ];
+    const im = new THREE.InstancedMesh(D.geo, D.mat, zoznam.length);
+    zoznam.forEach(([x, y, z, rot, s, f], i) => {
+      e.set((r() - 0.5) * 0.15, rot, (r() - 0.5) * 0.15);
+      const dvih = typ === 'drevo' ? 0.03 : typ === 'kamen' ? 0.05 * s : 0.015;
+      mt.compose(v.set(x, y + dvih, z), q.setFromEuler(e), sc.setScalar(s));
+      im.setMatrixAt(i, mt);
+      im.setColorAt(i, col.setHex(D.farby[f]).multiplyScalar(0.9 + r() * 0.2));
+    });
+    im.receiveShadow = true;
+    im.castShadow = typ === 'drevo' || typ === 'kamen';
+    skupina.add(im);
+  }
 }
 
 // predmety lezace na zemi (zdvihnu sa na E)
@@ -369,8 +462,10 @@ function postavPredmety(o, skupina, r) {
 
 function postavOstrov(o) {
   const skupina = new THREE.Group();
+  o.plazH ??= (x, z) => hranicaPlaze(o, x, z);           // pre vegetaciu (trava zacina tam, kde konci plaz)
   const teren = postavTeren(o);
   skupina.add(teren);
+  postavNaplaveniny(o, skupina, rng(o.seed * 6113 + 5));
   const uzly = postavVegetaciu(o, skupina, rng(o.seed * 7919 + 1), (x, z) => vyskaOstrova(o, x, z), zobrate);
   postavPredmety(o, skupina, rng(o.seed * 104729 + 3));
   return { skupina, teren, uzly };
