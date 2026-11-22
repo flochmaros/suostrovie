@@ -9,9 +9,7 @@ import * as THREE from 'three';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 import { klavesy } from './vstup.js';
 import { vyskaTerenu, uzlyPri, pasmoPlynule } from './svet.js';
-import { vyskaVody } from './ocean.js';
-import { VRSTVA_VODA } from './grafika.js';
-import { MAPA_KRUH } from './castice.js';
+import { vyskaVody, stopaLode, porucha } from './ocean.js';
 import { postavDruh } from './lode_modely.js';
 
 const tlm = THREE.MathUtils.damp;
@@ -45,6 +43,26 @@ export const DRUHY = {
     rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, hit: 2.3, nazov: 'Veľký katamarán',
     paluba: { x: [-2.0, 2.0], z: [-3.3, 3.8], y: 0.89, boxy: [[-1.35, 1.35, 0.35, 2.65], [-1.7, -0.15, -2.7, -1.9], [0.95, 1.5, -2.7, -2.1], [-0.2, 0.2, -1.4, -1.0]] } } },
 };
+
+// charakter lode na vode (pruzina + tlmic pre vysku, predklon a naklon):
+//  w = tuhost (vlastna frekvencia, 1/s: velka = lod rychlo kopiruje vlny), z = tlmenie (1 = bez dokmitavania, malo = hojda sa)
+//  bok = bocny odpor kyla (1/s), zatR = ako rychlo prestane tocit, nakZat = naklon v zakrute (+ do zakruty, - von)
+//  klz = dvihnutie pridy s rychlostou, hojd = rozkyvanie pri zabere padlom, surf = ako lod zrychli dole vlnou
+//  vietorN = naklon od plachty, sprej = mnozstvo spreju z pridy
+const FYZ = {
+  kanoe:     { wy: 5.5, zy: 0.35, wp: 5.0, zp: 0.3, wr: 5.0, zr: 0.22, bok: 3.5, zatR: 2.8, nakZat: 0.035, klz: 0.004, hojd: 0.12, surf: 0.9, vietorN: 0.012, sprej: 1 },
+  pretekove: { wy: 7.0, zy: 0.25, wp: 6.5, zp: 0.22, wr: 6.5, zr: 0.14, bok: 5.5, zatR: 3.6, nakZat: 0.05, klz: 0.007, hojd: 0.18, surf: 1.15, vietorN: 0.016, sprej: 1.3 },
+  barza:     { wy: 2.2, zy: 0.7, wp: 1.8, zp: 0.65, wr: 1.7, zr: 0.65, bok: 2.4, zatR: 1.6, nakZat: -0.006, klz: 0.001, hojd: 0, surf: 0.35, vietorN: 0.004, sprej: 0.6 },
+  katamaran: { wy: 3.6, zy: 0.55, wp: 3.0, zp: 0.55, wr: 3.2, zr: 0.8, bok: 4.5, zatR: 2.2, nakZat: -0.01, klz: 0.003, hojd: 0, surf: 0.8, vietorN: 0.003, sprej: 1.2 },
+};
+const KELVIN = 19.47 * Math.PI / 180;                // uhol ramien brazdy (rovnaky pre kazdu lod v hlbokej vode)
+const TAN_K = Math.tan(KELVIN);
+// trupy lode z S.boky (dvojice = jeden trup): [stred (m vpravo), polsirka]
+function trupy(S) {
+  const b = S.boky ?? [-0.35, 0.35], t = [];
+  for (let i = 0; i + 1 < b.length; i += 2) t.push([(b[i] + b[i + 1]) / 2, Math.max(0.2, (b[i + 1] - b[i]) / 2)]);
+  return t;
+}
 
 // najvyssie pasmo mora, ktore lod zvladne (pasmo 5 zvladne ur. 4 a katamaran)
 export function maxPasmo(k) {
@@ -367,16 +385,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
   const model = new THREE.Group();
   scena.add(model);
 
-  // brazda: kruhy peny na hladine, rastu a miznu (farba instancie = jas, aditivne miesanie)
-  const POCET = 300;
-  const brazda = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ map: MAPA_KRUH, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), POCET);
-  brazda.frustumCulled = false;
-  brazda.layers.set(VRSTVA_VODA);
-  scena.add(brazda);
-  const stopy = Array.from({ length: POCET }, () => ({ x: 0, z: 0, vx: 0, vz: 0, vek: 99, r: 1 }));
-  let dalsia = 0, casStopy = 0;
-  const m4 = new THREE.Matrix4(), c = new THREE.Color();
+  let dStopy = 0, casPorucha = 0, casSpr = 0;
   let vlastne = [];
 
   // vymeni vlastne deti modelu (hrac pripojeny k modelu ostava a presunie sa na sedadlo)
@@ -397,6 +406,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
     uroven: 1, stat: DRUHY[druh].stat || STATY[1], plachtaK: 1, druh, sklad: Array(DRUHY[druh].sklad).fill(null), vyl: { pad: 0, plachta: 0, trup: 0, kyl: 0, sklad: 0, tr: 0 },
     poz: new THREE.Vector2(x, z), rych: new THREE.Vector2(),
     y: 0, smer: -Math.PI / 2, uhlRych: 0, pitch: 0, roll: 0, faza: 0, plachtaV: 0, ucinnost: 0,
+    vy: 0, vPitch: 0, vRoll: 0, ponorPrid: 0, casSpreju: 0, prvy: true,
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
     rychlost: () => k.rych.length(),
     // divoke more: riziko 0..1, hlaska (text pre HUD, main ju vyzdvihne), prevrat (true = hrac ma vypadnut)
@@ -436,14 +446,23 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       const rel = Math.atan2(Math.sin(vietor.smer - k.smer), Math.cos(vietor.smer - k.smer));
       k.ucinnost = (1 + Math.cos(rel)) / 2;
 
+      const F = FYZ[k.druh] ?? FYZ.kanoe;
       let vf = k.rych.x * fx + k.rych.y * fz;
       let vr = k.rych.x * rx + k.rych.y * rz;
-      vf += (tah * S.pad + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
+      // zaber padla: tah pulzuje v rytme padla (priemer ostava rovnaky) - lod "skace" dopredu po kazdom zabere
+      const pulz = k.padlo ? 0.45 + 1.1 * Math.sin(k.faza) ** 2 : 1;
+      vf += (tah * S.pad * pulz + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
       vf -= (vf * Math.abs(vf) * 0.055 * S.odpor + vf * 0.08) * dt;           // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)
-      vr *= Math.exp(-4 * dt);                                       // kyl
+      vf -= vf * Math.min(Math.abs(k.uhlRych), 1.5) * 0.22 * dt;     // v zakrute trup brzdi
+      vf -= 9.81 * (k.sklonP ?? 0) * F.surf * dt;                      // gravitacia na svahu vlny: dole vlnou zrychli, do vlny spomali
+      vr -= 9.81 * (k.sklonR ?? 0) * F.surf * 0.4 * dt;                // vlna tlaci lod aj do boku
+      // kyl: bocny pohyb sa rychlo utlmi, cast sa premeni na pohyb vpred (lod "zakusne" do vody)
+      const vrPred = vr;
+      vr *= Math.exp(-F.bok * dt);
+      vf += Math.sign(vf) * Math.abs(vrPred - vr) * 0.15;
 
       k.uhlRych += zatacanie * (S.zat + 0.11 * Math.abs(vf)) * dt;
-      k.uhlRych *= Math.exp(-2.8 * dt);
+      k.uhlRych *= Math.exp(-F.zatR * dt);
       k.smer += k.uhlRych * dt;
       const nfx = -Math.sin(k.smer), nfz = -Math.cos(k.smer), nrx = Math.cos(k.smer), nrz = -Math.sin(k.smer);
       k.rych.set(nfx * vf + nrx * vr, nfz * vf + nrz * vr);
@@ -468,15 +487,52 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
         if (d < min && d > 1e-4) { k.poz.x += dx / d * (min - d); k.poz.y += dz / d * (min - d); k.rych.multiplyScalar(0.7); }
       }
 
-      // vlny pod lodou
+      // vlny pod lodou: vztlak v 8 bodoch trupu (4 pozdlz x 2 boky), z nich rovina hladiny pod lodou
       const v = (dx, dz) => vyskaVody(k.poz.x + dx, k.poz.y + dz, t);
-      const hP = v(nfx * DLZKA * 0.45, nfz * DLZKA * 0.45), hZ = v(-nfx * DLZKA * 0.45, -nfz * DLZKA * 0.45);
-      const rozchod = S.rozchod ?? 1.5, rozL = S.sym ? rozchod : 1.5;
-      const hR = v(nrx * rozchod, nrz * rozchod), hL = v(-nrx * rozL, -nrz * rozL);
-      const hS = (hP + hZ + hR + hL + v(0, 0)) / 5;
-      k.y = tlm(k.y, hS - 0.08, 7, dt);
-      k.pitch = tlm(k.pitch, Math.atan2(hP - hZ, DLZKA * 0.9) + Math.min(Math.abs(vf), 14) * 0.004, 5, dt);   // pri rychlosti dvihne pridu
-      k.roll = tlm(k.roll, Math.atan2(hR - hL, rozchod + rozL) * (S.rollK ?? 1) + k.uhlRych * vf * 0.025, 5, dt);
+      const rozchod = S.rozchod ?? 1.5, rozL = S.sym ? rozchod : 1.5, L2 = DLZKA * 0.45;
+      let sum = 0, sumP = 0, sumPr = 0, sumL = 0, hPrid = 0;
+      for (const a of [L2, L2 / 3, -L2 / 3, -L2]) {
+        const hR = v(nfx * a + nrx * rozchod, nfz * a + nrz * rozchod), hL = v(nfx * a - nrx * rozL, nfz * a - nrz * rozL);
+        sum += hR + hL; sumP += (hR + hL) * a; sumPr += hR; sumL += hL;
+        if (a === L2) hPrid = (hR + hL) / 2;
+      }
+      const hS = sum / 8;
+      k.sklonP = sumP / (2 * (2 * L2 * L2 + 2 * L2 * L2 / 9));       // sklon hladiny pozdlz lode (+ = prida vyssie)
+      k.sklonR = (sumPr - sumL) / 4 / (rozchod + rozL);               // sklon naprieč (+ = pravy bok vyssie)
+      // ciele: kam by sa lod ustalila; pruzina s tlmicom k nim dotiahne vysku, predklon aj naklon (zotrvacnost = dokmitavanie)
+      const plachtaSila = S.plachta * vietor.sila * k.plachtaV;
+      const cY = hS - 0.08;
+      const cP = Math.atan(k.sklonP) + Math.min(Math.abs(vf), 14) * F.klz;   // pri rychlosti dvihne pridu
+      const cR = Math.atan(k.sklonR) * (S.rollK ?? 1) + F.nakZat * k.uhlRych * vf + Math.sin(rel) * plachtaSila * F.vietorN;
+      if (k.prvy) { k.y = cY; k.pitch = cP; k.roll = cR; k.prvy = false; }
+      const kroky = Math.ceil(dt / 0.02), h = dt / kroky;
+      for (let i = 0; i < kroky; i++) {
+        k.vy += (F.wy * F.wy * (cY - k.y) - 2 * F.zy * F.wy * k.vy) * h; k.y += k.vy * h;
+        k.vPitch += (F.wp * F.wp * (cP - k.pitch) - 2 * F.zp * F.wp * k.vPitch) * h; k.pitch += k.vPitch * h;
+        k.vRoll += (F.wr * F.wr * (cR - k.roll) - 2 * F.zr * F.wr * k.vRoll) * h; k.roll += k.vRoll * h;
+      }
+      // prida narazi do vlny: ak voda pri pride rychlo stupa voci pride -> prida sa zdvihne, sprej, lod trochu spomali
+      const ponor = hPrid - (k.y + 0.08 + Math.sin(k.pitch) * L2);
+      const rychlostPonoru = (ponor - k.ponorPrid) / Math.max(dt, 1e-3);
+      k.ponorPrid = ponor;
+      k.casSpreju -= dt;
+      const rychlVpred = Math.abs(vf);
+      if (ponor > 0.05 && rychlostPonoru > 0.45 && rychlVpred > 2.5 && k.casSpreju <= 0 && dt < 0.1) {
+        const sila = Math.min(rychlostPonoru, 2.5) * Math.min(rychlVpred / 8, 1.5);
+        k.casSpreju = 0.3;
+        k.vPitch += sila * 0.22;
+        vf *= 1 - 0.025 * sila;
+        k.rych.set(nfx * vf + nrx * vr, nfz * vf + nrz * vr);
+        const bx = k.poz.x + nfx * L2, bz = k.poz.y + nfz * L2, n = Math.round(Math.min(26, sila * 9 * F.sprej));
+        for (let i = 0; i < n; i++) {
+          const str = i % 2 ? 1 : -1, bok = (Math.random() * 0.6 + 0.4) * str;
+          pena.vypust(bx + nrx * bok * 0.4, k.y + 0.25, bz + nrz * bok * 0.4,
+            nrx * bok * (1.5 + Math.random() * 2.5) + nfx * rychlVpred * 0.55, 1.5 + Math.random() * (1.5 + sila * 1.5),
+            nrz * bok * (1.5 + Math.random() * 2.5) + nfz * rychlVpred * 0.55, 0xffffff, 0.5 + Math.random() * 0.4);
+        }
+        for (const [cx, hw] of trupy(S)) stopaLode(1, bx + nrx * cx, bz + nrz * cx, 0, 0, 0, hw * 3 + 1, hw * 3 + 1, 0.05, 1.1, 2.5, 0.8);
+        if (sila > 1.2) zvuky.padlo();
+      }
       // prilis divoke more pre tuto lod: kolisanie, varovanie, nakoniec prevratenie
       const nad = pasmoPlynule(k.poz.x, k.poz.y) - dovolenePasmo(k);
       let kolis = 0;
@@ -505,36 +561,58 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
         plachta.scale.set(KK, KK * (0.06 + 0.94 * k.plachtaV), KK * (0.25 + 0.75 * k.plachtaV));
       }
 
-      // brazda a sprej
+      // brazda: castice stopy do textury vody (ocean.js). Kazdy trup ma vlastnu stopu (katamaran = dve V).
+      //  - ramena V: vznikaju pri pride a odplavaju do boku rychlostou v*tan(19.5 st.) -> za lodou vznikne V s Kelvinovym uhlom
+      //  - turbulentna pena za kormou, val vody okolo trupu (len tento snimok)
       const rychl = k.rych.length();
-      const bokyStop = S.boky ?? [-0.35, 0.35];
-      casStopy -= dt;
-      if (rychl > 0.8 && casStopy <= 0) {
-        casStopy = THREE.MathUtils.clamp(0.4 / rychl, 0.02, 0.08);
-        for (const bok of bokyStop) {
-          const st = stopy[dalsia]; dalsia = (dalsia + 1) % POCET;
-          st.x = k.poz.x - nfx * DLZKA * 0.42 + nrx * bok; st.z = k.poz.y - nfz * DLZKA * 0.42 + nrz * bok;
-          st.vek = 0; st.r = 0.35 + rychl * 0.03; st.vx = nrx * Math.sign(bok) * 0.6; st.vz = nrz * Math.sign(bok) * 0.6;
+      const tr = trupy(S), velkost = DLZKA / 6;
+      const A = Math.min(rychl / 8, 1.3);                        // intenzita podla rychlosti
+      for (const [cx, hw] of tr) {
+        if (rychl > 0.4) stopaLode(2, k.poz.x + nrx * cx - nfx * 0.1, k.poz.y + nrz * cx - nfz * 0.1, k.smer, 0, 0,
+          DLZKA * 1.08, hw * 2 + 0.45, 0.02 + A * (0.05 + hw * 0.03), Math.max(0, (rychl - 1.5) / 7) * (0.6 + hw * 0.4), 0, 0);
+      }
+      const krok = THREE.MathUtils.clamp(0.35 + rychl * 0.07, 0.4, 1.3);
+      dStopy += rychl * dt;
+      if (rychl < 0.6) dStopy = 0;
+      let vydaj = 0;
+      while (dStopy > krok && vydaj++ < 6) {
+        dStopy -= krok;
+        const spat = (dStopy / Math.max(rychl, 0.1));             // kolko s dozadu mala castica vzniknut (rovnomerne rozostupy)
+        const ox = -k.rych.x * spat, oz = -k.rych.y * spat;
+        for (const [cx, hw] of tr) {
+          const amp = A * (0.05 + hw * 0.07 + velkost * 0.05), zivot = 4 + DLZKA * 0.45 + rychl * 0.35;
+          const penaV = Math.max(0, (rychl - 3) / 10) * (0.25 + velkost * 0.15);
+          for (const s of [-1, 1]) {
+            const px = k.poz.x + nfx * DLZKA * 0.42 + nrx * (cx + s * hw) + ox, pz = k.poz.y + nfz * DLZKA * 0.42 + nrz * (cx + s * hw) + oz;
+            const von = rychl * TAN_K;
+            stopaLode(0, px, pz, k.smer + s * KELVIN, nrx * s * von, nrz * s * von,
+              krok / Math.cos(KELVIN) * 3, 0.9 + hw * 1.4 + velkost * 0.4, amp, penaV, zivot, 0.25 + rychl * 0.05);
+          }
+          const kx = k.poz.x - nfx * DLZKA * 0.47 + nrx * cx + ox, kz = k.poz.y - nfz * DLZKA * 0.47 + nrz * cx + oz;
+          const r0 = hw * 2.2 + 0.4;
+          stopaLode(1, kx + (Math.random() - 0.5) * hw, kz + (Math.random() - 0.5) * hw, 0,
+            nfx * rychl * 0.25 + (Math.random() - 0.5) * 0.4, nfz * rychl * 0.25 + (Math.random() - 0.5) * 0.4,
+            r0, r0, 0.02 + A * 0.05, Math.min(0.25 + rychl / 10, 1.2) * (0.6 + hw * 0.4), 1.8 + rychl * 0.25 + hw * 2, 0.35 + rychl * 0.06);
         }
-        if (rychl > 3.5) for (let i = 0; i < Math.min(rychl / 3, 4); i++) {
-          const strana = Math.random() < 0.5 ? -1 : 1, bx = k.poz.x + nfx * DLZKA * 0.45, bz = k.poz.y + nfz * DLZKA * 0.45;
+      }
+      // nocny plankton: kratke iskrenie po bokoch kormy (ostatok stopy svieti z textury brazdy)
+      casPorucha -= dt;
+      if (rychl > 2 && casPorucha <= 0) {
+        casPorucha = 0.35;
+        const [cx, hw] = tr[Math.floor(Math.random() * tr.length)], s = Math.random() < 0.5 ? -1 : 1;
+        porucha(k.poz.x - nfx * DLZKA * 0.4 + nrx * (cx + s * hw * 1.3), k.poz.y - nfz * DLZKA * 0.4 + nrz * (cx + s * hw * 1.3), 0.6 + hw);
+      }
+      // jemny sprej z pridy pri rychlej plavbe
+      casSpr -= dt;
+      if (rychl > 3.5 && casSpr <= 0) {
+        casSpr = THREE.MathUtils.clamp(0.4 / rychl, 0.03, 0.08);
+        for (const [cx] of tr) for (let i = 0; i < Math.min(rychl / 4, 3) * F.sprej; i++) {
+          const strana = Math.random() < 0.5 ? -1 : 1, bx = k.poz.x + nfx * DLZKA * 0.45 + nrx * cx, bz = k.poz.y + nfz * DLZKA * 0.45 + nrz * cx;
           pena.vypust(bx + nrx * strana * 0.2, k.y + 0.15, bz + nrz * strana * 0.2,
-            nrx * strana * (1 + Math.random() * 1.5) + nfx * rychl * 0.4, 1 + Math.random() * rychl * 0.25,
-            nrz * strana * (1 + Math.random() * 1.5) + nfz * rychl * 0.4, 0xffffff, 0.5 + Math.random() * 0.3);
+            nrx * strana * (1 + Math.random() * 1.5) + nfx * rychl * 0.4, 1 + Math.random() * rychl * 0.2,
+            nrz * strana * (1 + Math.random() * 1.5) + nfz * rychl * 0.4, 0xffffff, 0.45 + Math.random() * 0.3);
         }
       }
-      for (let i = 0; i < POCET; i++) {
-        const st = stopy[i];
-        st.vek += dt;
-        if (st.vek > 3) { m4.makeScale(0, 0, 0); brazda.setMatrixAt(i, m4); continue; }
-        st.x += st.vx * dt; st.z += st.vz * dt;
-        const m = st.r * (1 + st.vek * 0.9);
-        m4.makeScale(m, 1, m).setPosition(st.x, vyskaVody(st.x, st.z, t) + 0.05, st.z);
-        brazda.setMatrixAt(i, m4);
-        brazda.setColorAt(i, c.setScalar(0.2 * (1 - st.vek / 3) ** 2));
-      }
-      brazda.instanceMatrix.needsUpdate = true;
-      if (brazda.instanceColor) brazda.instanceColor.needsUpdate = true;
 
       // padlo: striedanie stran, pri prechode do vody splach + zvuk
       if (padlo) padlo.visible = ovladane;
@@ -546,6 +624,11 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
         if (aktivne && (strana > 0) !== stara) {
           zvuky.padlo();
           const px = k.poz.x + nrx * strana * 0.8, pz = k.poz.y + nrz * strana * 0.8;
+          const F2 = FYZ[k.druh] ?? FYZ.kanoe;
+          k.vRoll += strana * F2.hojd;                              // zaber z boku lod rozkyve
+          k.uhlRych -= strana * F2.hojd * 0.35 * Math.sign(tah || 1);   // a trochu stoci na opacnu stranu
+          stopaLode(1, px, pz, 0, -nfx * 0.5, -nfz * 0.5, 0.7, 0.7, 0.03, 0.5, 2.2, 0.5);
+          porucha(px, pz, 0.6);
           for (let i = 0; i < 6; i++) pena.vypust(px, k.y + 0.1, pz, (Math.random() - 0.5) * 1.5, 1 + Math.random() * 1.5, (Math.random() - 0.5) * 1.5, 0xffffff, 0.5);
         }
         padlo.rotation.z = tlm(padlo.rotation.z, strana * 0.85, 7, dt);

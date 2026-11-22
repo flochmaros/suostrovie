@@ -62,10 +62,90 @@ const poruchy = Array.from({ length: N_PORUCH }, () => new THREE.Vector4(0, 0, -
 let iPor = 0;
 export function porucha(x, z, r = 1) { poruchy[iPor].set(x, z, uCas.value, r); iPor = (iPor + 1) % N_PORUCH; }
 
+
+// ---------- stopa lodi (brazda) ----------
+// Textura STOPA_RES x STOPA_RES okolo hraca (STOPA_L metrov). Kazdy snimok sa do nej "opeciatkuju" vsetky zive castice stopy
+// (aditivne): R = pena, G = vyska hladiny v metroch (+ hreben / - priehlbina), B = rozvirenie vody (svieti plankton v noci).
+// Shader vody z nej cita: vrcholy sa zdvihnu o G, normala sa nakloni podla sklonu G, R prida penu.
+// Castice pridavaju lode (kanoe.js -> stopaLode): typ 0 = rameno Kelvinovej vlny (V), 1 = turbulentna pena, 2 = obtekanie trupu.
+export const STOPA_L = 192, STOPA_RES = 512;
+const STOPA_N = 1600;
+export const uStopaStred = { value: new THREE.Vector2() };
+const uStopaTex = { value: null };
+const castice = Array.from({ length: STOPA_N }, () => ({ typ: 0, x: 0, z: 0, uhol: 0, vx: 0, vz: 0, dlz: 1, sir: 1, amp: 0, pena: 0, zivot: -1, rast: 0, vek: 0, seed: 0 }));
+let iCast = 0;
+// x, z = stred; uhol = natocenie (ako smer lode); vx, vz = pohyb (m/s); dlz, sir = rozmer (m); amp = vyska (m); pena 0..1+;
+// zivot (s; 0 = len tento snimok); rast = o kolko m/s sa rozsiruje
+export function stopaLode(typ, x, z, uhol, vx, vz, dlz, sir, amp, pena, zivot, rast) {
+  const c = castice[iCast]; iCast = (iCast + 1) % STOPA_N;
+  c.typ = typ; c.x = x; c.z = z; c.uhol = uhol; c.vx = vx; c.vz = vz; c.dlz = dlz; c.sir = sir;
+  c.amp = amp; c.pena = pena; c.zivot = zivot; c.rast = rast; c.vek = 0; c.seed = Math.random() * 100;
+}
+const PECIATKA_V = /* glsl */`
+attribute vec4 a0;   // x, z, uhol, vek/zivot
+attribute vec4 a1;   // dlzka, sirka, amp, pena
+attribute vec2 a2;   // typ, seed
+uniform vec2 uStred;
+uniform float uL;
+varying vec2 vUv;
+varying vec2 vW;
+varying vec4 vA;
+varying vec3 vT;
+void main() {
+  float c = cos(a0.z), s = sin(a0.z);
+  vec2 loc = vec2(position.x * a1.y, position.y * a1.x);           // x = napriec, y = pozdlz
+  vec2 w = a0.xy + vec2(c, -s) * loc.x + vec2(-s, -c) * loc.y;      // vpravo = (cos, -sin), vpred = (-sin, -cos)
+  vUv = position.xy * 2.0; vW = w; vA = a1; vT = vec3(a0.w, a2);
+  gl_Position = vec4((w - uStred) / (uL * 0.5), 0.0, 1.0);
+}`;
+const PECIATKA_F = /* glsl */`
+varying vec2 vUv;
+varying vec2 vW;
+varying vec4 vA;
+varying vec3 vT;
+float hS(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float sumS(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hS(i), hS(i + vec2(1, 0)), f.x), mix(hS(i + vec2(0, 1)), hS(i + vec2(1, 1)), f.x), f.y);
+}
+void main() {
+  float u = vUv.x, v = vUv.y, t = vT.x, typ = vT.y, amp = vA.z, pena = vA.w;
+  float zij = 1.0 - t;
+  vec3 o = vec3(0.0);
+  if (typ < 0.5) {
+    // rameno V-vlny: hreben v strede, po bokoch priehlbiny a slabsie hrebene; makke konce, aby sa susedne prekryvali
+    float okno = pow(max(1.0 - u * u, 0.0), 2.0) * max(1.0 - v * v, 0.0);
+    float vlna = cos(u * 7.85);
+    o.g = amp * vlna * okno * zij * zij;
+    o.r = pena * smoothstep(0.55, 1.0, vlna) * okno * pow(zij, 6.0) * (0.6 + 0.8 * sumS(vW * 1.7 + vT.z));
+    o.b = amp * 4.0 * okno * zij;
+  } else if (typ < 1.5) {
+    // turbulentna pena za kormou: bubliny (sum vo svetovych suradniciach -> pena "stoji" na vode a rozpada sa)
+    float r = length(vUv);
+    float okno = smoothstep(1.0, 0.25, r);
+    float n = sumS(vW * 2.3 + vT.z) * 0.6 + sumS(vW * 6.1 - vT.z) * 0.4;
+    o.r = pena * okno * smoothstep(0.25 + 0.5 * t, 0.75 + 0.2 * t, n + 0.35 * okno) * pow(zij, 1.5);
+    o.g = amp * okno * (-0.6 + (n - 0.5) * 1.6) * zij;
+    o.b = okno * zij * (0.5 + pena);
+  } else {
+    // obtekanie trupu: vyvyseny val a pena okolo boku, najviac pri pride (v > 0)
+    float r = length(vUv);
+    float val = exp(-pow((r - 0.82) / 0.16, 2.0)) * (0.35 + 0.65 * smoothstep(-0.4, 0.9, v));
+    float n = sumS(vW * 3.0 + vT.z);
+    o.g = amp * val;
+    o.r = pena * val * (0.5 + n);
+    o.b = val * (0.3 + pena);
+  }
+  gl_FragColor = vec4(o, 1.0);
+}`;
+
 const VERTEX = /* glsl */`
 uniform float uCas;
 uniform float uPriliv;
 uniform float uVlnySila;
+uniform sampler2D uStopa;
+uniform vec2 uStopaStred;
+uniform float uStopaL;
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -75,7 +155,10 @@ void main() {
   vec3 wp = (modelMatrix * vec4(position, 1.0)).xyz;
   vec3 v = vlny(wp.xz, uCas);
   wp.xz += posun(wp.xz, uCas);
-  wp.y = v.x + uPriliv;
+  vec2 su = (wp.xz - uStopaStred) / uStopaL + 0.5;
+  vec2 ok = smoothstep(0.0, 0.08, su) * smoothstep(1.0, 0.92, su);
+  float hStopa = texture2D(uStopa, su).g * ok.x * ok.y;     // brazda lodi (zdvih/priehlbina hladiny)
+  wp.y = v.x + uPriliv + hStopa;
   vVyska = v.x;
   vNorm = normalize(vec3(-v.y, 1.0, -v.z));
   vSvet = wp;
@@ -100,6 +183,9 @@ uniform vec3 uZenit;
 uniform float uSvetlo;
 uniform float uNoc;
 uniform vec4 uPoruchy[32];
+uniform sampler2D uStopa;
+uniform vec2 uStopaStred;
+uniform float uStopaL;
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -139,8 +225,8 @@ float iskry(vec2 p, float t) {                               // dve vrstvy, druh
   return iskra1(p, t, 2.3) + iskra1(q + 17.0, t * 1.3, 4.1) * 0.8;
 }
 // jas planktonu v bode: stopy za hracom/lodou + vlny pri brehu
-float plankton(vec2 p, float pena) {
-  float z = planktonZona(p), st = 0.0;
+float plankton(vec2 p, float pena, float rus) {
+  float z = planktonZona(p), st = min(rus, 2.0) * 0.55;     // rus = rozvirenie z brazdy lodi
   for (int i = 0; i < 32; i++) {
     vec4 q = uPoruchy[i];
     float vek = uCas - q.z;
@@ -167,13 +253,26 @@ void main() {
   float sila = 0.45 * exp(-dist / 220.0);
   vec3 N = normalize(vNorm + vec3(n1.x + n2.x, 0.0, n1.z + n2.z) * sila);
 
+  // brazda lodi: pena (r), vyska (g) -> sklon normaly, rozvirenie (b)
+  vec2 su = (p - uStopaStred) / uStopaL + 0.5;
+  vec2 ok2 = smoothstep(0.0, 0.08, su) * smoothstep(1.0, 0.92, su);
+  float okS = ok2.x * ok2.y;
+  vec4 stopa = vec4(0.0);
+  if (okS > 0.0) {
+    stopa = texture2D(uStopa, su) * okS;
+    float e = 1.0 / ${STOPA_RES}.0;
+    float hx = texture2D(uStopa, su + vec2(e, 0.0)).g - texture2D(uStopa, su - vec2(e, 0.0)).g;
+    float hz = texture2D(uStopa, su + vec2(0.0, e)).g - texture2D(uStopa, su - vec2(0.0, e)).g;
+    N = normalize(N - vec3(hx, 0.0, hz) * (okS * 1.6 / (2.0 * e * uStopaL)));
+  }
+
   float pena1 = texture2D(uVlnky, p / 3.1 + uCas * vec2(0.03, -0.02)).r;
   float pena2 = texture2D(uVlnky, p / 9.0 - uCas * vec2(0.01, 0.025)).g;
   float sumPeny = pena1 * pena2;
 
   if (!gl_FrontFacing) {                 // pohlad zospodu (pod vodou)
     vec3 c = vec3(0.03, 0.28, 0.33) * (1.0 + sumPeny) * uSvetlo;
-    if (uNoc > 0.01) c += vec3(0.1, 0.65, 1.0) * plankton(p, 0.0) * uNoc * 1.4;
+    if (uNoc > 0.01) c += vec3(0.1, 0.65, 1.0) * plankton(p, 0.0, stopa.b) * uNoc * 1.4;
     gl_FragColor = vec4(c, 1.0);
     #include <fog_fragment>
     return;
@@ -210,9 +309,13 @@ void main() {
   float vlnenie = 0.5 + 0.5 * sin(uCas * 1.6 - hrubka * 9.0 + pena2 * 3.0);
   float pena = breh * smoothstep(0.35, 0.6, sumPeny + vlnenie * 0.3 + breh * 0.3);
   pena += smoothstep(0.55, 0.85, vVyska) * smoothstep(0.3, 0.6, sumPeny) * 0.7;
+  // brazda: prevzdusnena voda je svetlejsia (tyrkysova), pena sa trha podla textury
+  float penaS = max(stopa.r, 0.0);
+  farba += vec3(0.02, 0.09, 0.08) * clamp(penaS * 1.5 + stopa.b * 0.15, 0.0, 1.0) * uSvetlo;
+  pena += smoothstep(0.12, 0.65, penaS * (0.45 + 1.1 * pena1)) + penaS * 0.12;
   farba = mix(farba, vec3(0.92, 0.96, 0.97) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.85);
   // v noci plankton svieti tam, kde sa voda pohne (stopa, vlny pri brehu); jas > 3 = bloom
-  if (uNoc > 0.01) farba += vec3(0.08, 0.62, 1.0) * plankton(p, clamp(pena, 0.0, 1.0)) * uNoc * 2.2;
+  if (uNoc > 0.01) farba += vec3(0.08, 0.62, 1.0) * plankton(p, clamp(pena, 0.0, 1.0), stopa.b) * uNoc * 2.2;
 
   gl_FragColor = vec4(farba, 1.0);
   #include <fog_fragment>
@@ -254,6 +357,55 @@ export function vytvorOcean(g) {
   mat.uniforms.uVlnky.value = vlnky;
   mat.uniforms.uObrazovka = g.uObrazovka;
 
+  // stopa lodi: render target + peciatky (instancie stvorca, poloha a tvar v atributoch)
+  const rtStopa = new THREE.WebGLRenderTarget(STOPA_RES, STOPA_RES, { type: THREE.HalfFloatType, depthBuffer: false,
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false });
+  uStopaTex.value = rtStopa.texture;
+  mat.uniforms.uStopa = uStopaTex;
+  mat.uniforms.uStopaStred = uStopaStred;
+  mat.uniforms.uStopaL = { value: STOPA_L };
+  const geoP = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
+  const a0 = new THREE.InstancedBufferAttribute(new Float32Array(STOPA_N * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  const a1 = new THREE.InstancedBufferAttribute(new Float32Array(STOPA_N * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  const a2 = new THREE.InstancedBufferAttribute(new Float32Array(STOPA_N * 2), 2).setUsage(THREE.DynamicDrawUsage);
+  geoP.setAttribute('a0', a0); geoP.setAttribute('a1', a1); geoP.setAttribute('a2', a2);
+  const peciatky = new THREE.Mesh(geoP, new THREE.ShaderMaterial({
+    vertexShader: PECIATKA_V, fragmentShader: PECIATKA_F, depthTest: false, depthWrite: false, side: THREE.DoubleSide,   // zrkadlove otocenie -> inak by sa odrezali
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    uniforms: { uStred: uStopaStred, uL: { value: STOPA_L } },
+  }));
+  peciatky.frustumCulled = false;
+  const scenaStopy = new THREE.Scene(); scenaStopy.add(peciatky);
+  const kamStopy = new THREE.OrthographicCamera();
+  const farbaPred = new THREE.Color();
+  function kresliStopu(x, z, dt) {
+    const tex = STOPA_L / STOPA_RES;
+    uStopaStred.value.set(Math.round(x / tex) * tex, Math.round(z / tex) * tex);
+    let n = 0;
+    for (const c of castice) {
+      if (c.vek > c.zivot) continue;
+      const rast = c.rast * c.vek;
+      a0.setXYZW(n, c.x, c.z, c.uhol, c.zivot > 0 ? c.vek / c.zivot : 0);
+      a1.setXYZW(n, c.dlz + (c.typ === 1 ? rast : rast * 0.3), c.sir + rast, c.amp, c.pena);
+      a2.setXY(n, c.typ, c.seed);
+      n++;
+      c.vek += dt;
+      c.x += c.vx * dt; c.z += c.vz * dt;
+      if (c.typ === 1) { const tl = Math.exp(-1.2 * dt); c.vx *= tl; c.vz *= tl; }
+      if (c.zivot === 0) c.zivot = -1;
+    }
+    geoP.instanceCount = n;
+    a0.needsUpdate = a1.needsUpdate = a2.needsUpdate = true;
+    const r = g.renderer, pred = r.getRenderTarget(), alfa = r.getClearAlpha();
+    r.getClearColor(farbaPred);
+    r.setRenderTarget(rtStopa);
+    r.setClearColor(0x000000, 0);
+    r.clear();
+    if (n) r.render(scenaStopy, kamStopy);
+    r.setRenderTarget(pred);
+    r.setClearColor(farbaPred, alfa);
+  }
+
   const ocean = new THREE.Mesh(mriezka(), mat);
   ocean.frustumCulled = false;
   ocean.layers.set(VRSTVA_VODA);
@@ -281,6 +433,7 @@ export function vytvorOcean(g) {
         px = x; pz = z;
       }
       ocean.position.set(Math.round(x / krok) * krok, 0, Math.round(z / krok) * krok);
+      kresliStopu(x, z, dt > 0.5 ? 0 : dt);
     },
   };
 }
