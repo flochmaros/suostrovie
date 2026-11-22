@@ -38,7 +38,8 @@ export function initNastavenia(grafika, rodic, zaloha) {
     + '#nastavenia input[type=range]{width:140px}</style><h3>Nastavenia</h3>'
     + SUVAKY.map(([k, t, a, b]) => `<label>${t}<input type="range" min="${a}" max="${b}" step="0.05" data-s="${k}"></label>`).join('')
     + PREPINACE.map(([k, t]) => `<label>${t}<input type="checkbox" data-p="${k}"></label>`).join('')
-    + '<h3 style="margin-top:10px">Uloženie</h3><button id="zal-stiahni">Stiahnuť uloženie</button> <button id="zal-nahraj">Nahrať uloženie</button>'
+    + '<h3 style="margin-top:10px">Uloženie</h3><button id="zal-menu">Uložiť a späť do hlavného menu</button> '
+    + '<button id="zal-stiahni">Stiahnuť uloženie</button> <button id="zal-nahraj">Nahrať uloženie</button>'
     + '<input type="file" id="zal-subor" accept=".json,application/json" hidden><div id="zal-hlaska" style="color:#ff8a7a;margin-top:4px"></div>';
   const sync = () => {
     for (const i of p.querySelectorAll('[data-s]')) i.value = nastavenia[i.dataset.s];
@@ -60,6 +61,7 @@ export function initNastavenia(grafika, rodic, zaloha) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
+    if (e.target.id === 'zal-menu') zaloha.menu();
     if (e.target.id === 'zal-nahraj') p.querySelector('#zal-subor').click();
   });
   p.querySelector('#zal-subor').addEventListener('change', async e => {

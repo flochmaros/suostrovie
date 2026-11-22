@@ -181,7 +181,7 @@ export function initDev(c) {
     if (a === 'vyprazdni') { sloty.fill(null); vykresli(); }
     if (a === 'cas') ctx.posunCas(60);
     if (a === 'hud') { const h = document.getElementById('hud'); h.style.display = h.style.display === 'none' ? '' : 'none'; }
-    if (a === 'reset') { try { localStorage.clear(); } catch (e) { /* nic */ } removeEventListener('beforeunload', ctx.uloz); location.reload(); }
+    if (a === 'reset') { try { localStorage.removeItem(ctx.kluc); } catch (e) { /* nic */ } removeEventListener('beforeunload', ctx.uloz); location.reload(); }
   });
 }
 

@@ -4,8 +4,9 @@ import * as THREE from 'three';
 import { vystroj } from './preziti.js';
 import { sloty, pocet } from './inventar.js';
 import { ik } from './ikony.js';
+import { aktivnySlot, klucVystroje } from './sloty.js';
 
-const KLUC = 'suostrovie-vystroj', ID = 'krabia_prilba';
+const KLUC = klucVystroje(aktivnySlot()), ID = 'krabia_prilba';
 
 function modelPrilby() {
   const g = new THREE.Group();

@@ -26,6 +26,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 ## Štruktúra
 | Cesta | Obsah |
 |---|---|
+| `src/menu.js`, `src/sloty.js` | hlavné menu + loading, 3 sloty ukladania (slot 1 = starý kľúč) |
 | `src/main.js` | štart, hlavná slučka, HUD, udalosti (úder, zber), ukladanie, `window.hra.sim()` na testy |
 | `src/grafika.js` | renderer, obloha, slnko + tiene, bloom; 2 prechody (svet bez vody → textúra pre vodu) |
 | `src/ocean.js` | shader vody (vlny, lom, hĺbka, pena, odlesky) + `vyskaVody(x,z,t)` (rovnaký vzorec v JS aj GLSL), príliv |

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Súostrovie</title>
+<link rel="modulepreload" href="src/main.js">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -130,6 +131,34 @@
   #start h1 { margin: 0 0 6px; font-size: 64px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 4px 24px #0006; }
   #start .hrat { margin: 18px 0 22px; padding: 12px 34px; border-radius: 30px; background: var(--zlta); color: #3a2a10; font-size: 20px; font-weight: 800; }
   #start p { margin: 3px; opacity: .9; font-size: 14px; }
+  #menu-hl, #nacitaj { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center;
+           background: linear-gradient(#f6c98a 0%, #e9a27c 22%, #3f93a8 52%, #0d4f66 80%, #06293a 100%); overflow: hidden; transition: opacity .6s; }
+  .menu-vlny { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none; opacity: .5; }
+  .menu-vlny div { position: absolute; left: -50%; width: 200%; height: 100%; border-radius: 42%; background: rgba(255,255,255,.09); animation: vlna 14s linear infinite; }
+  .menu-vlny div:nth-child(2) { top: 14%; animation-duration: 20s; animation-direction: reverse; background: rgba(255,255,255,.06); }
+  .menu-vlny div:nth-child(3) { top: 30%; animation-duration: 27s; background: rgba(0,20,40,.18); }
+  @keyframes vlna { to { transform: rotate(360deg); } }
+  .menu-slnko { position: absolute; top: 20%; left: 50%; width: 190px; height: 190px; margin-left: -95px; border-radius: 50%; background: radial-gradient(#fff6c8, #ffd27a 55%, rgba(255,210,122,0) 72%); filter: blur(2px); }
+  #menu-hl > :not(.menu-slnko):not(.menu-vlny), #nacitaj > :not(.menu-slnko):not(.menu-vlny) { position: relative; }
+  .menu-nadpis { margin: 0 0 4px; font-size: clamp(44px, 9vw, 92px); font-weight: 800; letter-spacing: 3px; text-shadow: 0 4px 28px #0007; }
+  .menu-pod { margin: 0 0 30px; font-size: 17px; opacity: .92; letter-spacing: 1px; text-shadow: 0 2px 8px #0006; }
+  #menu-sloty { display: flex; flex-direction: column; gap: 12px; width: min(560px, 92vw); }
+  .slot-karta { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 16px; text-align: left; background: rgba(10,35,50,.5); border: 2px solid var(--okraj); backdrop-filter: blur(8px); transition: transform .12s, border-color .12s, background .12s; }
+  .slot-karta:hover { transform: translateY(-2px); background: rgba(10,35,50,.68); border-color: rgba(255,255,255,.5); }
+  .slot-karta.posledny { border-color: var(--zlta); }
+  .slot-karta.prazdny { opacity: .8; border-style: dashed; }
+  .sk-cislo { font-size: 34px; font-weight: 800; width: 40px; text-align: center; color: var(--zlta); }
+  .sk-telo { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .sk-telo b { font-size: 20px; } .sk-telo span { font-size: 13px; opacity: .85; } .sk-male { opacity: .7 !important; }
+  .sk-akcie { display: flex; gap: 8px; }
+  .sk-akcie button { padding: 9px 20px; border: 0; border-radius: 22px; background: var(--zlta); color: #3a2a10; font: 800 16px Nunito, system-ui, sans-serif; cursor: pointer; }
+  .sk-akcie button:hover { filter: brightness(1.1); }
+  .sk-akcie .sk-zmaz { background: rgba(255,255,255,.16); color: #fff; padding: 9px 12px; font-size: 15px; }
+  .sk-akcie .sk-zmaz.istota { background: #d8503a; }
+  .menu-pata { margin-top: 26px; font-size: 12px; opacity: .65; }
+  #nac-pas { width: min(420px, 80vw); height: 10px; border-radius: 5px; background: rgba(0,0,0,.3); overflow: hidden; margin: 22px 0 10px; }
+  #nac-bar { width: 0; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #ffd27a, #fff2b8); transition: width .25s; }
+  #nac-text { font-size: 15px; font-weight: 700; } #nac-tip { margin-top: 28px; max-width: min(480px, 86vw); font-size: 14px; font-style: italic; opacity: .85; }
   #nacitanie { position: fixed; bottom: 12px; left: 14px; color: #fff; font-size: 12px; opacity: .7; }
 </style>
 <script type="importmap">
@@ -173,7 +202,7 @@
 <div id="zranenie"></div>
 <div id="smrt"><div>Omdlel si…</div><button id="smrt-znova">Zobudiť sa na pláži</button></div>
 <div id="duch"></div>
-<div id="start">
+<div id="start" style="display:none">
   <h1>Súostrovie</h1>
   <div class="hrat">Klikni a hraj</div>
   <p><kbd>WASD</kbd> pohyb · <kbd>Shift</kbd> beh · <kbd>Medzerník</kbd> skok · <kbd>C</kbd> potápanie · myš = kamera, koliesko = zoom</p>
@@ -183,8 +212,23 @@
   <p><kbd>M</kbd> zvuk zap/vyp · <kbd>Esc</kbd> pauza a nastavenia · <kbd>F2</kbd> dev režim</p>
   <p>Na kanoe: <kbd>W</kbd>/<kbd>S</kbd> pádlo · <kbd>A</kbd>/<kbd>D</kbd> zatáčanie · <kbd>Shift</kbd> plachta (najlepšie po vetre)</p>
 </div>
+<div id="menu-hl">
+  <div class="menu-slnko"></div>
+  <div class="menu-vlny"><div></div><div></div><div></div></div>
+  <h1 class="menu-nadpis">Súostrovie</h1>
+  <p class="menu-pod">Vyber si miesto na uloženie hry</p>
+  <div id="menu-sloty"></div>
+  <p class="menu-pata">Každý slot je samostatný svet · hra sa ukladá automaticky</p>
+</div>
+<div id="nacitaj">
+  <div class="menu-slnko"></div>
+  <div class="menu-vlny"><div></div><div></div><div></div></div>
+  <h1 class="menu-nadpis" style="font-size:clamp(36px,7vw,64px)">Súostrovie</h1>
+  <div id="nac-pas"><div id="nac-bar"></div></div>
+  <div id="nac-text">Pripravujem…</div>
+  <div id="nac-tip"></div>
+</div>
 <div id="nacitanie"></div>
-<script type="module" src="src/main.js"></script>
-<script type="module" src="src/mapa.js"></script>
+<script type="module" src="src/menu.js"></script>
 </body>
 </html>

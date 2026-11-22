@@ -32,6 +32,7 @@ import { UI } from './ikony.js';
 import { initVystroj } from './vystroj.js';
 import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
+import { aktivnySlot, klucSlotu } from './sloty.js';
 import { initUlohy, hlas as hlasUlohy, aktualizujUlohy, prepniOkno as prepniDennik, jeOknoOtvorene as jeDennik, ulozUlohy, nacitajUlohy, stavUloh } from './ulohy.js';
 
 const $ = id => document.getElementById(id);
@@ -74,7 +75,7 @@ hrac.poz.set(start.hrac.x, vyskaTerenu(start.hrac.x, start.hrac.z), start.hrac.z
 let vKanoe = false, naPalube = false, cas = 0;   // vKanoe = sedi pri kormidle/padle, naPalube = chodi po palube (barza, katamaran)
 const objavene = new Set();
 let postel = null;                                  // [x, z] hamaky, kde si naposledy spal (miesto prebudenia)
-const KLUC = 'suostrovie-ulozenie-v3';
+const KLUC = klucSlotu(aktivnySlot());
 try {
   const u = JSON.parse(localStorage.getItem(KLUC));
   if (u) {
@@ -111,7 +112,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), postel }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -250,8 +251,8 @@ udalostiPreziti.priZobudeni = () => {
   hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
   zamkni();
 };
-initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz });
-const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz });
+initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz, kluc: KLUC });
+const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initBoj({ scena, kamera, kam, hrac });
 initVystroj(hrac, t => oznam(t));
