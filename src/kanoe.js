@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 import { klavesy } from './vstup.js';
 import { vyskaTerenu, uzlyPri, pasmoPlynule } from './svet.js';
-import { vyskaVody, stopaLode, porucha } from './ocean.js';
+import { vyskaVody, stopaLode, porucha, lodeMasky } from './ocean.js';
 import { postavDruh } from './lode_modely.js';
 
 const tlm = THREE.MathUtils.damp;
@@ -37,10 +37,12 @@ export const DRUHY = {
     rozchod: 1.7, boky: [-0.3, 0.3], rollK: 1, sym: true, sedadlo: [0, 0.3, 1.0], kam: 1, hit: 1.9, nazov: 'Pretekárske kanoe' } },
   barza: { nazov: 'Nákladná pltť (barža)', sklad: 36, stat: { dlzka: 7.4, sirka: 1.0, hlbka: 0.4, zdvih: 0.3, pad: 5, plachta: 5.5, zat: 0.8, odpor: 1.7,
     rozchod: 1.4, boky: [-1.3, 1.3], rollK: 0.3, sym: true, sedadlo: [0, 0.6, 2.4], kam: 3, hit: 1.8, nazov: 'Nákladná pltť (barža)',
+    maska: [1.75, -3.7, 3.7, 0.36],   // voda v podoryse plte najvyssie 0.36 m (pod nosnikmi a doskami), ocean.js
     // paluba, po ktorej sa da chodit: x, z = hranice, y = vyska, boxy = prekazky [x0, x1, z0, z1] (naklad, stozar)
     paluba: { x: [-1.55, 1.55], z: [-3.0, 3.0], y: 0.57, boxy: [[-1.3, -0.3, -1.0, -0.15], [0.35, 1.25, -0.6, 0.2], [0.45, 1.4, 0.2, 1.3], [-1.25, -0.55, 0.3, 1.1], [-0.15, 0.15, -2.75, -2.45]] } } },
   katamaran: { nazov: 'Veľký katamarán', sklad: 40, stat: { dlzka: 9.6, sirka: 0.45, hlbka: 0.55, zdvih: 0.7, pad: 6.5, plachta: 12, zat: 1.3, odpor: 0.7,
     rozchod: 3.2, boky: [-2.3, -1.4, 1.4, 2.3], rollK: 0.35, sym: true, sedadlo: [0, 0.98, 3.0], kam: 5, hit: 2.3, nazov: 'Veľký katamarán',
+    maska: [2.2, -5.75, 4.8, 0.55],   // voda medzi trupmi najvyssie 0.55 m (pod nosnikmi, palubou aj sietou), ocean.js
     paluba: { x: [-2.0, 2.0], z: [-3.3, 3.8], y: 0.89, boxy: [[-1.35, 1.35, 0.35, 2.65], [-1.7, -0.15, -2.7, -1.9], [0.95, 1.5, -2.7, -2.1], [-0.2, 0.2, -1.4, -1.0]] } } },
 };
 
@@ -637,5 +639,6 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
     },
   };
   if (druh === 'kanoe') k.nastavUroven(1); else zamen(postavDruh(druh));
+  lodeMasky.push(k);                                 // voda pod palubou (ocean.js) - len lode so stat.maska
   return k;
 }

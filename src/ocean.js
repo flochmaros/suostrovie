@@ -71,6 +71,24 @@ export function porucha(x, z, r = 1) { poruchy[iPor].set(x, z, uCas.value, r); i
 export const STOPA_L = 192, STOPA_RES = 512;
 const STOPA_N = 1600;
 export const uStopaStred = { value: new THREE.Vector2() };
+
+// maska vody pod lodami: lode sa zaregistruju (kanoe.js), shader v ich podoryse stiahne hladinu pod palubu.
+// stat.maska = [polsirka, z od, z do, max. vyska vody] v lokalnych suradniciach modelu
+const MAX_MASIEK = 4;
+export const lodeMasky = [];
+const uLodInv = { value: Array.from({ length: MAX_MASIEK }, () => new THREE.Matrix4()) };
+const uLodR = { value: Array.from({ length: MAX_MASIEK }, () => new THREE.Vector4()) };
+function obnovMasky(x, z) {
+  const zoz = lodeMasky.filter(k => k.stat?.maska && k.model.parent && Math.abs(k.prevrUhol ?? 0) < 0.5)
+    .sort((a, b) => Math.hypot(a.poz.x - x, a.poz.y - z) - Math.hypot(b.poz.x - x, b.poz.y - z));
+  for (let i = 0; i < MAX_MASIEK; i++) {
+    const k = zoz[i];
+    if (!k) { uLodR.value[i].set(0, 0, 0, 0); continue; }
+    k.model.updateMatrixWorld();
+    uLodInv.value[i].copy(k.model.matrixWorld).invert();
+    uLodR.value[i].set(...k.stat.maska);
+  }
+}
 const uStopaTex = { value: null };
 const castice = Array.from({ length: STOPA_N }, () => ({ typ: 0, x: 0, z: 0, uhol: 0, vx: 0, vz: 0, dlz: 1, sir: 1, amp: 0, pena: 0, zivot: -1, rast: 0, vek: 0, seed: 0 }));
 let iCast = 0;
@@ -146,6 +164,8 @@ uniform float uVlnySila;
 uniform sampler2D uStopa;
 uniform vec2 uStopaStred;
 uniform float uStopaL;
+uniform mat4 uLodInv[${MAX_MASIEK}];   // svet -> lokalne suradnice lode
+uniform vec4 uLodR[${MAX_MASIEK}];     // polsirka, z od, z do, max. vyska vody (lokalne); x = 0 -> prazdne
 varying vec3 vSvet;
 varying vec3 vNorm;
 varying float vVyska;
@@ -159,6 +179,14 @@ void main() {
   vec2 ok = smoothstep(0.0, 0.08, su) * smoothstep(1.0, 0.92, su);
   float hStopa = texture2D(uStopa, su).g * ok.x * ok.y;     // brazda lodi (zdvih/priehlbina hladiny)
   wp.y = v.x + uPriliv + hStopa;
+  // maska pod lodou: v pôdoryse lode stiahne hladinu pod palubu (voda nepresakuje cez dosky ani siet)
+  for (int i = 0; i < ${MAX_MASIEK}; i++) {
+    vec4 r = uLodR[i];
+    if (r.x <= 0.0) continue;
+    vec3 lp = (uLodInv[i] * vec4(wp, 1.0)).xyz;
+    float m = smoothstep(r.x + 0.5, r.x, abs(lp.x)) * smoothstep(r.y - 0.5, r.y, lp.z) * smoothstep(r.z + 0.5, r.z, lp.z);
+    wp.y -= max(0.0, lp.y - r.w) * m;
+  }
   vVyska = v.x;
   vNorm = normalize(vec3(-v.y, 1.0, -v.z));
   vSvet = wp;
@@ -367,6 +395,8 @@ export function vytvorOcean(g) {
   mat.uniforms.uStopa = uStopaTex;
   mat.uniforms.uStopaStred = uStopaStred;
   mat.uniforms.uStopaL = { value: STOPA_L };
+  mat.uniforms.uLodInv = uLodInv;
+  mat.uniforms.uLodR = uLodR;
   const geoP = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
   const a0 = new THREE.InstancedBufferAttribute(new Float32Array(STOPA_N * 4), 4).setUsage(THREE.DynamicDrawUsage);
   const a1 = new THREE.InstancedBufferAttribute(new Float32Array(STOPA_N * 4), 4).setUsage(THREE.DynamicDrawUsage);
@@ -424,6 +454,7 @@ export function vytvorOcean(g) {
       uVlnySila.value = THREE.MathUtils.damp(uVlnySila.value, cil, 0.5, dt);   // ~niekolko sekund prechodu
       uCas.value = t;
       uPriliv.value = priliv(t);
+      obnovMasky(x, z);
       // stopa v planktone: novy bod po kazdych ~0.8 m pohybu (lod = sirsia stopa po oboch bokoch)
       if (px === null) { px = lx = x; pz = lz = z; }
       if (dt > 0 && dt < 0.5) rych = THREE.MathUtils.damp(rych, Math.hypot(x - lx, z - lz) / dt, 4, dt);

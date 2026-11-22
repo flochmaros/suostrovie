@@ -221,10 +221,42 @@ export function farbaDna(h, x, z, out) {
   return out;
 }
 
+// ---------- sopecne vrcholy: 1-3 strmé veže na velkych ostrovoch (len vnutrozemie, plaze zostavaju nezmenene) ----------
+const VRCHOLOVE = new Set(['palmovy', 'dzungla', 'skalnaty', 'ovocny', 'bambusovy']);
+function vrcholyOstrova(o) {
+  if (o.vrch !== undefined) return o.vrch;
+  o.vrch = null;
+  if (o.R < 60 || !VRCHOLOVE.has(o.biom)) return null;
+  const r = rng(o.seed * 17 + 5);
+  const pocet = o.R > 110 ? 3 : o.R > 85 ? 2 : 1;
+  const mier = THREE.MathUtils.clamp((o.R - 45) / 100, 0.45, 1);   // maly ostrov = nizsi vrchol
+  const a0 = r() * 6.283, pole = [];
+  for (let i = 0; i < pocet; i++) {
+    const a = a0 + i * 6.283 / pocet + (r() - 0.5) * 0.8, d = o.R * (0.12 + 0.22 * r());
+    pole.push({ x: o.x + Math.cos(a) * d, z: o.z + Math.sin(a) * d, A: (0.55 + 0.45 * r()) * 140 * mier * (i === 0 ? 1 : 0.7), w: o.R * (0.2 + 0.1 * r()) });
+  }
+  o.vrch = pole;
+  return pole;
+}
+function vyskaVrcholov(o, x, z, d) {
+  const pole = vrcholyOstrova(o);
+  if (!pole) return 0;
+  const maska = 1 - THREE.MathUtils.smoothstep(d, 0.4, 0.62);   // 0 pri plazi a na svahu k vode
+  if (maska <= 0) return 0;
+  const ostra = 1 - Math.abs(perlin.noise(x * 0.035, z * 0.035, o.seed + 13));   // ridged sum -> hrebene
+  let s = 0;
+  for (const p of pole) {
+    const u = Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / p.w);
+    if (u > 0) s = Math.max(s, p.A * Math.pow(u, 1.7) * (0.82 + 0.3 * ostra * u));
+  }
+  return s * maska;
+}
+
 function vyskaOstrova(o, x, z) {
   const f = dnoMorske(x, z);
-  const h = surovaVyska(o, x, z);
+  let h = surovaVyska(o, x, z);
   if (h <= NIC + 1) return f;
+  h += vyskaVrcholov(o, x, z, _d);
   const w = THREE.MathUtils.smoothstep(_d, 1.3, 1.8);   // svah ostrova plynule prejde do dna
   const m = hladkyMax(h, f, 6);
   return m + (f - m) * w;
@@ -313,6 +345,7 @@ for (const t of Object.values(TEREN)) {
   for (const k of ['piesok', 'dno', 'skala', 'hl']) t[k] = t[k] === undefined ? FARBY[k === 'hl' ? 'hlina' : k] : C(t[k]);
   t.hlPrah ??= 0.35;
 }
+const MACH = C(0x2f5a2c), SKALA_V = C(0x3b4a3a);
 const SUCHA = C(0x9cae4c), SVIEZA = C(0x3f9a30), TMAVY_PIESOK = C(0xcdb98c), KORAL = C(0xeae2d2);
 
 // kde konci plaz a zacina trava: sirka plaze sa meni pozdlz pobrezia (niekde siroky piesok, inde trava az k vode)
@@ -369,6 +402,11 @@ function postavTeren(o) {
     }
     const sk = S(strmost, 0.22, 0.38) * (h > 0.5 ? 1 : 0.3);
     t2.lerp(T.skala, sk); ps.lerp(T.skala, sk);
+    if (o.vrch && h > 8) {                               // strme steny vrcholov: tmavy lisajnik, na velmi strmych tmava sopecna skala
+      const v = S(h, 8, 25);
+      t2.lerp(MACH, S(strmost, 0.1, 0.26) * 0.8 * v);
+      t2.lerp(SKALA_V, S(strmost, 0.3, 0.5) * 0.9 * v);
+    }
     t2.offsetHSL(0, 0, n * 0.03); ps.offsetHSL(0, 0, n * 0.03);
     farby.set([t2.r, t2.g, t2.b], i * 3);
     piesky.set([ps.r, ps.g, ps.b, S(h, hranica - 0.4, hranica + 1.8)], i * 4);

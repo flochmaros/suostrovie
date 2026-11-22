@@ -91,7 +91,24 @@ void main() {
   vec3 col = uAmb * (1.0 - 0.45 * uDark * hust) + uSlnkoF * (0.35 + 0.9 * lt) * (1.0 - uDark * 0.8);
   col += vec3(0.8, 0.85, 1.0) * uFlash * (0.4 + 0.9 * hust);
   float a = hust * smoothstep(0.0, 0.14, h) * 0.95;
-  gl_FragColor = vec4(col, a);
+  // velke kopovite oblaky (kumulusy) pri obzore: obrys vrchu = sum podla smeru (bez svu okolo dokola)
+  vec2 sm = d.xz / max(length(d.xz), 1e-4);
+  float t = fbm(sm * 2.2 + uOff * 0.15 + 5.0);
+  float bubl = fbm(sm * 11.0 + vec2(h * 18.0, 3.0));                 // mensie "bubliny" na okraji
+  float bubl2 = fbm(sm * 34.0 + vec2(h * 40.0, 7.0));
+  float vrch = 0.02 + 0.2 * smoothstep(0.4, 0.78, t) + 0.07 * (bubl - 0.5) + 0.03 * (bubl2 - 0.5);
+  float a2 = smoothstep(vrch, vrch - 0.012, h) * smoothstep(0.42, 0.5, t) * smoothstep(-0.005, 0.03, h);
+  a2 *= 1.0 - 0.6 * uCover;
+  float hr = clamp(h / max(vrch, 0.02), 0.0, 1.0);                 // 0 spodok .. 1 vrch oblaku
+  float kSlnku = 0.5 + 0.5 * dot(sm, uSlnkoXZ);
+  vec3 colK = mix(uAmb * vec3(1.05, 1.12, 1.25), uAmb * 0.8 + uSlnkoF * (1.0 + 0.5 * kSlnku), smoothstep(0.0, 0.7, hr));
+  colK *= 0.85 + 0.3 * bubl2;                                                  // tienovanie bublin
+  colK += uSlnkoF * 0.4 * smoothstep(0.7, 1.0, hr) * kSlnku * (0.5 + bubl);   // presvetleny okraj
+  colK *= 1.0 - 0.5 * uDark;
+  // spojenie: kumulusy su za hornou vrstvou oblakov
+  float alfa = a + a2 * (1.0 - a);
+  vec3 c = (col * a + colK * a2 * (1.0 - a)) / max(alfa, 1e-4);
+  gl_FragColor = vec4(c, alfa);
 }`;
 
 // ---------- hviezdy ----------
