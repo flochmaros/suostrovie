@@ -32,10 +32,10 @@ export function initNastavenia(grafika, rodic, zaloha) {
   g = grafika;
   const p = document.createElement('div');
   p.id = 'nastavenia';
-  p.innerHTML = '<style>#nastavenia{margin-top:14px;padding:10px 16px;border-radius:12px;background:#0006;font-size:14px;min-width:330px}'
-    + '#nastavenia h3{margin:0 0 6px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--zlta,#ffd27a)}'
+  p.innerHTML = '<style>#nastavenia{width:380px;max-width:92vw;font-size:13.5px}'
+    + '#nastavenia h3{margin:0 0 8px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--zlta,#ffd27a)}'
     + '#nastavenia label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:3px 0;cursor:pointer}'
-    + '#nastavenia input[type=range]{width:140px}</style><h3>Nastavenia</h3>'
+    + '#nastavenia input[type=range]{width:130px;accent-color:#ffd27a}#nastavenia button{margin:3px 4px 0 0;padding:6px 12px;border:0;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;font:700 12.5px Nunito,system-ui,sans-serif;cursor:pointer}#nastavenia button:hover{background:rgba(255,210,122,.35)}#nastavenia #zal-menu{background:#ffd27a;color:#3a2a10}</style><h3>Nastavenia</h3>'
     + SUVAKY.map(([k, t, a, b]) => `<label>${t}<input type="range" min="${a}" max="${b}" step="0.05" data-s="${k}"></label>`).join('')
     + PREPINACE.map(([k, t]) => `<label>${t}<input type="checkbox" data-p="${k}"></label>`).join('')
     + '<h3 style="margin-top:10px">Uloženie</h3><button id="zal-menu">Uložiť a späť do hlavného menu</button> '
@@ -69,7 +69,7 @@ export function initNastavenia(grafika, rodic, zaloha) {
     e.target.value = '';
     if (subor) nahrajZalohu(await subor.text(), zaloha, t => { p.querySelector('#zal-hlaska').textContent = t; });
   });
-  rodic.appendChild(p);
+  (rodic.querySelector('.pauza-sekcie') || rodic).appendChild(p);
   sync(); pouzi();
   return { prepniTicho() { nastavenia.ticho = !nastavenia.ticho; sync(); pouzi(); return nastavenia.ticho; }, sync };
 }
