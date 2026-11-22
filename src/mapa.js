@@ -4,6 +4,9 @@
 // Suradnice: sever = -z (hore), vychod = +x (vpravo) -> na mape px = x, py = z.
 import { majaky } from './majak.js';
 import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma } from './svet.js';
+import * as THREE from 'three';
+import { znacky, TYPY, navi, ciel, kresliZnacku, menoOstrova, jePomenovany, pomenujOstrov, upravZnacku, dialogOtvoreny } from './znacky.js';
+import { ik } from './ikony.js';
 
 const RES = 96;                 // pixelov na dlazdicu (5.4 m na pixel)
 const MAX_DLAZDIC = 700;        // limit cache (cca 37 kB na dlazdicu)
@@ -34,6 +37,17 @@ styl.textContent = `
 #mapa-legenda { position: absolute; left: 22px; bottom: 22px; padding: 10px 14px; border-radius: 6px; background: rgba(239,224,184,.92); color: #3f2b14;
   font: 13px/1.6 Georgia, serif; box-shadow: 0 2px 8px #0005; }
 #mapa-legenda i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; border: 1.5px solid #3f2b14; }
+#mapa-menu { display: none; position: absolute; z-index: 5; min-width: 190px; padding: 5px; border-radius: 6px; background: #efe0b8; color: #3f2b14;
+  font: 14px Georgia, serif; box-shadow: 0 4px 18px #000a, 0 0 0 2px #6b4a26; }
+#mapa-menu div { padding: 7px 12px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+#mapa-menu div:hover { background: rgba(181,100,31,.28); }
+#mapa-menu .hlava { cursor: default; font-weight: 700; font-style: italic; opacity: .8; padding: 4px 12px 6px; border-bottom: 1px solid rgba(63,43,20,.3); margin-bottom: 3px; }
+#mapa-menu .hlava:hover { background: none; }
+#navi-svet { display: none; position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -50%); text-align: center; color: #fff; text-shadow: 0 1px 4px #000, 0 0 8px #000a;
+  font: 700 13px/1.25 Nunito, system-ui, sans-serif; }
+#navi-svet svg { width: 34px; height: 34px; display: block; margin: 0 auto 1px; filter: drop-shadow(0 2px 4px #000a); }
+#navi-svet small { display: block; font-size: 12px; opacity: .9; font-weight: 600; }
+#minimapa .navi { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 44px; text-align: center; font-size: 12px; white-space: nowrap; color: #ffe9a8; text-shadow: 0 1px 3px #000; }
 #mapa-info { position: absolute; right: 22px; bottom: 22px; padding: 8px 14px; border-radius: 6px; background: rgba(239,224,184,.92); color: #3f2b14;
   font: 13px/1.5 Georgia, serif; text-align: right; box-shadow: 0 2px 8px #0005; }
 `;
@@ -42,10 +56,15 @@ document.head.appendChild(styl);
 const mini = document.createElement('div');
 mini.id = 'minimapa';
 mini.innerHTML = `<canvas width="${MINI_PX * 2}" height="${MINI_PX * 2}"></canvas><div class="sipka"></div><div class="sever">S</div>`
-  + `<div class="klaves"><kbd>N</kbd></div><div class="popis"></div>`;
+  + `<div class="klaves"><kbd>N</kbd></div><div class="popis"></div><div class="navi"></div>`;
 (document.getElementById('hud') || document.body).appendChild(mini);
 const miniPlatno = mini.querySelector('canvas'), miniCtx = miniPlatno.getContext('2d');
-const miniSipka = mini.querySelector('.sipka'), miniPopis = mini.querySelector('.popis');
+const miniSipka = mini.querySelector('.sipka'), miniPopis = mini.querySelector('.popis'), miniNavi = mini.querySelector('.navi');
+const naviSvet = document.createElement('div');           // znacka cielu priamo vo svete (premietnuta na obrazovku)
+naviSvet.id = 'navi-svet';
+document.body.appendChild(naviSvet);
+const mapaMenu = document.createElement('div');
+mapaMenu.id = 'mapa-menu';
 
 // farby pasiem: [podfarbenie (priehladne), ciara]
 const PAS_FARBY = [['rgba(40,220,210,.10)', '#30d5c8'], ['rgba(255,110,40,.16)', '#ff7a3c'], ['rgba(90,140,50,.20)', '#8fbf4a'],
@@ -96,6 +115,7 @@ okno.innerHTML = `<div id="mapa-ram"><canvas></canvas><div class="vineta"></div>
     <div><i style="background:#c0392b"></i>Ostatné lode</div>
     <hr style="border:0;border-top:1px solid rgba(255,255,255,.25);margin:6px 0">${PASMA.slice(1).map((p, i) => `<div><i style="background:${PAS_FARBY[i][1]}"></i>${i + 1} · ${p.meno}<br><small style="opacity:.7">loď: ${p.lod}</small></div>`).join('')}</div>
   <div id="mapa-info"></div>`;
+okno.appendChild(mapaMenu);
 document.body.appendChild(okno);
 const mapaPlatno = okno.querySelector('canvas'), mapaCtx = mapaPlatno.getContext('2d');
 const mapaInfo = okno.querySelector('#mapa-info');
@@ -284,6 +304,14 @@ function kresliMinimapu(hra) {
   const r = W / 2;
   kresliPasma(c, W, W, x => (x - p.x) * m + r, z => (z - p.z) * m + r, false, m);
   for (const mj of majaky) if (mj.objaveny) { const dx = (mj.x - p.x) * m, dy = (mj.z - p.z) * m; if (Math.hypot(dx, dy) < r - 12) kresliMajak(c, r + dx, r + dy, mj.lit, 8); }
+  // znacky hraca; cielova navigacia sa ukaze aj mimo dosahu (na okraji kruhu)
+  const cl = ciel();
+  for (const z of znacky) {
+    let dx = (z.x - p.x) * m, dy = (z.z - p.z) * m;
+    const dl = Math.hypot(dx, dy), jeCiel = z === cl;
+    if (dl > r - 14) { if (!jeCiel) continue; dx *= (r - 14) / dl; dy *= (r - 14) / dl; }
+    kresliZnacku(c, r + dx, r + dy, z.t, jeCiel ? 12 : 9, jeCiel);
+  }
   // lode
   for (const l of hra.lode) {
     const aktivna = l === hra.kanoe;
@@ -306,15 +334,40 @@ function kresliMinimapu(hra) {
   // popis: najblizsi ostrov + suradnice
   const n = najblizsiOstrov(p.x, p.z);
   let t = '';
-  if (n) t = ostrovPri(p.x, p.z, 1.15) === n.o ? `<b>${n.o.meno}</b>` : `<b>${n.o.meno}</b> · ${Math.round(n.d)} m ${strana(n.o.x - p.x, n.o.z - p.z)}`;
+  if (n) { const mn = menoOstrova(n.o); t = ostrovPri(p.x, p.z, 1.15) === n.o ? `<b>${mn}</b>` : `<b>${mn}</b> · ${Math.round(n.d)} m ${strana(n.o.x - p.x, n.o.z - p.z)}`; }
   else t = 'Otvorené more';
   miniPopis.innerHTML = `${t}<br><span style="opacity:.75">${Math.round(p.x)}, ${Math.round(p.z)}</span>`;
+  miniNavi.textContent = cl ? `▶ ${cl.n} · ${vzdialenost(Math.hypot(cl.x - p.x, cl.z - p.z))} ${strana(cl.x - p.x, cl.z - p.z)}` : '';
+}
+const vzdialenost = d => d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m';
+
+// znacka cielu vo svete: ikona + meno + vzdialenost, pri pohlade inam sa prilepi na okraj obrazovky
+const _v = new THREE.Vector3();
+function kresliNaviSvet(hra) {
+  const cl = ciel(), kam = hra.kamera;
+  if (!cl || !kam) { naviSvet.style.display = 'none'; return; }
+  const p = hra.hrac.poz, d = Math.hypot(cl.x - p.x, cl.z - p.z);
+  if (d < 25) {                                          // dorazil si
+    hra.oznam?.(`🏁 Cieľ dosiahnutý: ${cl.n}`);
+    navi.id = null; naviSvet.style.display = 'none'; return;
+  }
+  _v.set(cl.x, Math.max(0, vyskaTerenu(cl.x, cl.z)) + 7, cl.z).project(kam);
+  let sx = _v.x, sy = _v.y;
+  const za = _v.z > 1;
+  if (za) { sx = -sx; sy = -sy; }
+  if (za || Math.abs(sx) > 0.9 || Math.abs(sy) > 0.84) { const k = Math.max(Math.abs(sx) / 0.9, Math.abs(sy) / 0.84, 1e-3); sx /= k; sy /= k; }
+  if (naviSvet.dataset.id !== String(cl.id) + cl.t) { naviSvet.dataset.id = String(cl.id) + cl.t; naviSvet.innerHTML = ik(TYPY[cl.t].tvar, TYPY[cl.t].farba) + '<span></span><small></small>'; }
+  naviSvet.children[1].textContent = cl.n;
+  naviSvet.children[2].textContent = vzdialenost(d);
+  naviSvet.style.left = ((sx * 0.5 + 0.5) * innerWidth) + 'px';
+  naviSvet.style.top = ((-sy * 0.5 + 0.5) * innerHeight) + 'px';
+  naviSvet.style.display = 'block';
 }
 
 // ---------- velka mapa ----------
 const pohlad = { x: 0, z: 0, m: 0.35 };   // stred a mierka (px na meter, v CSS pixeloch)
 let otvorena = false, tahanie = null;
-const POMOC = '<span style="opacity:.75">N / Esc zavrieť · koliesko zoom · ťahaj posun · medzerník = na teba</span>';
+const POMOC = '<span style="opacity:.75">N / Esc zavrieť · koliesko zoom · ťahaj posun · medzerník = na teba<br>pravý klik / dvojklik = značka, navigácia, pomenovanie ostrova</span>';
 const MIN_M = 0.12, MAX_M = 1.2;
 
 function otvor(hra) {
@@ -325,7 +378,7 @@ function otvor(hra) {
   mapaInfo.innerHTML = POMOC;
 }
 function zatvor(znovaZamkni) {
-  otvorena = false; tahanie = null;
+  otvorena = false; tahanie = null; zatvorMenu();
   okno.style.display = 'none';
   if (znovaZamkni) window.hra?.g?.renderer?.domElement?.requestPointerLock?.()?.catch?.(() => {});
 }
@@ -361,13 +414,34 @@ function kresliMapu(hra) {
       for (let bx = Math.floor(x0 / BUNKA); bx * BUNKA < x0 + w / m; bx++) {
         const o = ostrovVBunke(bx, bz);
         if (!o) continue;
-        const sx = X(o.x), sy = Z(o.z) - o.R * m - 6;
-        c.lineWidth = 3; c.strokeStyle = 'rgba(240,228,196,.85)'; c.strokeText(o.meno, sx, sy);
-        c.fillStyle = '#3f2b14'; c.fillText(o.meno, sx, sy);
+        const pom = jePomenovany(o);
+        if (!pom && !(hra.objavene?.has(bx + ',' + bz))) continue;     // neobjaveny ostrov nema meno
+        const sx = X(o.x), sy = Z(o.z) - o.R * m - 6, t = pom ? menoOstrova(o) : 'Nepomenovaný ostrov';
+        c.globalAlpha = pom ? 1 : 0.6;
+        c.lineWidth = 3; c.strokeStyle = 'rgba(240,228,196,.85)'; c.strokeText(t, sx, sy);
+        c.fillStyle = pom ? '#3f2b14' : '#6a5a40'; c.fillText(t, sx, sy);
+        c.globalAlpha = 1;
       }
   }
 
   for (const mj of majaky) if (mj.objaveny) kresliMajak(c, X(mj.x), Z(mj.z), mj.lit, 15);
+  // navigacia: prerusovana ciara od hraca k cielu
+  const pp = hra.hrac.poz, cl = ciel();
+  if (cl) {
+    c.save(); c.setLineDash([10, 8]); c.lineWidth = 3; c.strokeStyle = 'rgba(255,240,170,.95)'; c.shadowColor = '#000'; c.shadowBlur = 4;
+    c.beginPath(); c.moveTo(X(pp.x), Z(pp.z)); c.lineTo(X(cl.x), Z(cl.z)); c.stroke(); c.restore();
+  }
+  // znacky hraca (nazov pod nimi)
+  c.font = '700 13px Georgia, serif'; c.textAlign = 'center';
+  for (const z of znacky) {
+    const sx = X(z.x), sy = Z(z.z);
+    if (sx < -30 || sx > w + 30 || sy < -30 || sy > h + 30) continue;
+    const hov = z === kurzorZnacka;
+    kresliZnacku(c, sx, sy, z.t, hov || z === cl ? 17 : 14, hov || z === cl);
+    c.lineWidth = 4; c.strokeStyle = 'rgba(240,228,196,.9)'; c.strokeText(z.n, sx, sy + 32);
+    c.fillStyle = '#3f2b14'; c.fillText(z.n, sx, sy + 32);
+    if (z === cl) { const d = vzdialenost(Math.hypot(z.x - pp.x, z.z - pp.z)); c.strokeText(d, sx, sy + 47); c.fillStyle = '#7a2b1a'; c.fillText(d, sx, sy + 47); }
+  }
   // lode a hrac
   for (const l of hra.lode) {
     if (l === hra.kanoe && hra.vKanoe) continue;
@@ -405,14 +479,65 @@ function ruzica(c, x, y, r) {
 }
 
 // ovladanie velkej mapy mysou
-mapaPlatno.addEventListener('mousedown', e => { tahanie = { x: e.clientX, y: e.clientY }; mapaPlatno.classList.add('tahanie'); });
-addEventListener('mouseup', () => { tahanie = null; mapaPlatno.classList.remove('tahanie'); });
+let kurzorZnacka = null, zaciatokKlika = null;
+// bod na mape (m) pod kurzorom a znacka, ktora je pod nim
+const polohaMysi = e => {
+  const r = mapaPlatno.getBoundingClientRect();
+  return { mx: pohlad.x + (e.clientX - r.left - r.width / 2) / pohlad.m, mz: pohlad.z + (e.clientY - r.top - r.height / 2) / pohlad.m };
+};
+const znackaPod = (mx, mz) => znacky.find(z => Math.hypot(z.x - mx, z.z - mz) * pohlad.m < 17) || null;
+function zatvorMenu() { mapaMenu.style.display = 'none'; }
+// kontextove menu: polozky [text, funkcia]; prva polozka je nadpis
+function ukazMenu(e, nadpis, polozky) {
+  mapaMenu.innerHTML = `<div class="hlava"></div>`;
+  mapaMenu.firstChild.textContent = nadpis;
+  for (const [t, fn] of polozky) {
+    const d = document.createElement('div'); d.textContent = t;
+    d.onmousedown = ev => ev.stopPropagation();
+    d.onclick = () => { zatvorMenu(); fn(); };
+    mapaMenu.appendChild(d);
+  }
+  const ro = okno.getBoundingClientRect();
+  mapaMenu.style.display = 'block';
+  mapaMenu.style.left = Math.min(e.clientX - ro.left, ro.width - 230) + 'px';
+  mapaMenu.style.top = Math.min(e.clientY - ro.top, ro.height - 40 - polozky.length * 34) + 'px';
+}
+function menuNaBode(e) {
+  const { mx, mz } = polohaMysi(e), z = znackaPod(mx, mz);
+  if (z) {
+    ukazMenu(e, z.n, [
+      [navi.id === z.id ? '✖ Zrušiť navigáciu' : '▶ Navigovať sem', () => { navi.id = navi.id === z.id ? null : z.id; }],
+      ['✎ Upraviť značku', () => upravZnacku(z)],
+      ['🗑 Zmazať značku', () => { if (navi.id === z.id) navi.id = null; znacky.splice(znacky.indexOf(z), 1); }],
+    ]);
+    return;
+  }
+  const n = najblizsiOstrov(mx, mz), polozky = [['📍 Pridať značku sem', () => upravZnacku({ x: mx, z: mz, t: 'bod', n: '' })]];
+  if (n && n.d < n.o.R * 0.4) polozky.push([`🏝 ${jePomenovany(n.o) ? 'Premenovať' : 'Pomenovať'} ostrov`, () => pomenujOstrov(n.o)]);
+  ukazMenu(e, `${Math.round(mx)}, ${Math.round(mz)}`, polozky);
+}
+mapaPlatno.addEventListener('contextmenu', e => { e.preventDefault(); menuNaBode(e); });
+mapaPlatno.addEventListener('dblclick', e => { const { mx, mz } = polohaMysi(e); if (!znackaPod(mx, mz)) { zatvorMenu(); upravZnacku({ x: mx, z: mz, t: 'bod', n: '' }); } });
+mapaPlatno.addEventListener('mousedown', e => {
+  zatvorMenu();
+  if (e.button !== 0) return;
+  tahanie = { x: e.clientX, y: e.clientY }; zaciatokKlika = { x: e.clientX, y: e.clientY };
+  mapaPlatno.classList.add('tahanie');
+});
+addEventListener('mouseup', e => {
+  // lavy klik (bez tahania) na znacku = menu znacky
+  if (otvorena && zaciatokKlika && e.target === mapaPlatno && Math.hypot(e.clientX - zaciatokKlika.x, e.clientY - zaciatokKlika.y) < 4) {
+    const { mx, mz } = polohaMysi(e);
+    if (znackaPod(mx, mz)) menuNaBode(e);
+  }
+  zaciatokKlika = null; tahanie = null; mapaPlatno.classList.remove('tahanie');
+});
 addEventListener('mousemove', e => {
   if (otvorena) {
-    const r = mapaPlatno.getBoundingClientRect();
-    const mx = pohlad.x + (e.clientX - r.left - r.width / 2) / pohlad.m, mz = pohlad.z + (e.clientY - r.top - r.height / 2) / pohlad.m;
+    const { mx, mz } = polohaMysi(e);
+    kurzorZnacka = znackaPod(mx, mz);
     const n = najblizsiOstrov(mx, mz);
-    mapaInfo.innerHTML = `Kurzor: ${Math.round(mx)}, ${Math.round(mz)}` + (n && n.d < 60 ? `<br><b>${n.o.meno}</b>` : '')
+    mapaInfo.innerHTML = `Kurzor: ${Math.round(mx)}, ${Math.round(mz)}` + (n && n.d < 60 ? `<br><b>${menoOstrova(n.o)}</b>` : '')
       + '<br>' + POMOC;
   }
   if (!tahanie) return;
@@ -431,6 +556,7 @@ addEventListener('wheel', e => {
 
 // klavesy: N otvori/zatvori; ked je mapa otvorena, hra klavesy (a koliesko) nedostane
 addEventListener('keydown', e => {
+  if (dialogOtvoreny() || /INPUT|TEXTAREA/.test(e.target?.tagName)) return;   // pises meno -> mapa klavesy nechyta
   if (e.code === KLAVESA && !e.repeat && window.hra) {
     e.stopImmediatePropagation();
     if (otvorena) zatvor(true); else otvor(window.hra);
@@ -448,6 +574,7 @@ function slucka(t) {
   requestAnimationFrame(slucka);
   const hra = window.hra;
   if (!hra?.hrac) return;
+  kresliNaviSvet(hra);
   if (otvorena) {
     kresliMapu(hra);
   } else {

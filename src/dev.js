@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { klavesy, stlacene } from './vstup.js';
 import { ostrovVBunke, vyskaTerenu, BUNKA, BIOM_MENO, prestavSvet } from './svet.js';
+import { menoOstrova } from './znacky.js';
 import { nastavHustotu, nasobokHustoty } from './vegetacia.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { sloty, pridaj, pocet, vykresli } from './inventar.js';
@@ -158,7 +159,7 @@ export function initDev(c) {
       const [x, z] = brehOstrova(o);
       if (ctx.jeVKanoe()) ctx.vystup([x, z]);
       hrac.poz.set(x, vyskaTerenu(x, z) + 1, z);
-      ctx.oznam(`Teleport: ${o.meno} (${BIOM_MENO[biom]})`);
+      ctx.oznam(`Teleport: ${menoOstrova(o)} (${BIOM_MENO[biom]})`);
     }
     if (a === 'kuKanoe' && !ctx.jeVKanoe()) hrac.poz.set(kanoe.poz.x + 2, Math.max(vyskaTerenu(kanoe.poz.x + 2, kanoe.poz.y), 0) + 1, kanoe.poz.y);
     if (a === 'kanoeKuMne' && !ctx.jeVKanoe()) {

@@ -11,6 +11,7 @@ import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
 import { poskodenie, opotrebuj } from './nastroje.js';
+import { menoOstrova, jePomenovany, pomenujOstrov, dialogOtvoreny, ulozZnacky, nacitajZnacky } from './znacky.js';
 import { initMajaky, aktualizujMajak, ulozMajaky, nacitajMajaky, majaky } from './majak.js';
 import { initNepriatelia, aktualizujNepriatelov, udalosti as nepUdalosti, zoznamNepriatelov, spawnPriHracovi } from './nepriatelia.js';
 import { nastavLodenicu } from './obsah/vylepsenia.js';
@@ -104,6 +105,7 @@ try {
     nacitajStavby(u.stavby);
     nacitajUlohy(u.ulohy);
     nacitajMajaky(u.majaky);
+    nacitajZnacky(u.znacky);
     if (Array.isArray(u.postel)) postel = u.postel;
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
@@ -114,7 +116,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), postel }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -243,7 +245,7 @@ function otvorOkno(rezim, pole, nazov) { prepniBatoh(true, rezim, pole, nazov); 
 
 const platno = g.renderer.domElement;
 const zamkni = () => platno.requestPointerLock()?.catch?.(() => {});
-initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || jeDennik() || dev.zapnuty || stavPreziti.mrtvy ? 'none' : 'flex'; });
+initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || jeDennik() || dialogOtvoreny() || dev.zapnuty || stavPreziti.mrtvy ? 'none' : 'flex'; });
 udalostiPreziti.priVarovani = t => oznam(t);
 udalostiPreziti.priSmrti = () => document.exitPointerLock();
 udalostiPreziti.priZobudeni = () => {
@@ -293,7 +295,7 @@ function spi(d, noc) {
 }
 
 // ---------- HUD ----------
-let poslednyOstrov = null, casNapisu = 0;
+let poslednyOstrov = null, casNapisu = 0, caka = null;   // caka = ostrov, ktory ma hrac pomenovat
 const STRANY = ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'];
 const BIOM = BIOM_MENO;
 const uhol = smer => ((Math.atan2(-Math.sin(smer), Math.cos(smer)) * 180 / Math.PI) + 360) % 360;
@@ -319,11 +321,16 @@ function hud(dt, p) {
   if (o && o !== poslednyOstrov) {
     const kluc = o.bx + ',' + o.bz, novy = !objavene.has(kluc);
     objavene.add(kluc);
-    $('ostrov').innerHTML = o.meno + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom] + (jeBujny(o) ? ' · bujný' : '')}</small>`;
+    $('ostrov').innerHTML = menoOstrova(o) + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom] + (jeBujny(o) ? ' · bujný' : '')}</small>`;
+    if (!jePomenovany(o)) caka = o;                      // este nema meno -> opytame sa hraca (ked sa lod spomali)
     $('ostrov').style.opacity = 1;
     casNapisu = 4;
   }
   poslednyOstrov = o;
+  if (caka && document.pointerLockElement === platno && !dialogOtvoreny() && !stavPreziti.mrtvy && !(vKanoe && kanoe.rychlost() > 1.5)) {
+    const ost = caka; caka = null;
+    pomenujOstrov(ost, { nove: true, navrh: ost.meno, hotovo: m => { $('ostrov').firstChild.textContent = m; oznam(`🏝 Ostrov pomenovaný: ${m}`); }, zatvorene: () => { if (!document.pointerLockElement) zamkni(); } });
+  }
   if ((casNapisu -= dt) < 0) $('ostrov').style.opacity = 0;
 
   const s = uhol(kam.yaw), v = uhol(vietor.smer), pr = priliv(cas);
@@ -338,7 +345,7 @@ function hud(dt, p) {
     const f = (txt, zle) => zle ? `<b style="color:#ff8a6a">${txt}</b>` : txt;
     return `<br>${f(`Trup ${tr} %`, tr < 30)} · ${f(`Voda v lodi ${vo} %`, vo > 50)}${vo > 5 ? ' <span style="opacity:.7">(drž V)</span>' : ''}`;
   })() : '';
-  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b> <span style="opacity:.75">· pásmo ${pasmoAkt}</span><br>${stav}${lodStav}<br>Objavené ostrovy: ${objavene.size}`;
+  $('info').innerHTML = `<b>${o ? menoOstrova(o) : 'Otvorené more'}</b> <span style="opacity:.75">· pásmo ${pasmoAkt}</span><br>${stav}${lodStav}<br>Objavené ostrovy: ${objavene.size}`;
   $('dych').style.display = hrac.dych < 1 && !vKanoe ? 'block' : 'none';
   $('dych').firstChild.style.width = hrac.dych * 100 + '%';
 }
@@ -531,7 +538,7 @@ snimok();
 
 // ---------- ladenie z konzoly: hra.sim(sekundy, ['KeyW'], ['Mys0']) odohra cas bez cakania na snimky ----------
 window.hra = {
-  g, hrac, get kanoe() { return kanoe; }, lode, kam, scena, zobrate, sloty, stavPreziti,
+  g, hrac, kamera, objavene, oznam, get kanoe() { return kanoe; }, lode, kam, scena, zobrate, sloty, stavPreziti,
   nepriatelia: zoznamNepriatelov, spawn: druh => spawnPriHracovi(druh, hrac.poz),
   get vKanoe() { return vKanoe; },
   sim(sekundy, drz = [], stlac1 = []) {
