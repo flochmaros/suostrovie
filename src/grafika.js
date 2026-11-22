@@ -13,7 +13,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 export const VRSTVA_VODA = 1;
 export const SLNKO = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(150));
-export const FARBA_HMLY = new THREE.Color(0xa9cde0);
+export const FARBA_HMLY = new THREE.Color(0x9fd6ea);
 
 export function vytvorGrafiku() {
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -24,7 +24,7 @@ export function vytvorGrafiku() {
   renderer.shadowMap.autoUpdate = false;
   renderer.info.autoReset = false;                // statistiky za cely snimok (dev rezim), nuluje sa vo vykresli()           // tiene pocitame raz za snimok (nie pri kazdom kresleni)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.5;
+  renderer.toneMappingExposure = 0.7;
   document.body.appendChild(renderer.domElement);
 
   const scena = new THREE.Scene();
@@ -57,9 +57,9 @@ export function vytvorGrafiku() {
     envCiel = novy;
   }
 
-  const hemi = new THREE.HemisphereLight(0xbfdcff, 0x9a8a63, 0.55);
+  const hemi = new THREE.HemisphereLight(0xa8d8ff, 0xc9a86a, 0.7);
   scena.add(hemi);
-  const slnko = new THREE.DirectionalLight(0xfff0d8, 3.2);
+  const slnko = new THREE.DirectionalLight(0xffe6c0, 3.2);
   slnko.castShadow = true;
   slnko.shadow.mapSize.set(4096, 4096);
   const S = 75;
@@ -77,7 +77,7 @@ export function vytvorGrafiku() {
 
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(velkost.x, velkost.y, { type: THREE.HalfFloatType, samples: 4 }));
   composer.addPass(new RenderPass(scena, kamera));
-  const bloom = new UnrealBloomPass(velkost.clone(), 0.45, 0.3, 3.0);   // ziaria len odlesky slnka (jas > 3)
+  const bloom = new UnrealBloomPass(velkost.clone(), 0.4, 0.45, 2.2);   // makka ziara odleskov a svietiacich veci (jas > 2.2)
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   // farebne ladenie (po tone mappingu): sytost, kontrast, tiene do modra / svetla do tepla, vignetacia

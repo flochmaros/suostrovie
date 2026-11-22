@@ -227,11 +227,11 @@ export function initPocasie(g) {
 }
 
 // ---------- farby (kluce pre denny cyklus) ----------
-const H_DEN = C(0xa9cde0), H_SUM = C(0xf0a070), H_NOC = C(0x070c18);
+const H_DEN = C(0x9fd6ea), H_SUM = C(0xf0a070), H_NOC = C(0x070c18);
 const SED_DEN = C(0x8a9299), SED_BURKA = C(0x4a5058), SED_NOC = C(0x06080b);
-const SL_DEN = C(0xfff0d8), SL_NIZKE = C(0xff8a40), SL_SEDE = C(0xb8c4d0), SL_MESIAC = C(0x8fa8e0);
-const HS_DEN = C(0xbfdcff), HS_NOC = C(0x1b2a55), HS_SUM = C(0xffb08a), HS_SEDA = C(0x9aa4ae);
-const HZ_DEN = C(0x9a8a63), HZ_NOC = C(0x0c0e14);
+const SL_DEN = C(0xffe6c0), SL_NIZKE = C(0xff8a40), SL_SEDE = C(0xb8c4d0), SL_MESIAC = C(0x8fa8e0);
+const HS_DEN = C(0xa8d8ff), HS_NOC = C(0x1b2a55), HS_SUM = C(0xffb08a), HS_SEDA = C(0x9aa4ae);
+const HZ_DEN = C(0xc9a86a), HZ_NOC = C(0x0c0e14);
 const AMB_DEN = new THREE.Color(0.5, 0.56, 0.66), AMB_NOC = new THREE.Color(0.012, 0.02, 0.045), AMB_SUM = new THREE.Color(0.55, 0.3, 0.28);
 const ZEN_DEN = new THREE.Color(0.16, 0.38, 0.72), ZEN_NOC = new THREE.Color(0.004, 0.008, 0.025), ZEN_SUM = new THREE.Color(0.25, 0.22, 0.42), ZEN_SEDA = new THREE.Color(0.28, 0.31, 0.35);
 const OB_DEN = new THREE.Color(0.62, 0.78, 0.9), OB_NOC = new THREE.Color(0.01, 0.015, 0.035), OB_SUM = new THREE.Color(0.9, 0.5, 0.35), OB_SEDA = new THREE.Color(0.4, 0.43, 0.47);
@@ -283,8 +283,8 @@ export function aktualizujPocasie(dt, cas, stred) {
   // --- obloha (Sky) ---
   const u = g.obloha.material.uniforms;
   u.sunPosition.value.copy(SUN);
-  u.turbidity.value = 1.3 + twi * 4.5 + cover * 2;
-  u.rayleigh.value = 0.8 + twi * 1.8;
+  u.turbidity.value = 1.0 + twi * 4.5 + cover * 2;
+  u.rayleigh.value = 0.7 + twi * 1.8;
   u.mieCoefficient.value = 0.002 + twi * 0.008;
   g.obloha.position.copy(g.kamera.position);
 
@@ -305,8 +305,8 @@ export function aktualizujPocasie(dt, cas, stred) {
   const hs = g.hemi;
   hs.color.copy(HS_NOC).lerp(HS_DEN, den2).lerp(HS_SUM, twi * 0.5).lerp(HS_SEDA, cover * 0.7);
   hs.groundColor.copy(HZ_NOC).lerp(HZ_DEN, den2);
-  hs.intensity = lerp(0.42, 0.55, den2) * (1 - 0.2 * cover) + flash * 2.5;
-  g.renderer.toneMappingExposure = lerp(0.5, 0.72, noc) * (1 + flash * 0.35);
+  hs.intensity = lerp(0.42, 0.7, den2) * (1 - 0.2 * cover) + flash * 2.5;
+  g.renderer.toneMappingExposure = lerp(0.7, 0.72, noc) * (1 + flash * 0.35);
 
   // --- hmla (farba sa meni na mieste; main.js ju kopiruje do scena.fog) ---
   const mokro = clamp01(Math.max(dazd * 0.7, burkaF, cover * 0.3));

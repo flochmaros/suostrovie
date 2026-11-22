@@ -271,7 +271,7 @@ void main() {
   float sumPeny = pena1 * pena2;
 
   if (!gl_FrontFacing) {                 // pohlad zospodu (pod vodou)
-    vec3 c = vec3(0.03, 0.28, 0.33) * (1.0 + sumPeny) * uSvetlo;
+    vec3 c = vec3(0.02, 0.30, 0.38) * (1.0 + sumPeny) * uSvetlo;
     if (uNoc > 0.01) c += vec3(0.1, 0.65, 1.0) * plankton(p, 0.0, stopa.b) * uNoc * 1.4;
     gl_FragColor = vec4(c, 1.0);
     #include <fog_fragment>
@@ -288,12 +288,15 @@ void main() {
   vec3 dno = min(texture2D(uSvet, uvL).rgb, vec3(20.0));   // obmedzit jas (slnko na oblohe je extremne jasne)
 
   // pohltenie svetla vo vode: cervena zmizne najskor
-  vec3 prenos = exp(-hrubka * vec3(0.46, 0.085, 0.06));
-  vec3 hlbokaFarba = vec3(0.006, 0.05, 0.085) * uSvetlo;
-  vec3 farba = dno * prenos + hlbokaFarba * (1.0 - prenos);
+  vec3 prenos = exp(-hrubka * vec3(0.36, 0.07, 0.05));
+  // farba vody: ciry tyrkys (plytko) -> tmavy tyrkys -> safirova modra (hlboko)
+  float hl01 = smoothstep(0.6, 14.0, hrubka);
+  vec3 hlbokaFarba = mix(vec3(0.02, 0.36, 0.36), vec3(0.004, 0.05, 0.20), smoothstep(0.15, 1.0, hl01)) * uSvetlo;
+  vec3 tint = 1.0 - exp(-hrubka * vec3(0.5, 0.16, 0.12));
+  vec3 farba = dno * prenos + hlbokaFarba * tint;
   // svetlo prechadzajuce hrebenmi vln (tyrkysovy nadych)
   float protiSlnku = pow(max(dot(-V, uSlnko) * 0.5 + 0.5, 0.0), 2.0);
-  farba += vec3(0.0, 0.11, 0.09) * smoothstep(-0.1, 0.7, vVyska) * (0.4 + protiSlnku) * uSvetlo;
+  farba += vec3(0.0, 0.14, 0.12) * smoothstep(-0.1, 0.7, vVyska) * (0.4 + protiSlnku) * uSvetlo;
 
   // odraz oblohy (Fresnel: pri pohlade naplocho vacsi)
   vec3 R = reflect(-V, N); R.y = abs(R.y);
@@ -307,13 +310,13 @@ void main() {
   // pena: pri brehu (tenka voda) pulzuje s vlnami + na hrebenoch
   float breh = 1.0 - smoothstep(0.0, 0.55, hrubka);
   float vlnenie = 0.5 + 0.5 * sin(uCas * 1.6 - hrubka * 9.0 + pena2 * 3.0);
-  float pena = breh * smoothstep(0.35, 0.6, sumPeny + vlnenie * 0.3 + breh * 0.3);
+  float pena = breh * smoothstep(0.42, 0.52, sumPeny + vlnenie * 0.3 + breh * 0.3);
   pena += smoothstep(0.55, 0.85, vVyska) * smoothstep(0.3, 0.6, sumPeny) * 0.7;
   // brazda: prevzdusnena voda je svetlejsia (tyrkysova), pena sa trha podla textury
   float penaS = max(stopa.r, 0.0);
   farba += vec3(0.02, 0.09, 0.08) * clamp(penaS * 1.5 + stopa.b * 0.15, 0.0, 1.0) * uSvetlo;
   pena += smoothstep(0.12, 0.65, penaS * (0.45 + 1.1 * pena1)) + penaS * 0.12;
-  farba = mix(farba, vec3(0.92, 0.96, 0.97) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.85);
+  farba = mix(farba, vec3(0.96, 0.99, 1.0) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.95);
   // v noci plankton svieti tam, kde sa voda pohne (stopa, vlny pri brehu); jas > 3 = bloom
   if (uNoc > 0.01) farba += vec3(0.08, 0.62, 1.0) * plankton(p, clamp(pena, 0.0, 1.0), stopa.b) * uNoc * 2.2;
 

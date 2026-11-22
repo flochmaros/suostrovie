@@ -3,9 +3,9 @@
 //   plody  = cast, ktora zmizne po zbere (banany, bobule, kokosy...) a po case znova dorastie.
 // Vsetko je low-poly s farbami vo vrcholoch; vietor hybe vrcholmi v shaderi (material()).
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
-import { uCas } from '../ocean.js';
+import { uCas, uNoc } from '../ocean.js';
 import { rng } from '../nahoda.js';
 
 const perlin = new ImprovedNoise();
@@ -54,8 +54,10 @@ function tro() {
 }
 
 // gula s nerovnym povrchom a tienovanim zospodu (koruny, kriky)
-function chumac(r, farba, seed, detail = 1) {
-  const g = new THREE.IcosahedronGeometry(r, detail);
+function chumac(r, farba, seed, detail = 2) {
+  let g = new THREE.IcosahedronGeometry(r, detail);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  g = mergeVertices(g);   // spolocne vrcholy -> hladke normaly (makla gula, nie fasety)
   const p = g.attributes.position, c = new THREE.Color(), a = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
@@ -182,7 +184,7 @@ function palma(seed) {
   const casti = [vlastna(poz, farby, idx)];
 
   const vrch = krivka.getPoint(1);
-  casti.push(chumac(0.36, C(0x5c432c), seed, 0).translate(vrch.x, vrch.y + 0.1, vrch.z));   // uzol pod korunou
+  casti.push(chumac(0.36, C(0x5c432c), seed, 1).translate(vrch.x, vrch.y + 0.1, vrch.z));   // uzol pod korunou
   const n = 10 + Math.floor(r() * 4);
   for (let i = 0; i < n; i++) {
     const L = 3.0 + r() * 1.4;
@@ -619,11 +621,12 @@ function obsidianZila(seed) {
 
 // ---------- materialy s vetrom ----------
 function material(vietor, opts = {}) {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4, side: THREE.DoubleSide, ...opts });
+  const { zar, gradH = 2.5, ...mo } = opts;   // zar = [r,g,b] nocna biolumin. farba, gradH = vyska farebneho prechodu
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.4, side: THREE.DoubleSide, ...mo });
   if (!vietor) return m;
   m.onBeforeCompile = sh => {
-    sh.uniforms.uCas = uCas;
-    sh.vertexShader = 'uniform float uCas;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+    sh.uniforms.uCas = uCas; sh.uniforms.uNoc = uNoc;
+    sh.vertexShader = 'uniform float uCas;\nvarying float vVyska;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
       vec3 transformed = vec3(position);
       #ifdef USE_INSTANCING
         vec2 ip = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
@@ -631,25 +634,32 @@ function material(vietor, opts = {}) {
         vec2 ip = vec2(0.0);
       #endif
       float vy = max(position.y, 0.0);
+      vVyska = clamp(position.y / ${gradH.toFixed(3)}, 0.0, 1.0);
       float w = sin(uCas * 1.1 + ip.x * 0.05 + ip.y * 0.07) * 0.7 + sin(uCas * 2.7 + ip.x * 0.31 + ip.y * 0.17) * 0.3;
       transformed.xz += vec2(w, w * 0.6) * ${vietor.toFixed(5)} * vy * vy;`);
+    sh.fragmentShader = 'uniform float uNoc;\nuniform float uCas;\nvarying float vVyska;\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        diffuseColor.rgb *= mix(vec3(0.5, 0.66, 0.7), vec3(1.12, 1.1, 0.8), vVyska);   // dole chladnejsie a tmavsie, hore zltozelene
+        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.333))), diffuseColor.rgb, 1.08);   // sytejsie`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        ${zar ? `totalEmissiveRadiance += vec3(${zar.map(v => v.toFixed(3)).join(',')}) * uNoc * smoothstep(0.25, 1.0, vVyska) * (0.7 + 0.3 * sin(uCas * 1.3 + vVyska * 6.0));` : ''}`);
   };
-  m.customProgramCacheKey = () => 'vietor' + vietor;
+  m.customProgramCacheKey = () => 'vietor' + vietor + (zar ? zar.join() : '') + gradH;
   return m;
 }
 const FS = { side: THREE.FrontSide };
 export const M = {
-  strom: material(0.0012),                 // kmen + koruna + plody stromov (rovnaky vietor, aby plody neodbiehali)
+  strom: material(0.0012, { gradH: 7 }),                 // kmen + koruna + plody stromov (rovnaky vietor, aby plody neodbiehali)
   banan: material(0.012),
   bambus: material(0.004),
   trstina: material(0.02),
-  ker: material(0.05),
-  papradie: material(0.08),
+  ker: material(0.05, { gradH: 1.5, zar: [0.0, 0.5, 0.45] }),
+  papradie: material(0.08, { gradH: 1.2, zar: [0.1, 0.55, 0.6] }),
   trava: material(0.28),
-  kvet: material(0.2),
+  kvet: material(0.2, { gradH: 0.8, zar: [0.45, 0.2, 0.9] }),
   ananas: material(0.06),
   aloe: material(0.04),
-  taro: material(0.08),
+  taro: material(0.08, { gradH: 1.2, zar: [0.0, 0.4, 0.55] }),
   huba: material(0),
   kamen: material(0, { roughness: 0.95, ...FS }),
   obsidian: material(0, { roughness: 0.12, metalness: 0.35, envMapIntensity: 1.4, ...FS }),

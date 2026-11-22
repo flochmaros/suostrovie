@@ -209,7 +209,7 @@ export function dnoMorske(x, z) {
   if (s > 0) h += (-5.2 - 3.6 * (0.5 + 0.5 * b) + c * 0.5 - h) * s;
   return h;
 }
-const FD1 = C(0xdcc995), FD2 = C(0x7d8a86), FD3 = C(0x3e5260), FD4 = C(0x4f7048);
+const FD1 = C(0xf0e2b8), FD2 = C(0x7d8a86), FD3 = C(0x3e5260), FD4 = C(0x4f7048);
 // farba morskeho dna podla hlbky (+ tmavsie trávne laky); pouziva aj morske dno v more.js
 export function farbaDna(h, x, z, out) {
   const g = perlin.noise(x * 0.03 + 7, z * 0.03, 2.2);
@@ -280,40 +280,40 @@ matTeren.onBeforeCompile = sh => {
       float zelen = smoothstep(0.0, 0.06, diffuseColor.g - diffuseColor.r) * step(0.0, nadVodou);
       float flak = sumT(vSvetP.xz * 0.07) * 0.7 + sumT(vSvetP.xz * 0.21) * 0.3;
       float zrno = sumT(vSvetP.xz * 1.3) * 0.6 + sumT(vSvetP.xz * 4.7) * 0.4;
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.4, 1.18, 0.55), smoothstep(0.55, 0.78, flak) * zelen * 0.75);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.25, 1.1, 0.7), smoothstep(0.55, 0.78, flak) * zelen * 0.75);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.7, 0.92, 0.68), smoothstep(0.42, 0.2, flak) * zelen);
       diffuseColor.rgb *= 1.0 + (zrno - 0.5) * (0.1 + 0.3 * zelen);
-      diffuseColor.rgb *= 1.0 - 0.32 * (1.0 - smoothstep(-0.1, 1.0, nadVodou)) * step(-0.6, nadVodou);`)
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.84, 0.78, 0.66), (1.0 - smoothstep(-0.1, 1.0, nadVodou)) * step(-0.6, nadVodou));   // mokry piesok: zlatobezovy, nie hnedy`)
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       float hl = uPriliv - vSvetP.y;
-      totalEmissiveRadiance += vec3(0.8, 0.95, 1.0) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.93 * uNoc)
-        * smoothstep(0.0, 0.5, hl) * (1.0 - smoothstep(3.0, 12.0, hl)) * 1.6;`);
+      totalEmissiveRadiance += vec3(0.85, 1.0, 0.95) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.93 * uNoc)
+        * smoothstep(0.0, 0.5, hl) * (1.0 - smoothstep(3.0, 12.0, hl)) * 2.3;`);
 };
 
 const FARBY = {
-  dno: C(0xcfb383), piesok: C(0xe0c48e), hlina: C(0x8a6c48), skala: C(0x87827a),
+  dno: C(0xeedcae), piesok: C(0xefe0bb), hlina: C(0x8a6c48), skala: C(0x87827a),
 };
 function C(h) { return new THREE.Color(h); }
 // farby terenu podla biomu: tr = [nizsia, vyssia] trava, piesok (plaz), dno, skala (strme svahy), hl (flaky), hlPrah (kolko flakov),
 // plaz = vyska, od ktorej zacina vegetacia
 const TEREN = {
-  palmovy:   { tr: [0x7a9a48, 0x5f7f3a], plaz: 1.4 },
-  dzungla:   { tr: [0x557a36, 0x3e5e2c], plaz: 1.3 },
-  skalnaty:  { tr: [0x86905a, 0x6c7449], plaz: 1.4 },
-  atol:      { tr: [0x93aa5a, 0x7a944a], piesok: 0xf2e2b4, dno: 0xe6d6a6, skala: 0xa6a094, hl: 0xc9b27a, hlPrah: 0.2, plaz: 0.9 },
+  palmovy:   { tr: [0x5fae3a, 0x3f8f2e], plaz: 1.4 },
+  dzungla:   { tr: [0x3a8a2c, 0x2a6a24], plaz: 1.3 },
+  skalnaty:  { tr: [0x72a043, 0x5a8a38], plaz: 1.4 },
+  atol:      { tr: [0x74bd48, 0x5aa83c], piesok: 0xf4e8c4, dno: 0xeee0b4, skala: 0xa6a094, hl: 0xc9b27a, hlPrah: 0.2, plaz: 0.9 },
   sopecny:   { tr: [0x4e5c3a, 0x2e2a28], piesok: 0x2b2927, dno: 0x3a3835, skala: 0x34302e, hl: 0x5a3226, hlPrah: -0.15, plaz: 0.7, tmavy: true },
-  mangrovy:  { tr: [0x55703a, 0x435c30], piesok: 0x6e5f45, dno: 0x5a5040, skala: 0x5f5a4c, hl: 0x4a4030, hlPrah: 0.1, plaz: 0.3, tmavy: true },
-  bambusovy: { tr: [0x7f9c48, 0x64823b], plaz: 1.4 },
-  savana:    { tr: [0xb0a662, 0x97984e], piesok: 0xe6cf98, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
-  plytcina:  { tr: [0x8aa858, 0x709048], piesok: 0xf0dcaa, dno: 0xe0cc9a, plaz: 1.5 },
-  ovocny:    { tr: [0x82a24c, 0x67893d], plaz: 1.4 },
+  mangrovy:  { tr: [0x4a7a34, 0x3c6a2c], piesok: 0x6e5f45, dno: 0x5a5040, skala: 0x5f5a4c, hl: 0x4a4030, hlPrah: 0.1, plaz: 0.3, tmavy: true },
+  bambusovy: { tr: [0x62b03c, 0x4a9a30], plaz: 1.4 },
+  savana:    { tr: [0xa8b04c, 0x8fa044], piesok: 0xecdcb0, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
+  plytcina:  { tr: [0x6cb948, 0x55a23a], piesok: 0xf2e4bc, dno: 0xece0b4, plaz: 1.5 },
+  ovocny:    { tr: [0x68b23e, 0x4e9a32], plaz: 1.4 },
 };
 for (const t of Object.values(TEREN)) {
   t.tr = t.tr.map(C);
   for (const k of ['piesok', 'dno', 'skala', 'hl']) t[k] = t[k] === undefined ? FARBY[k === 'hl' ? 'hlina' : k] : C(t[k]);
   t.hlPrah ??= 0.35;
 }
-const SUCHA = C(0xa89c5c), SVIEZA = C(0x5c8a3a), TMAVY_PIESOK = C(0x9a8462), KORAL = C(0xeae2d2);
+const SUCHA = C(0x9cae4c), SVIEZA = C(0x3f9a30), TMAVY_PIESOK = C(0xcdb98c), KORAL = C(0xeae2d2);
 
 // kde konci plaz a zacina trava: sirka plaze sa meni pozdlz pobrezia (niekde siroky piesok, inde trava az k vode)
 export function hranicaPlaze(o, x, z) {
@@ -329,7 +329,7 @@ function typBrehu(o, x, z) {
 function odtienOstrova(o, farba) {
   const r = rng(o.seed * 31 + 7), hsl = {};
   farba.getHSL(hsl);
-  return new THREE.Color().setHSL(hsl.h + (r() - 0.5) * 0.05, hsl.s * (0.62 + r() * 0.3), hsl.l * (0.92 + r() * 0.14));
+  return new THREE.Color().setHSL(hsl.h + (r() - 0.5) * 0.05, hsl.s * (0.88 + r() * 0.24), hsl.l * (0.92 + r() * 0.14));
 }
 
 function postavTeren(o) {
