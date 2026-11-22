@@ -6,6 +6,7 @@ const STAVBA_SKUPINY = ['Stavba', 'Nábytok', 'Tábor', 'Prístav'];
 const zalozka = {};                                // rezim -> zvolena skupina receptov
 import { PREDMETY } from './obsah/predmety.js';
 import { RECEPTY } from './obsah/recepty.js';
+import './ikony3d.js';   // ikony predmetov z 3D modelov (importuje aj obsah/nastroje, jedlo, more...)
 import './obsah/nastroje.js';   // registracia nastrojov (aby existovali pred nacitanim/recept)
 
 export const sloty = Array(32).fill(null);       // policko = null alebo { typ, pocet } (nastroj navyse trv = zostavajuca trvanlivost)
