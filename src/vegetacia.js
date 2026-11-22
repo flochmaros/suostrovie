@@ -20,7 +20,7 @@ const BUNKA_TRAVY = 3;                 // velkost policka na trhanie travy (m)
 // ymin/ymax: vyska terenu, sklon: max sklon, odstup: min vzdialenost od ostatnych (m), m: rozsah mierky,
 // rK: polomer hitboxu (0 = da sa prejst), rZ: dosah zasahu/zberu, odtien: nahodne zafarbenie, naklon, dy: posun do zeme
 const PRAVIDLA = {
-  palma:    { ymin: 0.8, ymax: 10, sklon: 0.9, odstup: 3.2, m: [0.8, 1.25], rK: 0.32, rZ: 0.5, odtien: 0.12, naklon: 0.05, dy: -0.1 },
+  palma:    { ymin: 0.8, ymax: 10, sklon: 0.9, odstup: 3.2, m: [0.65, 1.45], rK: 0.32, rZ: 0.5, odtien: 0.12, naklon: 0.05, dy: -0.1 },
   mangrova: { ymin: -0.9, ymax: 1.1, sklon: 1.2, odstup: 3.6, m: [0.8, 1.2], rK: 0.45, rZ: 0.9, odtien: 0.1, naklon: 0.02, dy: -0.15 },
   strom:    { ymin: 2.5, sklon: 1.3, odstup: 4, m: [0.8, 1.3], rK: 0.38, rZ: 0.6, odtien: 0.15, naklon: 0.06, dy: -0.2 },
   mango:    { ymin: 1.5, ymax: 9, sklon: 1.0, odstup: 4.5, m: [0.8, 1.2], rK: 0.35, rZ: 0.7, odtien: 0.12, naklon: 0.04, dy: -0.15 },
@@ -37,22 +37,27 @@ const PRAVIDLA = {
   papradie: { ymin: 1.8, sklon: 1.5, odstup: 0, m: [0.7, 1.4], rK: 0, rZ: 0.7, odtien: 0.15, naklon: 0.1, dy: 0 },
   huba:     { ymin: 2.0, sklon: 1.2, odstup: 0, m: [0.8, 1.4], rK: 0, rZ: 0.5, odtien: 0.1, naklon: 0.1, dy: 0 },
   kvet:     { ymin: 1.7, sklon: 1.0, odstup: 0, m: [0.8, 1.4], rK: 0, rZ: 0.6, odtien: 0.05, naklon: 0.1, dy: 0 },
+  // dekoracie bez zberu (nie su v ZDROJE): uzol = null
+  monstera: { ymin: 1.5, ymax: 8, sklon: 0.9, odstup: 0, m: [0.9, 1.3], rK: 0, rZ: 0, odtien: 0.1, naklon: 0.1, dy: -0.05 },
+  hibiskus: { ymin: 1.5, ymax: 9, sklon: 1.1, odstup: 1.6, m: [0.8, 1.25], rK: 0, rZ: 0, odtien: 0.06, naklon: 0.08, dy: -0.05 },
+  spiral:   { ymin: 2.0, sklon: 1.2, odstup: 1.2, m: [0.8, 1.3], rK: 0, rZ: 0, odtien: 0.1, naklon: 0.1, dy: 0 },
+  svetlonos: { ymin: 1.5, sklon: 1.2, odstup: 1.6, m: [0.8, 1.3], rK: 0, rZ: 0, odtien: 0.08, naklon: 0.08, dy: -0.05 },
 };
 const PORADIE = ['palma', 'mangrova', 'strom', 'mango', 'akacia', 'bambus', 'balvan', 'obsidian', 'banan', 'bobule', 'ker', 'ibistek', 'ananas',
-  'aloe', 'taro', 'trstina', 'papradie', 'huba', 'kvet', 'trava', 'kamienky'];
+  'aloe', 'taro', 'trstina', 'papradie', 'huba', 'kvet', 'monstera', 'hibiskus', 'spiral', 'svetlonos', 'trava', 'kamienky'];
 
 // hustota = pokusov na 100 m2 ostrova (k = nasobok poctu pokusov pre biomy, kde je sucho malo)
 const HUSTOTY = {
-  palmovy:  { palma: 0.9, strom: 0.08, ker: 0.5, ibistek: 0.25, papradie: 0.2, trava: 22, kvet: 0.6, balvan: 0.12, kamienky: 0.4, aloe: 0.15, bobule: 0.12, banan: 0.08, trstina: 0.2, taro: 0.1 },
-  dzungla:  { palma: 0.3, strom: 0.9, mango: 0.12, banan: 0.5, ker: 0.6, ibistek: 0.15, bobule: 0.35, papradie: 1.6, trava: 14, kvet: 0.4, huba: 0.6, taro: 0.3, balvan: 0.18, kamienky: 0.3, bambus: 0.1 },
-  skalnaty: { palma: 0.2, strom: 0.1, ker: 0.3, aloe: 0.35, papradie: 0.1, trava: 8, kvet: 0.2, balvan: 0.7, kamienky: 1.2, bobule: 0.1 },
-  atol:     { k: 1.8, palma: 1.4, ker: 0.3, trava: 8, aloe: 0.15, kvet: 0.15, kamienky: 1, trstina: 0.2, ibistek: 0.2 },
+  palmovy:  { palma: 0.9, strom: 0.08, ker: 0.5, ibistek: 0.25, papradie: 0.2, trava: 22, kvet: 0.6, balvan: 0.12, kamienky: 0.4, aloe: 0.15, bobule: 0.12, banan: 0.08, trstina: 0.2, taro: 0.1, monstera: 0.2, hibiskus: 0.2, spiral: 0.05 },
+  dzungla:  { palma: 0.3, strom: 0.9, mango: 0.12, banan: 0.5, ker: 0.6, ibistek: 0.15, bobule: 0.35, papradie: 1.6, trava: 14, kvet: 0.4, huba: 0.6, taro: 0.3, balvan: 0.18, kamienky: 0.3, bambus: 0.1, monstera: 0.5, hibiskus: 0.25, spiral: 0.3, svetlonos: 0.12 },
+  skalnaty: { palma: 0.2, strom: 0.1, ker: 0.3, aloe: 0.35, papradie: 0.1, trava: 8, kvet: 0.2, balvan: 0.7, kamienky: 1.2, bobule: 0.1, spiral: 0.05 },
+  atol:     { k: 1.8, palma: 1.4, ker: 0.3, trava: 8, aloe: 0.15, kvet: 0.15, kamienky: 1, trstina: 0.2, ibistek: 0.2, hibiskus: 0.12 },
   sopecny:  { palma: 0.06, papradie: 0.15, aloe: 0.1, balvan: 0.8, obsidian: 0.22, kamienky: 1.5, trava: 1.5 },
   mangrovy: { k: 1.2, mangrova: 1.6, palma: 0.1, trstina: 0.6, taro: 0.3, papradie: 0.2, kamienky: 0.3 },
-  bambusovy: { bambus: 1.0, strom: 0.15, papradie: 0.5, ker: 0.3, banan: 0.1, trava: 8, kvet: 0.2, huba: 0.15, balvan: 0.1, trstina: 0.05, kamienky: 0.2 },
-  savana:   { akacia: 0.12, strom: 0.05, mango: 0.05, ker: 0.3, bobule: 0.15, ibistek: 0.15, aloe: 0.2, ananas: 0.05, trava: 38, kvet: 1.2, balvan: 0.1, kamienky: 0.4 },
+  bambusovy: { bambus: 1.0, strom: 0.15, papradie: 0.5, ker: 0.3, banan: 0.1, trava: 8, kvet: 0.2, huba: 0.15, balvan: 0.1, trstina: 0.05, kamienky: 0.2, spiral: 0.25, svetlonos: 0.1, monstera: 0.15 },
+  savana:   { akacia: 0.12, strom: 0.05, mango: 0.05, ker: 0.3, bobule: 0.15, ibistek: 0.15, aloe: 0.2, ananas: 0.05, trava: 38, kvet: 1.2, hibiskus: 0.1, balvan: 0.1, kamienky: 0.4 },
   plytcina: { k: 1.6, palma: 0.5, ker: 0.2, trava: 3, kamienky: 0.6, trstina: 0.05 },
-  ovocny:   { mango: 0.6, banan: 0.7, palma: 0.3, ananas: 0.6, bobule: 0.5, ker: 0.3, ibistek: 0.2, kvet: 0.5, trava: 14, taro: 0.1, papradie: 0.2, strom: 0.1 },
+  ovocny:   { mango: 0.6, banan: 0.7, palma: 0.3, ananas: 0.6, bobule: 0.5, ker: 0.3, ibistek: 0.2, kvet: 0.5, trava: 14, taro: 0.1, papradie: 0.2, strom: 0.1, monstera: 0.2, hibiskus: 0.3 },
 };
 
 // ---------- stav rastlin: zber a dorastanie ----------
@@ -128,6 +133,7 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
   const pocty = {};
   const travaBunky = new Set();
   const uzol = (typ, x, y, z, rKolizia, rZasah) => {
+    if (!ZDROJE[typ]) return null;      // dekoracia bez zberu/zivotov
     pocty[typ] = (pocty[typ] || 0) + 1;
     const id = `${kl},${typ}${pocty[typ]}`;
     const zdroj = ZDROJE[typ];
@@ -179,7 +185,29 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
       if (P.odstup >= 2.5) obsad(b.x, b.z);
       const mierka = P.m[0] + r() * (P.m[1] - P.m[0]);
       const v = Math.floor(r() * DRUHY[druh].varianty.length);
-      pridaj(druh, v, b.x, b.y + P.dy, b.z, mierka, P.odtien, uzol(druh, b.x, b.y, b.z, P.rK * mierka, P.rZ), P.naklon);
+      const uz = uzol(druh, b.x, b.y, b.z, P.rK * mierka, P.rZ);
+      if (uz) uz.vyska = (DRUHY[druh].varianty[v].vyska || 6) * mierka;     // vyska koruny (pre liany)
+      pridaj(druh, v, b.x, b.y + P.dy, b.z, mierka, P.odtien, uz, P.naklon);
+    }
+  }
+
+  // vrstvy pod korunami: podrast zhlukmi okolo kmenov (3-5 rastlin) a liany visiace z korun
+  const KORUNY = new Set(['palma', 'strom', 'mango', 'akacia']);
+  const podrast = ['ker', 'papradie', 'monstera', 'hibiskus', 'kvet', 'spiral', 'bobule', 'ibistek'].filter(d => B[d]);
+  for (const u of uzly.slice()) {
+    if (!KORUNY.has(u.typ)) continue;
+    if (podrast.length && r() < 0.7) {
+      for (let i = 0, n = 3 + Math.floor(r() * 3); i < n; i++) {
+        const a = r() * Math.PI * 2, d = 1.2 + r() * 2.8, x = u.x + Math.cos(a) * d, z = u.z + Math.sin(a) * d, y = h(x, z);
+        if (y < 1.6 || y > 9 || sklon({ x, y, z }) > 1.0) continue;     // pláže a strmé svahy zostanu otvorené
+        const druh = podrast[Math.floor(r() * podrast.length)], P = PRAVIDLA[druh];
+        const mierka = P.m[0] + r() * (P.m[1] - P.m[0]), v = Math.floor(r() * DRUHY[druh].varianty.length);
+        pridaj(druh, v, x, y + P.dy, z, mierka, P.odtien, uzol(druh, x, y, z, P.rK * mierka, P.rZ), P.naklon);
+      }
+    }
+    if (u.typ !== 'akacia' && r() < 0.35) {               // liana: dlzka modelu 3.6 m (LIANA_L v modely.js), vrch pod korunou
+      const s = 0.8 + r() * 0.6, a = r() * Math.PI * 2, d = 0.3 + r() * 0.8, vrch = u.y + (u.vyska || 6) - 0.4;
+      pridaj('liana', 0, u.x + Math.cos(a) * d, vrch - 3.6 * s, u.z + Math.sin(a) * d, s, 0.05, null, 0.03);
     }
   }
 

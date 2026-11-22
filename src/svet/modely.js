@@ -319,14 +319,14 @@ function mangrova(seed) {
   return { zaklad: spoj(casti), plody: spoj(plody), vyska: H + 2 };
 }
 
-function banan(seed, farbaPlodu) {
+function banan(seed, farbaPlodu, siroka = false) {   // siroka = velke siroke listy (bananovnik)
   const r = rng(seed);
   const H = 2.3 + r() * 0.9;
   const casti = [farbi(new THREE.CylinderGeometry(0.15, 0.24, H, 7, 2), C(0x8ab04a)).translate(0, H / 2, 0)];
   casti.push(farbi(new THREE.CylinderGeometry(0.26, 0.28, 0.12, 7), C(0x6a5a30)).translate(0, 0.06, 0));
-  const n = 7 + Math.floor(r() * 2);
+  const n = siroka ? 5 : 7 + Math.floor(r() * 2);
   for (let i = 0; i < n; i++) {
-    const l = list(2.2 + r() * 0.5, 0.55, 0.7 + r() * 0.5, 1.7 + r() * 0.5, C(0x2f7a2a), C(0x8fc24a), 10);
+    const l = list(2.2 + r() * 0.5, siroka ? 1.0 : 0.55, 0.7 + r() * 0.5, 1.7 + r() * 0.5, C(0x2f7a2a), C(0x8fc24a), 10);
     l.rotateZ(0.2 + r() * 0.55).rotateY(i / n * PI2 + r() * 0.3).translate(0, H, 0);
     casti.push(l);
   }
@@ -619,6 +619,88 @@ function obsidianZila(seed) {
   return g;
 }
 
+// ---------- nove druhy: tropicka dzungla + nocna bioluminiscencia ----------
+const LIANA_L = 3.6;                       // dlzka modelu liany (od zeme hore); vegetacia.js ju zavesi z koruny
+
+// monstera: zhluk velkych srdcovitych listov na dlhych stopkach
+function monstera(seed) {
+  const r = rng(seed), casti = [];
+  const n = 4 + Math.floor(r() * 3);
+  for (let i = 0; i < n; i++) {
+    const L = 0.8 + r() * 0.6, a = i / n * PI2 + r() * 0.5, lean = 0.5 + r() * 0.5;
+    casti.push(farbi(new THREE.CylinderGeometry(0.02, 0.03, L, 4).translate(0, L / 2, 0), C(0x3f7a2a)).rotateZ(-lean).rotateY(-a));
+    const top = new V3(Math.sin(lean) * L, Math.cos(lean) * L, 0).applyAxisAngle(new V3(0, 1, 0), -a);
+    casti.push(srdcovyList(0.5 + r() * 0.25, C(0x1d5a2c), C(0x4fa04a)).rotateY(-a + r() * 0.6).translate(top.x, top.y, top.z));
+  }
+  return { zaklad: spoj(casti), plody: null, vyska: 1.5 };
+}
+
+// hibiskus / plumeria: zaobleny kriak posiaty sytymi kvetmi
+function hibiskus(seed, farbaKvetu) {
+  const r = rng(seed), casti = [], plody = [];
+  const farba = C([0x2f7a2c, 0x3d8a34, 0x2a6a2a][Math.floor(r() * 3)]);
+  const bloby = [];
+  for (let i = 0; i < 4 + Math.floor(r() * 2); i++) {
+    const rad = 0.45 + r() * 0.3, c = new V3((r() - 0.5) * 0.9, 0.45 + r() * 0.3, (r() - 0.5) * 0.9);
+    bloby.push({ c, rad });
+    casti.push(chumac(rad, farba, seed + i * 3).translate(c.x, c.y, c.z));
+  }
+  for (let i = 0; i < 14; i++) {                       // kvety po povrchu kriaka
+    const b = bloby[Math.floor(r() * bloby.length)], a = r() * PI2, e = 0.1 + r() * 1.2;
+    const dir = new V3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)).multiplyScalar(b.rad * 0.95);
+    plody.push(hlava(0.11 + r() * 0.04, C(farbaKvetu).offsetHSL(0, 0, (r() - 0.5) * 0.05), C(0xf5d040), 5)
+      .rotateY(r() * 6).translate(b.c.x + dir.x, b.c.y + dir.y, b.c.z + dir.z));
+  }
+  return { zaklad: spoj(casti), plody: spoj(plody), vyska: 1.3 };
+}
+
+// spiralna papraď: zvitok, ktory sa stacia do spirály; konce svietia nocou
+function spiralnaPapradie(seed) {
+  const r = rng(seed), casti = [];
+  const n = 5 + Math.floor(r() * 3), N = 18;
+  for (let i = 0; i < n; i++) {
+    const L = 0.8 + r() * 0.5, ds = L / N;
+    let phi = 0.9 + r() * 0.3, p = new V3(0, 0, 0);     // smer vetvy; s rastucim s sa zakrivuje (zvitok)
+    const P = [p];
+    for (let k = 0; k < N; k++) {
+      const s = k / N;
+      phi += 0.05 + 1.1 * s * s * s;
+      p = p.clone().add(new V3(Math.cos(phi) * ds, Math.sin(phi) * ds, 0));
+      P.push(p);
+    }
+    const my = Math.min(0, ...P.map(q => q.y));          // spodok zvitku na zemi
+    const pr = P.map((q, k) => ({ p: new V3(q.x, q.y - my, q.z), r: 0.045 * (1 - 0.6 * k / N) + 0.008, c: C(0x2f7a3a).lerp(C(0x7ff4e6), Math.pow(k / N, 2.2)) }));
+    casti.push(rura(pr, 5).rotateY(i / n * PI2 + r() * 0.4));
+  }
+  return { zaklad: spoj(casti), plody: null, vyska: 1.2 };
+}
+
+// svetlonos: vysoka hriba/lilia so ziarivym klobukom, nocou sama svieti
+function svetlonos(seed) {
+  const r = rng(seed), casti = [], plody = [];
+  const H = 1.3 + r() * 0.8, R = 0.4 + r() * 0.15;
+  casti.push(farbi(new THREE.CylinderGeometry(0.04, 0.09, H, 6, 1).translate(0, H / 2, 0), C(0x2c5a5a)));
+  casti.push(farbi(new THREE.SphereGeometry(R, 12, 6, 0, PI2, 0, Math.PI / 2).scale(1, 0.42, 1), C(0x5ff0e0)).translate(0, H, 0));
+  for (let i = 0; i < 6; i++) {                        // svetielkujuce bodky na klobuku
+    const a = r() * PI2, d = R * (0.3 + r() * 0.5);
+    plody.push(farbi(new THREE.IcosahedronGeometry(0.035, 0), C(0xe0fff8)).translate(Math.cos(a) * d, H + 0.04, Math.sin(a) * d));
+  }
+  return { zaklad: spoj(casti), plody: spoj(plody), vyska: H + R };
+}
+
+// liana: tenky popinavy vrec visiaci z koruny; geometria ma vrch hore (y = LIANA_L), listy po dlzke
+function liana(seed) {
+  const r = rng(seed), N = 14, pr = [], T = tro(), L = LIANA_L, ph = r() * 6;
+  const cV = C(0x2e6a2c), cS = C(0x7fd45a);
+  const P = k => new V3(Math.sin(k / N * 5 + ph) * 0.22, L * k / N, Math.cos(k / N * 3 + ph) * 0.12);
+  for (let k = 0; k <= N; k++) pr.push({ p: P(k), r: 0.03 * (1 - 0.4 * k / N) + 0.008, c: cV.clone().lerp(cS, k / N) });
+  for (let k = 2; k <= N; k++) for (const side of [-1, 1]) {   // po dvoch listkoch na kazdej strane
+    const p = P(k), tip = p.clone().add(new V3(side * 0.17, -0.05, side * (k % 2 ? 0.09 : -0.09)));
+    T.tri(p, tip, p.clone().add(new V3(0, 0.03, 0)), cV, cS, cV);
+  }
+  return { zaklad: spoj([rura(pr, 4), T.geo()]), plody: null, vyska: L };
+}
+
 // ---------- materialy s vetrom ----------
 function material(vietor, opts = {}) {
   const { zar, gradH = 2.5, ...mo } = opts;   // zar = [r,g,b] nocna biolumin. farba, gradH = vyska farebneho prechodu
@@ -663,6 +745,11 @@ export const M = {
   huba: material(0),
   kamen: material(0, { roughness: 0.95, ...FS }),
   obsidian: material(0, { roughness: 0.12, metalness: 0.35, envMapIntensity: 1.4, ...FS }),
+  monstera: material(0.05, { gradH: 1.5, zar: [0.0, 0.45, 0.5] }),
+  hibiskus: material(0.08, { gradH: 2.0, zar: [0.45, 0.2, 0.6] }),
+  alien: material(0.03, { gradH: 1.3, zar: [0.1, 0.8, 0.9] }),
+  svetlo: material(0.02, { gradH: 2.2, zar: [0.2, 0.9, 0.95] }),
+  liana: material(0.01, { gradH: LIANA_L, zar: [0.1, 0.5, 0.4] }),
 };
 
 // ---------- varianty (vyrobia sa raz pri starte) ----------
@@ -674,7 +761,7 @@ export const DRUHY = {
   mangrova: D('strom', true, [71, 72].map(mangrova)),
   mango: D('strom', true, [81, 82].map(mango)),
   akacia: D('strom', true, [91, 92].map(akacia)),
-  banan: D('banan', false, [[101, 0xa9c43f], [102, 0xe8c32a]].map(([s, f]) => banan(s, f))),
+  banan: D('banan', false, [[101, 0xa9c43f], [102, 0xe8c32a], [103, 0x7fb83a, true]].map(([s, f, w]) => banan(s, f, w))),
   bambus: D('bambus', true, [111, 112].map(bambus)),
   bobule: D('ker', false, [[121, 0xd2283a], [122, 0x3b46c0]].map(([s, f]) => bobule(s, f))),
   ker: D('ker', false, [21, 22].map(ker)),
@@ -691,4 +778,9 @@ export const DRUHY = {
   kamenMach: D('kamen', true, [64, 65].map(s => len(kamen(s, true)))),
   obsidianZila: D('obsidian', true, [81, 82, 83].map(s => len(obsidianZila(s)))),
   kamenSopka: D('kamen', true, [66, 67].map(s => len(kamen(s, false, 0x3a3836)))),
+  monstera: D('monstera', false, [201, 202].map(monstera)),
+  hibiskus: D('hibiskus', false, [[211, 0xe0304a], [212, 0xf07ab0], [213, 0xf5d040]].map(([s, f]) => hibiskus(s, f))),
+  spiral: D('alien', false, [221, 222].map(spiralnaPapradie)),
+  svetlonos: D('svetlo', false, [231, 232].map(svetlonos)),
+  liana: D('liana', false, [241].map(liana)),
 };
