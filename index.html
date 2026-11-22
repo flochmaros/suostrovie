@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Súostrovie</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <link rel="modulepreload" href="src/main.js">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
@@ -170,12 +176,6 @@
   #nac-text { font-size: 15px; font-weight: 700; } #nac-tip { margin-top: 28px; max-width: min(480px, 86vw); font-size: 14px; font-style: italic; opacity: .85; }
   #nacitanie { position: fixed; bottom: 12px; left: 14px; color: #fff; font-size: 12px; opacity: .7; }
 </style>
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
 </head>
 <body>
 <div id="hud">
