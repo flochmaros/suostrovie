@@ -558,7 +558,7 @@ function postavPredmety(o, skupina, r) {
     const typy = def.nahodne || ['palica', 'kamen'];
     for (let k = 0; k < (def.pocet ?? o.R * 0.5); k++) {
       const x = o.x + (r() * 2 - 1) * o.R * 1.2, z = o.z + (r() * 2 - 1) * o.R * 1.2, h = vyskaOstrova(o, x, z);
-      const typ = h < 1.4 && r() < 0.35 ? 'musla' : typy[Math.floor(r() * typy.length)];
+      const typ = typy[Math.floor(r() * typy.length)];
       if (h > 0.3 && h < 25 && PREDMETY[typ]) pridaj(typ, x, z);
     }
     return;

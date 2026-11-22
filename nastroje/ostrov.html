@@ -6,7 +6,13 @@
   #info { max-width: 380px; white-space: pre-wrap; line-height: 1.45; }
   a { color: #9cf; } .chyba { color: #f88; }
   .leg span { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
-</style></head><body>
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script></head><body>
 <canvas id="c" width="800" height="800"></canvas>
 <div id="info">Načítavam…</div>
 <script type="module">
@@ -14,6 +20,7 @@
 // Farby: more podla hlbky, piesok, trava podla vysky, skala na strmych svahoch; bodky = zony vegetacie; znacky = majak/flase/start.
 import { OSTROVY } from '../src/ostrovy/index.js';
 import * as P from '../src/ostrovy/pomoc.js';
+import * as THREE from 'three';
 const q = new URLSearchParams(location.search), id = q.get('id') || 'domov';
 const cv = document.getElementById('c'), g = cv.getContext('2d'), info = document.getElementById('info');
 const ZONY_F = ['#ffd54a', '#ff6b6b', '#6be3ff', '#c38bff', '#7dff8a', '#ff9d3c', '#ffffff', '#ff4fd8', '#3cffd2', '#b0b0ff'];
@@ -97,11 +104,32 @@ try {
     if (o.start) { znacka(...px(...o.start.hrac), 'hráč h=' + vyska(o, ...o.start.hrac).toFixed(2), '#40ff60'); znacka(...px(...o.start.kanoe), 'kanoe h=' + vyska(o, ...o.start.kanoe).toFixed(2), '#c08040'); }
     for (const [t, x, z] of o.predmety?.pevne || []) { g.fillStyle = '#fff'; g.fillRect(...px(x, z), 3, 3); }
     if (o.pamiatkyNahlad) for (const [x, z, r, t] of o.pamiatkyNahlad) { g.strokeStyle = '#ff0'; g.beginPath(); g.arc(...px(x, z), Math.max(2, r / mpp), 0, 7); g.stroke(); if (t) znacka(...px(x, z), t, '#ff0'); }
+    // pamiatky: vytvori modely ako v hre, nakresli ich podorys (oranzovo) a kolizie (cerveno)
+    let pam = 'žiadne';
+    if (o.pamiatky) {
+      const v = o.pamiatky({ ...P, THREE, vyska: (x, z) => vyska(o, x, z), mat: (c, op = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, ...op }) }) || {};
+      let siete = 0, troj = 0;
+      const box = new THREE.Box3();
+      for (const obj of v.objekty || []) {
+        obj.updateMatrixWorld(true);
+        obj.traverse(m => {
+          if (!m.isMesh) return;
+          const n = m.isInstancedMesh ? m.count : 1;
+          siete++; troj += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 * n;
+          box.setFromObject(m);
+          g.strokeStyle = '#ff9a2a'; g.lineWidth = 1;
+          const [ax, az] = px(box.min.x, box.min.z), [bx2, bz2] = px(box.max.x, box.max.z);
+          g.strokeRect(ax, az, Math.max(1, bx2 - ax), Math.max(1, bz2 - az));
+        });
+      }
+      for (const [x, z, r] of v.kolizie || []) { g.strokeStyle = '#ff3030'; g.beginPath(); g.arc(...px(x, z), Math.max(2, r / mpp), 0, 7); g.stroke(); }
+      pam = `${(v.objekty || []).length} objektov, ${siete} sietí (draw calls), ${Math.round(troj)} trojuholníkov, ${(v.kolizie || []).length} kolízií`;
+    }
     const mena = Object.keys(o.vegetacia?.zony || {});
     info.innerHTML = `<b>${o.meno}</b> (${id}) – ${o.podnadpis || ''}<br>R ${o.R} m, ext ${o.ext} m, 1 px = ${mpp.toFixed(2)} m, sever hore<br>`
       + `Súš: ${(st.sucho / 1e4).toFixed(2)} ha, max výška ${st.max.toFixed(1)} m, výpočet ${st.ms.toFixed(0)} ms<br><br><b>Zóny vegetácie</b> (plocha):<br>`
       + mena.map((m, i) => `<div class="leg"><span style="background:${ZONY_F[i % ZONY_F.length]}"></span>${m}: ${((st.zony[m] || 0) / 1e4).toFixed(2)} ha</div>`).join('')
-      + `<br>Biely kruh = R. Žlté kruhy = pamiatkyNahlad.<br><a href="?id=vsetky">celé súostrovie</a>`;
+      + `<br><b>Pamiatky:</b> ${pam}<br>Oranžové obdĺžniky = pôdorys modelov, červené kruhy = kolízie.<br>Biely kruh = R. Žlté kruhy = pamiatkyNahlad.<br><a href="?id=vsetky">celé súostrovie</a>`;
   }
 } catch (e) { info.innerHTML = `<span class="chyba">CHYBA: ${e.message}\n${e.stack}</span>`; console.error(e); }
 </script>
