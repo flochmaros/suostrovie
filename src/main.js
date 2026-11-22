@@ -6,7 +6,7 @@ import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
-import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych } from './kanoe.js';
+import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych, maxTrup, priPotopeni } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
 import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
@@ -18,7 +18,7 @@ import { initLodenice, polozLodenicu, najblizsiaLodenica, miestoSpustenia, ulozL
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
 import './obsah/jedlo.js';
 import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
-import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti } from './more.js';
+import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti, vypustNaklad } from './more.js';
 import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor } from './pocasie.js';
 import { initNastavenia } from './nastavenia.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
@@ -60,6 +60,7 @@ udalosti.priSplachu = (x, y, z, s) => {
   for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
 };
 initMore(scena);
+priPotopeni(vypustNaklad);                           // potopena lod: naklad vyplava v sudoch (more.js)
 moreUdalosti.priSplachu = udalosti.priSplachu;
 moreUdalosti.priZraneni = (dmg, pricina) => zran(dmg, pricina);
 initPocasie(g);
@@ -88,6 +89,7 @@ try {
       if (d.u) l.nastavUroven(d.u);
       if (d.v) for (const [kl, n] of Object.entries(d.v)) l.vylepsi(kl, n);
       if (Array.isArray(d.sk)) d.sk.slice(0, l.sklad.length).forEach((p, i) => { l.sklad[i] = p && PREDMETY[p.typ] ? p : null; });
+      l.trup = Math.min(d.tr ?? Infinity, maxTrup(l)); l.voda = d.vo ?? 0;     // stav trupu a voda v lodi
     }
     kanoe = lode[Math.max(0, Math.min(u.aktivna | 0, lode.length - 1))] || null;
     nacitajLodenice(u.lodenice);
@@ -111,7 +113,7 @@ if (!kanoe) kanoe = lode[0];
 function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
-      lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
+      lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
       ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
@@ -330,7 +332,13 @@ function hud(dt, p) {
     + `${Math.cos(cas * 2 * Math.PI / 300) > 0 ? 'Príliv ↑' : 'Odliv ↓'} ${pr >= 0 ? '+' : ''}${pr.toFixed(1)} m<br>${casText(poc)}${poc.burka ? ' · ⛈' : poc.dazd > 0.3 ? ' · 🌧' : ''}`;
   const stav = vKanoe ? `${kanoe.stat.nazov} · <b>${(kanoe.rychlost() * 1.944).toFixed(0)}</b> uzlov` + (kanoe.plachtaV > 0.5 ? ` · plachta ${Math.round(kanoe.ucinnost * 100)} %` : '')
     : hrac.potapa ? 'Potápaš sa' : hrac.plava ? 'Plávaš' : 'Pešo';
-  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b> <span style="opacity:.75">· pásmo ${pasmoAkt}</span><br>${stav}<br>Objavené ostrovy: ${objavene.size}`;
+  // stav lode: trup a voda v lodi (cervene, ked hrozi potopenie)
+  const lodStav = vKanoe || naPalube ? (() => {
+    const tr = Math.round(kanoe.trup / maxTrup(kanoe) * 100), vo = Math.round(kanoe.voda * 100);
+    const f = (txt, zle) => zle ? `<b style="color:#ff8a6a">${txt}</b>` : txt;
+    return `<br>${f(`Trup ${tr} %`, tr < 30)} · ${f(`Voda v lodi ${vo} %`, vo > 50)}${vo > 5 ? ' <span style="opacity:.7">(drž V)</span>' : ''}`;
+  })() : '';
+  $('info').innerHTML = `<b>${o ? o.meno : 'Otvorené more'}</b> <span style="opacity:.75">· pásmo ${pasmoAkt}</span><br>${stav}${lodStav}<br>Objavené ostrovy: ${objavene.size}`;
   $('dych').style.display = hrac.dych < 1 && !vKanoe ? 'block' : 'none';
   $('dych').firstChild.style.width = hrac.dych * 100 + '%';
 }
@@ -355,6 +363,7 @@ function aktualizuj(dt) {
   const letim = aktualizujDev(dt, g);
   if (!vKanoe && !naPalube) kanoe = lodBlizko(1e9) || kanoe;                    // na brehu je aktivna najblizsia lod
   const lx = vKanoe || naPalube ? kanoe.poz.x : hrac.poz.x, lz = vKanoe || naPalube ? kanoe.poz.y : hrac.poz.z;
+  for (const l of lode) l.posadka = (vKanoe || naPalube) && l === kanoe;          // len posadka moze vylievat vodu (V)
   for (const l of lode) if (!(vKanoe && l === kanoe) && Math.hypot(l.poz.x - lx, l.poz.y - lz) < 250) l.aktualizuj(dt, cas, false);
   kolizieLodi(lode);
   const dosahLode = 4.5 + kanoe.stat.dlzka * 0.12;
@@ -368,6 +377,11 @@ function aktualizuj(dt) {
   }
   if (stlacene('KeyR') && !stavPreziti.mrtvy && (vKanoe || naPalube || Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode)) {
     if (jeOtvoreny()) { prepniBatoh(false); zamkni(); } else otvorOkno('sklad', kanoe.sklad, `Sklad: ${kanoe.stat.nazov}`);
+  }
+  if (stlacene('KeyG') && !stavPreziti.mrtvy && (vKanoe || naPalube || Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode)) {   // oprava trupu
+    if (kanoe.trup >= maxTrup(kanoe)) oznam('Trup je v poriadku');
+    else if (pocet('drevo') < 2 || pocet('vlakno') < 1) oznam(`Na opravu treba 2 ${PREDMETY.drevo.ikona} drevo a 1 ${PREDMETY.vlakno.ikona} vlákno`);
+    else { kanoe.opravTrup(); odober('drevo', 2); odober('vlakno', 1); vykresliInventar(); zvuky.uder('drevo'); oznam(`🔨 Trup opravený: ${Math.round(kanoe.trup / maxTrup(kanoe) * 100)} %`); }
   }
   for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
   if (stlacene('KeyF') && !stavPreziti.mrtvy) {           // zjest / vypit vybrany predmet

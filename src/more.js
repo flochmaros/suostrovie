@@ -566,7 +566,16 @@ function aktualizujDno(px, pz) {
 }
 
 // ---------- plavajuce predmety (sudy, drevo) ----------
-let meshBarel, meshDrevo;
+let meshBarel, meshDrevo, cisloNakladu = 0;
+// naklad z potopenej lode: kazda polozka = jeden sud, ktory pomaly krazi okolo miesta potopenia (neuklada sa)
+export function vypustNaklad(x, z, polozky) {
+  const ch = chunky.get(Math.floor(x / CH) + ',' + Math.floor(z / CH));
+  if (!ch) return;
+  polozky.forEach((obsah, i) => {
+    const a = i * 2.4 + Math.random(), r = 2.5 + i * 0.8, x0 = x + Math.cos(a) * r, z0 = z + Math.sin(a) * r;
+    ch.plav.push({ id: 'naklad' + cisloNakladu++, typ: 'barel', obsah: [obsah], x0, z0, ph: Math.random() * 6.28, R: 1.5, w: 0.04, ry: Math.random() * 6.28, x: x0, z: z0, y: 0, hotovo: false });
+  });
+}
 function aktualizujPlavajuce(cas) {
   let nb = 0, nd = 0;
   for (const ch of chunky.values()) for (const p of ch.plav) {
@@ -795,7 +804,9 @@ export function najdiMorskyZber(x, y, z) {
     akcia: () => {
       if (naj.p) {
         if (naj.p.hotovo) return [];
-        naj.p.hotovo = true; zobrate.add(naj.p.id);
+        naj.p.hotovo = true;
+        if (naj.p.obsah) return naj.p.obsah;           // sud s nakladom z potopenej lode
+        zobrate.add(naj.p.id);
       } else {
         const q = naj.q;
         if (q.hotovo) return [];

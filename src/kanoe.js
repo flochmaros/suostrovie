@@ -72,7 +72,32 @@ export function maxPasmo(k) {
   return { pretekove: 2, barza: 2, katamaran: 4 }[k.druh] ?? 1;
 }
 const dovolenePasmo = k => { const m = maxPasmo(k); return m >= 4 ? 5 : m; };
-const CAS_DO_PREVRATENIA = 9, CAS_PREVRATENA = 6;   // s v prilis divokom mori / s kym je lod prevratena
+const CAS_PREVRATENA = 6;                            // s kym je lod prevratena
+
+// ---------- nabrata voda a trup ----------
+// k.voda 0..1 = kolko vody je v lodi (1 = potopi sa), k.trup 0..maxTrup = zivoty trupu (0 = rozpadne sa / potopi).
+// Lepsia lod: viac zivotov a mensia "netesnost" (menej vody nateka). Vylepsenie trupu oboje zlepsi.
+export function maxTrup(k) {
+  const z = k.druh === 'kanoe' ? [50, 50, 70, 90, 110][k.uroven] ?? 50 : { pretekove: 60, barza: 140, katamaran: 160 }[k.druh] ?? 60;
+  return Math.round(z * (1 + 0.1 * (k.vyl?.trup ?? 0)));
+}
+function netesnost(k) {
+  const n = k.druh === 'kanoe' ? [1, 1, 0.85, 0.7, 0.6][k.uroven] ?? 1 : { pretekove: 0.9, barza: 0.8, katamaran: 0.5 }[k.druh] ?? 1;
+  return n * (1 - 0.08 * (k.vyl?.trup ?? 0));
+}
+// otvorena paluba (barza, katamaran): voda sama pomaly odteka cez skvaly; kanoe treba vylievat
+const ODTOK = { barza: 0.006, katamaran: 0.008 };
+export const VODA = {
+  divoke: 0.012,       // /s pri 1 pasme nad schopnost lode (x nad^2): 2 pasma = 4x viac -> potopi aj pri vylievani
+  sprej: 0.005,        // za naraz pridy do vlny (x sila narazu)
+  diera: 0.01,         // /s pri trupe na 0 % (netesnost zacina pod 70 %)
+  vylievanie: 0.035,   // /s ked hrac drzi V
+  opotrebenie: 0.25,   // zivotov/s pri 1 pasme nad (x nad^2)
+  narazBreh: 4,        // zivotov za naraz do brehu pri 1 m/s nad 2.5 m/s
+  oprava: 0.25,        // podiel zivotov za jednu opravu (G: 2 drevo + 1 vlakno)
+};
+let _vypustNaklad = null;                             // main.js: (x, z, [[id, n], ...]) -> sudy na hladine
+export function priPotopeni(fn) { _vypustNaklad = fn; }
 
 export const vietor = { smer: 0.8, sila: 0.8 };       // smer = kam fuka (rovnaky uhol ako smer kanoe)
 export function aktualizujVietor(t) {
@@ -386,6 +411,10 @@ export function drzNaPalube(P, lx, lz) {
 export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
   const model = new THREE.Group();
   scena.add(model);
+  const vodaVLodi = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x3a8f9a, transparent: true, opacity: 0.8, roughness: 0.15 }));
+  vodaVLodi.visible = false;
+  model.add(vodaVLodi);
 
   let dStopy = 0, casPorucha = 0, casSpr = 0;
   let vlastne = [];
@@ -412,7 +441,15 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
     SEDADLO: new THREE.Vector3(0, 0.27, 0.6),
     rychlost: () => k.rych.length(),
     // divoke more: riziko 0..1, hlaska (text pre HUD, main ju vyzdvihne), prevrat (true = hrac ma vypadnut)
-    riziko: 0, hlaska: null, prevrat: false, prevratCas: 0, prevrUhol: 0, hlaskaCas: 0,
+    hlaska: null, prevrat: false, prevratCas: 0, prevrUhol: 0, hlaskaCas: 0,
+    // voda v lodi 0..1, zivoty trupu, posadka = hrac je na lodi (main.js) -> moze vylievat
+    voda: 0, trup: 0, posadka: false,
+    opravTrup() {                                    // vrati true, ak bolo co opravit
+      const MT = maxTrup(k);
+      if (k.trup >= MT) return false;
+      k.trup = Math.min(MT, k.trup + MT * VODA.oprava);
+      return true;
+    },
 
     // prestavba modelu na inu uroven kanoe (1..4); ostatne druhy maju jeden model
     nastavUroven(n) {
@@ -454,7 +491,9 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       // zaber padla: tah pulzuje v rytme padla (priemer ostava rovnaky) - lod "skace" dopredu po kazdom zabere
       const pulz = k.padlo ? 0.45 + 1.1 * Math.sin(k.faza) ** 2 : 1;
       vf += (tah * S.pad * pulz + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
-      vf -= (vf * Math.abs(vf) * 0.055 * S.odpor + vf * 0.08) * dt;           // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)
+      // tazka lod (voda v nej) a poskodeny trup = vacsi odpor
+      const zataz = 1 + 1.2 * k.voda + 0.35 * (1 - k.trup / maxTrup(k));
+      vf -= (vf * Math.abs(vf) * 0.055 * S.odpor * zataz + vf * 0.08) * dt;   // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)
       vf -= vf * Math.min(Math.abs(k.uhlRych), 1.5) * 0.22 * dt;     // v zakrute trup brzdi
       vf -= 9.81 * (k.sklonP ?? 0) * F.surf * dt;                      // gravitacia na svahu vlny: dole vlnou zrychli, do vlny spomali
       vr -= 9.81 * (k.sklonR ?? 0) * F.surf * 0.4 * dt;                // vlna tlaci lod aj do boku
@@ -481,6 +520,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       }
       if (narazil) {
         if (Math.abs(vf) > 3) zvuky.uder('drevo');
+        if (Math.abs(vf) > 2.5) poskod((Math.abs(vf) - 2.5) * VODA.narazBreh, 'Trup narazil do brehu!');
         k.rych.multiplyScalar(-0.15);
       } else k.poz.set(nx, nz);
       for (const [cx, cz, r] of kruhy(k, S)) for (const u of uzlyPri(cx, cz)) {     // stromy a balvany v plytkej vode
@@ -503,7 +543,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       k.sklonR = (sumPr - sumL) / 4 / (rozchod + rozL);               // sklon naprieč (+ = pravy bok vyssie)
       // ciele: kam by sa lod ustalila; pruzina s tlmicom k nim dotiahne vysku, predklon aj naklon (zotrvacnost = dokmitavanie)
       const plachtaSila = S.plachta * vietor.sila * k.plachtaV;
-      const cY = hS - 0.08;
+      const cY = hS - 0.08 - k.voda * 0.3 * (S.hlbka ?? 0.4);       // plna lod sedi nizsie
       const cP = Math.atan(k.sklonP) + Math.min(Math.abs(vf), 14) * F.klz;   // pri rychlosti dvihne pridu
       const cR = Math.atan(k.sklonR) * (S.rollK ?? 1) + F.nakZat * k.uhlRych * vf + Math.sin(rel) * plachtaSila * F.vietorN;
       if (k.prvy) { k.y = cY; k.pitch = cP; k.roll = cR; k.prvy = false; }
@@ -523,6 +563,7 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
         const sila = Math.min(rychlostPonoru, 2.5) * Math.min(rychlVpred / 8, 1.5);
         k.casSpreju = 0.3;
         k.vPitch += sila * 0.22;
+        if (!S.paluba) k.voda = Math.min(1, k.voda + VODA.sprej * sila * netesnost(k));   // vlna cez pridu (do otvorenej kanoe)
         vf *= 1 - 0.025 * sila;
         k.rych.set(nfx * vf + nrx * vr, nfz * vf + nrz * vr);
         const bx = k.poz.x + nfx * L2, bz = k.poz.y + nfz * L2, n = Math.round(Math.min(26, sila * 9 * F.sprej));
@@ -535,24 +576,48 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
         for (const [cx, hw] of trupy(S)) stopaLode(1, bx + nrx * cx, bz + nrz * cx, 0, 0, 0, hw * 3 + 1, hw * 3 + 1, 0.05, 1.1, 2.5, 0.8);
         if (sila > 1.2) zvuky.padlo();
       }
-      // prilis divoke more pre tuto lod: kolisanie, varovanie, nakoniec prevratenie
+      // prilis divoke more pre tuto lod: vlny sa prelievaju cez bok (voda v lodi) a namahaju trup.
+      // Plna lod alebo rozbity trup = potopenie (hrac vo vode, cast nakladu vyplava v sudoch).
       const nad = pasmoPlynule(k.poz.x, k.poz.y) - dovolenePasmo(k);
+      const MT = maxTrup(k);
       let kolis = 0;
       k.hlaskaCas -= dt;
       if (k.prevratCas > 0) {
         k.prevratCas -= dt;
-        k.riziko = 0;
         if (k.prevratCas <= 0) k.hlaskaCas = 0;
-      } else if (nad > 0.3) {
-        k.riziko += dt * (1 + Math.min(nad, 2) * 0.5) / CAS_DO_PREVRATENIA;
-        const sila = Math.min(1, k.riziko * 1.5);
-        kolis = Math.sin(t * 1.7) * (0.07 + 0.2 * sila) + Math.sin(t * 2.9 + 1) * 0.05 * sila;
-        if (k.riziko > 0.1 && k.hlaskaCas <= 0) { k.hlaska = 'More je na túto loď príliš divoké!'; k.hlaskaCas = 6; }
-        if (k.riziko >= 1) { k.prevrat = true; k.prevratCas = CAS_PREVRATENA; k.riziko = 0; k.hlaska = 'Loď sa prevrátila!'; zvuky.uder?.('drevo'); }
-      } else k.riziko = Math.max(0, k.riziko - dt / 4);
+      } else {
+        // prazdna lod (bez posadky) sa nenapĺňa ani neopotrebuje - nepotopi sa opakovane a nestrati dalsi naklad
+        const N = netesnost(k), divoke = k.posadka ? Math.max(0, nad) : 0;
+        let pritok = k.posadka ? N * (VODA.divoke * divoke * divoke + VODA.diera * Math.max(0, 0.7 - k.trup / MT) / 0.7) : 0;
+        if (k.posadka && klavesy.has('KeyV')) {
+          pritok -= VODA.vylievanie;
+          if (k.voda > 0.01 && Math.random() < dt * 6) {                 // vychrstnuta voda cez bok
+            const s = Math.random() < 0.5 ? 1 : -1, bx = k.poz.x + nrx * s * (S.sirka + 0.3), bz = k.poz.y + nrz * s * (S.sirka + 0.3);
+            for (let i = 0; i < 4; i++) pena.vypust(bx, k.y + 0.5, bz, nrx * s * (1.5 + Math.random()), 1 + Math.random(), nrz * s * (1.5 + Math.random()), 0xd8f4ff, 0.35);
+          }
+        }
+        pritok -= ODTOK[k.druh] ?? 0;
+        k.voda = THREE.MathUtils.clamp(k.voda + pritok * dt, 0, 1);
+        if (divoke > 0) poskod(VODA.opotrebenie * divoke * divoke * dt);
+        const sila = Math.min(1, divoke * 0.6 + k.voda * 0.5);
+        if (sila > 0) kolis = Math.sin(t * 1.7) * (0.04 + 0.16 * sila) + Math.sin(t * 2.9 + 1) * 0.04 * sila;
+        if (k.hlaskaCas <= 0) {
+          if (divoke > 0.15 && k.voda < 0.3) { k.hlaska = 'More je na túto loď príliš divoké – vlny sa prelievajú cez bok!'; k.hlaskaCas = 8; }
+          else if (k.voda > 0.5) { k.hlaska = `V lodi je veľa vody (${Math.round(k.voda * 100)} %) – vylievaj (drž V)!`; k.hlaskaCas = 6; }
+          else if (k.trup < MT * 0.3) { k.hlaska = 'Trup je poškodený a presakuje – oprav ho (G: 2 drevo + 1 vlákno)'; k.hlaskaCas = 10; }
+        }
+        if (k.voda >= 1 || k.trup <= 0) potop(k.trup <= 0 ? 'Trup sa rozbil – loď sa prevrátila!' : 'Loď sa naplnila vodou a prevrátila!');
+      }
       k.prevrUhol = tlm(k.prevrUhol, k.prevratCas > 0 ? 2.9 : 0, k.prevratCas > 0 ? 3 : 1.2, dt);
       model.position.set(k.poz.x, k.y - Math.sin(Math.min(k.prevrUhol, 3)) * 0.15, k.poz.y);
       model.rotation.set(k.pitch, k.smer, k.roll + kolis + k.prevrUhol, 'YXZ');
+      // hladina vody v otvorenej kanoe (elipsa v priereze trupu)
+      vodaVLodi.visible = !S.paluba && k.voda > 0.02 && k.prevratCas <= 0;
+      if (vodaVLodi.visible) {
+        const dd = 1 - Math.min(k.voda, 1) * 0.85, f = Math.sqrt(Math.max(0.05, 1 - dd * dd));
+        vodaVLodi.position.set(0, 0.32 - S.hlbka * dd, 0);
+        vodaVLodi.scale.set(S.sirka * f * 0.97, 1, DLZKA * 0.45 * Math.sqrt(f));
+      }
 
       // plachta po vetre
       const plachta = k.plachta, padlo = k.padlo, K = k.plachtaK;
@@ -638,7 +703,27 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       }
     },
   };
+  function poskod(o, text) {
+    if (k.prevratCas > 0) return;
+    k.trup = Math.max(0, k.trup - o);
+    if (text && o > 2) { k.hlaska = `${text} Trup ${Math.round(k.trup / maxTrup(k) * 100)} %`; k.hlaskaCas = 3; }
+  }
+  // potopenie: lod sa prevrati, voda sa vyleje, ~30 % nakladu vyplava v sudoch (main.js ich polozi na hladinu)
+  function potop(text) {
+    k.prevrat = true; k.prevratCas = CAS_PREVRATENA; k.hlaska = text; k.hlaskaCas = 6;
+    zvuky.uder?.('drevo');
+    k.voda = 0;
+    k.trup = Math.max(k.trup, maxTrup(k) * 0.2);    // lod ostane plavat, da sa na nej doplavat domov
+    const stratene = [];
+    k.sklad.forEach((s, i) => {
+      if (!s || Math.random() > 0.3) return;
+      stratene.push([s.typ, s.pocet]); k.sklad[i] = null;
+    });
+    if (stratene.length) _vypustNaklad?.(k.poz.x, k.poz.y, stratene);
+  }
+
   if (druh === 'kanoe') k.nastavUroven(1); else zamen(postavDruh(druh));
+  k.trup = maxTrup(k);
   lodeMasky.push(k);                                 // voda pod palubou (ocean.js) - len lode so stat.maska
   return k;
 }
