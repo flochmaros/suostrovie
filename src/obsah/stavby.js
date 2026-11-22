@@ -308,7 +308,7 @@ export const STAVBY = {
 
   kamenna_pec: {
     meno: 'Kamenná pec', ikona: ik('fireplace', '#a19d95'), skupina: 'Tábor',
-    suroviny: [['kamen', 10], ['drevo', 2]],
+    suroviny: [['kamen', 10], ['hlina', 6], ['drevo', 2]],
     popis: 'Ohnisko z kameňov s komínom.',
     prichyt: 'volne', polomer: 0.9,
     model: zloz([

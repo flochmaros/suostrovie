@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>Náhľad ostrova</title>
+<style>
+  body { margin: 0; background: #10202c; color: #e8eef2; font: 13px system-ui, sans-serif; display: flex; gap: 14px; padding: 12px; }
+  canvas { background: #0c3a63; image-rendering: pixelated; border: 1px solid #345; }
+  #info { max-width: 380px; white-space: pre-wrap; line-height: 1.45; }
+  a { color: #9cf; } .chyba { color: #f88; }
+  .leg span { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
+</style></head><body>
+<canvas id="c" width="800" height="800"></canvas>
+<div id="info">Načítavam…</div>
+<script type="module">
+// Nahlad rucne navrhnuteho ostrova zhora (bez Three.js): ?id=<id ostrova>  alebo  ?id=vsetky (cela mapa pasiem 1-3)
+// Farby: more podla hlbky, piesok, trava podla vysky, skala na strmych svahoch; bodky = zony vegetacie; znacky = majak/flase/start.
+import { OSTROVY } from '../src/ostrovy/index.js';
+import * as P from '../src/ostrovy/pomoc.js';
+const q = new URLSearchParams(location.search), id = q.get('id') || 'domov';
+const cv = document.getElementById('c'), g = cv.getContext('2d'), info = document.getElementById('info');
+const ZONY_F = ['#ffd54a', '#ff6b6b', '#6be3ff', '#c38bff', '#7dff8a', '#ff9d3c', '#ffffff', '#ff4fd8', '#3cffd2', '#b0b0ff'];
+const DNO = -25;
+const hex = h => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+function vyska(o, lx, lz) {          // rovnako ako svet.js: na okraji stvorca prechod do dna
+  const e = Math.max(Math.abs(lx), Math.abs(lz)) / o.ext;
+  if (e >= 1) return DNO;
+  const h = o.vyska(lx, lz, P), w = P.smooth(0.82, 1, e), m = P.hmax(h, DNO, 6);
+  return m + (DNO - m) * w;
+}
+function farba(o, h, sklon) {
+  const tr = o.farby?.tr || [0x5fae3a, 0x3f8f2e];
+  if (h < 0) return mix(hex(0x6fe0d2), h > -9 ? hex(0x2296b8) : hex(0x0c3a63), Math.min(1, -h / (h > -9 ? 9 : 34)));
+  if (h < (o.farby?.plaz ?? 1.4)) return hex(o.farby?.piesok ?? 0xefe0bb);
+  let c = mix(hex(tr[0]), hex(tr[1]), P.clamp(h / (o.H || 10), 0, 1));
+  if (sklon > 0.9) c = mix(c, hex(o.farby?.skala ?? 0x87827a), P.clamp((sklon - 0.9) * 1.5, 0, 1));
+  return c.map(v => v * (0.75 + 0.25 * P.clamp(1 - sklon * 0.3, 0, 1)));
+}
+function kresliOstrov(o, x0, z0, mpp, W, H, zony = true) {      // x0,z0 = lavy horny roh vo svete ostrova (lokalne), mpp = metrov na pixel
+  const img = g.getImageData(0, 0, W, H), d = img.data, st = { sucho: 0, max: -99, zony: {} };
+  const t0 = performance.now();
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const lx = x0 + i * mpp, lz = z0 + j * mpp;
+    if (Math.max(Math.abs(lx), Math.abs(lz)) > o.ext) continue;
+    const h = vyska(o, lx, lz), s = Math.abs(vyska(o, lx + 1, lz) - h) + Math.abs(vyska(o, lx, lz + 1) - h);
+    const c = farba(o, h, s), k = (j * W + i) * 4;
+    d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+    if (h > 0) { st.sucho += mpp * mpp; st.max = Math.max(st.max, h); }
+  }
+  g.putImageData(img, 0, 0);
+  st.ms = performance.now() - t0;
+  if (!zony || !o.vegetacia) return st;
+  const mena = Object.keys(o.vegetacia.zony);
+  const krok = Math.max(4, mpp * 6);
+  for (let lz = -o.ext; lz < o.ext; lz += krok) for (let lx = -o.ext; lx < o.ext; lx += krok) {
+    const h = vyska(o, lx, lz), z = o.vegetacia.zona(lx, lz, h, P);
+    if (!z) continue;
+    st.zony[z] = (st.zony[z] || 0) + krok * krok;
+    g.fillStyle = ZONY_F[mena.indexOf(z) % ZONY_F.length] + 'aa';
+    g.fillRect((lx - x0) / mpp - 1, (lz - z0) / mpp - 1, 2, 2);
+  }
+  return st;
+}
+function znacka(x, y, text, farba) {
+  g.fillStyle = farba; g.strokeStyle = '#000'; g.lineWidth = 3;
+  g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.stroke();
+  g.font = 'bold 12px system-ui'; g.strokeText(text, x + 8, y + 4); g.fillText(text, x + 8, y + 4);
+}
+try {
+  if (id === 'vsetky') {
+    const W = 800, mpp = 9, x0 = 260 - W * mpp / 2, z0 = 260 - W * mpp / 2;
+    g.fillStyle = '#0c3a63'; g.fillRect(0, 0, W, W);
+    for (const { id: i, def, x, z } of OSTROVY) {
+      const px = (x - x0) / mpp, pz = (z - z0) / mpp, n = Math.ceil(def.ext * 2 / mpp);
+      const c2 = document.createElement('canvas'); c2.width = c2.height = n;
+      const g2 = c2.getContext('2d'), img = g2.createImageData(n, n);
+      for (let j = 0; j < n; j++) for (let k = 0; k < n; k++) {
+        const lx = -def.ext + k * mpp, lz = -def.ext + j * mpp, h = vyska(def, lx, lz);
+        if (h < -6) continue;
+        const c = farba(def, h, 0), q = (j * n + k) * 4;
+        img.data[q] = c[0]; img.data[q + 1] = c[1]; img.data[q + 2] = c[2]; img.data[q + 3] = 255;
+      }
+      g2.putImageData(img, 0, 0);
+      g.drawImage(c2, px - n / 2, pz - n / 2);
+      g.strokeStyle = '#fff3'; g.strokeRect(px - n / 2, pz - n / 2, n, n);
+      znacka(px, pz, def.meno, '#fff');
+    }
+    info.textContent = 'Celé súostrovie (pásma 1–3), 1 px = 9 m, sever hore.\n' + OSTROVY.map(o => `<a href="?id=${o.id}">${o.id}</a>`).join(' · ');
+    info.innerHTML = info.textContent;
+  } else {
+    const ent = OSTROVY.find(o => o.id === id);
+    if (!ent) throw new Error('Neznámy ostrov ' + id);
+    const o = ent.def, W = 800, mpp = o.ext * 2 / W;
+    const st = kresliOstrov(o, -o.ext, -o.ext, mpp, W, W);
+    const px = (x, z) => [(x + o.ext) / mpp, (z + o.ext) / mpp];
+    g.strokeStyle = '#ffffff55'; g.beginPath(); g.arc(...px(0, 0), o.R / mpp, 0, 7); g.stroke();       // kruh R
+    if (o.majak) znacka(...px(...o.majak), 'MAJÁK h=' + vyska(o, ...o.majak).toFixed(1), '#ff4040');
+    (o.flase || []).forEach((f, i) => znacka(...px(...f), 'fľaša h=' + vyska(o, ...f).toFixed(2), '#40c0ff'));
+    if (o.start) { znacka(...px(...o.start.hrac), 'hráč h=' + vyska(o, ...o.start.hrac).toFixed(2), '#40ff60'); znacka(...px(...o.start.kanoe), 'kanoe h=' + vyska(o, ...o.start.kanoe).toFixed(2), '#c08040'); }
+    for (const [t, x, z] of o.predmety?.pevne || []) { g.fillStyle = '#fff'; g.fillRect(...px(x, z), 3, 3); }
+    if (o.pamiatkyNahlad) for (const [x, z, r, t] of o.pamiatkyNahlad) { g.strokeStyle = '#ff0'; g.beginPath(); g.arc(...px(x, z), Math.max(2, r / mpp), 0, 7); g.stroke(); if (t) znacka(...px(x, z), t, '#ff0'); }
+    const mena = Object.keys(o.vegetacia?.zony || {});
+    info.innerHTML = `<b>${o.meno}</b> (${id}) – ${o.podnadpis || ''}<br>R ${o.R} m, ext ${o.ext} m, 1 px = ${mpp.toFixed(2)} m, sever hore<br>`
+      + `Súš: ${(st.sucho / 1e4).toFixed(2)} ha, max výška ${st.max.toFixed(1)} m, výpočet ${st.ms.toFixed(0)} ms<br><br><b>Zóny vegetácie</b> (plocha):<br>`
+      + mena.map((m, i) => `<div class="leg"><span style="background:${ZONY_F[i % ZONY_F.length]}"></span>${m}: ${((st.zony[m] || 0) / 1e4).toFixed(2)} ha</div>`).join('')
+      + `<br>Biely kruh = R. Žlté kruhy = pamiatkyNahlad.<br><a href="?id=vsetky">celé súostrovie</a>`;
+  }
+} catch (e) { info.innerHTML = `<span class="chyba">CHYBA: ${e.message}\n${e.stack}</span>`; console.error(e); }
+</script>
+</body></html>

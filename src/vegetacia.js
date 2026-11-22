@@ -9,7 +9,8 @@ import * as THREE from 'three';
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
 import { ZDROJE, hodVynos } from './obsah/zdroje.js';
 import { DRUHY, M } from './svet/modely.js';
-import { BUNKA } from './svet.js';
+import { BUNKA, klucOstrova } from './svet.js';
+import * as POMOC from './ostrovy/pomoc.js';
 
 const perlin = new ImprovedNoise();
 const V3 = THREE.Vector3;
@@ -42,9 +43,13 @@ const PRAVIDLA = {
   hibiskus: { ymin: 1.5, ymax: 9, sklon: 1.1, odstup: 1.6, m: [0.8, 1.25], rK: 0, rZ: 0, odtien: 0.06, naklon: 0.08, dy: -0.05 },
   spiral:   { ymin: 2.0, sklon: 1.2, odstup: 1.2, m: [0.8, 1.3], rK: 0, rZ: 0, odtien: 0.1, naklon: 0.1, dy: 0 },
   svetlonos: { ymin: 1.5, sklon: 1.2, odstup: 1.6, m: [0.8, 1.3], rK: 0, rZ: 0, odtien: 0.08, naklon: 0.08, dy: -0.05 },
+  // suroviny rucnych ostrovov
+  hlina:    { ymin: 0.6, ymax: 12, sklon: 0.6, odstup: 4, m: [0.9, 1.5], rK: 0, rZ: 1.2, odtien: 0.08, naklon: 0.05, dy: -0.05 },
+  sira:     { ymin: 0.5, sklon: 1.4, odstup: 3, m: [0.8, 1.4], rK: 0.6, rZ: 0.6, odtien: 0.06, naklon: 0.2, dy: -0.1 },
+  gumovnik: { ymin: 1.5, sklon: 1.0, odstup: 6, m: [0.85, 1.25], rK: 0.5, rZ: 0.7, odtien: 0.1, naklon: 0.03, dy: -0.2 },
 };
-const PORADIE = ['palma', 'mangrova', 'strom', 'mango', 'akacia', 'bambus', 'balvan', 'obsidian', 'banan', 'bobule', 'ker', 'ibistek', 'ananas',
-  'aloe', 'taro', 'trstina', 'papradie', 'huba', 'kvet', 'monstera', 'hibiskus', 'spiral', 'svetlonos', 'trava', 'kamienky'];
+const PORADIE = ['gumovnik', 'palma', 'mangrova', 'strom', 'mango', 'akacia', 'bambus', 'balvan', 'obsidian', 'banan', 'bobule', 'ker', 'ibistek', 'ananas',
+  'aloe', 'taro', 'trstina', 'hlina', 'sira', 'papradie', 'huba', 'kvet', 'monstera', 'hibiskus', 'spiral', 'svetlonos', 'trava', 'kamienky'];
 
 // hustota = pokusov na 100 m2 ostrova (k = nasobok poctu pokusov pre biomy, kde je sucho malo)
 const HUSTOTY = {
@@ -57,6 +62,7 @@ const HUSTOTY = {
   bambusovy: { bambus: 1.0, strom: 0.15, papradie: 0.5, ker: 0.3, banan: 0.1, trava: 8, kvet: 0.2, huba: 0.15, balvan: 0.1, trstina: 0.05, kamienky: 0.2, spiral: 0.25, svetlonos: 0.1, monstera: 0.15 },
   savana:   { akacia: 0.12, strom: 0.05, mango: 0.05, ker: 0.3, bobule: 0.15, ibistek: 0.15, aloe: 0.2, ananas: 0.05, trava: 38, kvet: 1.2, hibiskus: 0.1, balvan: 0.1, kamienky: 0.4 },
   plytcina: { k: 1.6, palma: 0.5, ker: 0.2, trava: 3, kamienky: 0.6, trstina: 0.05 },
+  ostrovcek: { k: 1.6, palma: 0.9, ker: 0.25, trava: 6, kvet: 0.15, kamienky: 0.6 },   // maly ostrovcek medzi rucnymi ostrovmi
   ovocny:   { mango: 0.6, banan: 0.7, palma: 0.3, ananas: 0.6, bobule: 0.5, ker: 0.3, ibistek: 0.2, kvet: 0.5, trava: 14, taro: 0.1, papradie: 0.2, strom: 0.1, monstera: 0.2, hibiskus: 0.3 },
 };
 
@@ -97,16 +103,24 @@ function zobrazPlod(u) {
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s3 = new V3(), p3 = new V3(), farba = new THREE.Color();
 
 // asi 40 % ostrovov je "bujnych" - vegetacia 2.5x hustejsia (nie sopky a plytciny)
-export const jeBujny = o => o.biom !== 'sopecny' && o.biom !== 'plytcina' && (o.seed % 100) < 40;
+export const jeBujny = o => o.menovany ? !!o.bujny : o.biom !== 'sopecny' && o.biom !== 'plytcina' && (o.seed % 100) < 40;
 export let nasobokHustoty = 1;                      // dev rezim: globalny nasobok hustoty
 export function nastavHustotu(n) { nasobokHustoty = n; }
 
 export function postavVegetaciu(o, skupina, r, h, zobrate) {
-  const B = HUSTOTY[o.biom] || HUSTOTY.palmovy;
+  // rucny ostrov: zony (zona(x,z,h) -> meno), hustota druhu = hustota v zone bodu; vzorkuje sa cely stvorec terenu
+  const V = o.menovany ? o.vegetacia : null;
+  let B = HUSTOTY[o.biom] || HUSTOTY.palmovy, zonaBodu = null;
+  if (V) {
+    B = {};
+    for (const z of Object.values(V.zony)) for (const d in z) B[d] = Math.max(B[d] || 0, z[d]);
+    zonaBodu = b => { if (b.zona === undefined) b.zona = V.zony[V.zona(b.x - o.x, b.z - o.z, b.y, POMOC)] || null; return b.zona; };
+  }
   const kl = o.bx + ',' + o.bz;
   const bujnost = (jeBujny(o) ? 2.5 : 1) * nasobokHustoty;
-  const plocha = Math.PI * o.R * o.R / 100 * 1.18 * (B.k || 1) * bujnost;
-  const rozsah = o.R * 1.25;
+  const rozsah = V ? o.ext * 0.9 : o.R * 1.25;
+  const plocha = V ? (2 * rozsah) * (2 * rozsah) / 100 * bujnost : Math.PI * o.R * o.R / 100 * 1.18 * (B.k || 1) * bujnost;
+  const prijmi = (druh, b) => { if (!V) return true; const z = zonaBodu(b); return !!z && !!z[druh] && r() * B[druh] < z[druh]; };
   const obsadene = new Map();          // jednoducha mriezka 2 m, aby stromy neboli v sebe
   const volne = (x, z, d) => {
     const k = Math.ceil(d / 2), gx = Math.floor(x / 2), gz = Math.floor(z / 2);
@@ -147,9 +161,10 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
   for (const druh of PORADIE) {
     const hustota = B[druh];
     if (!hustota) continue;
-    const pokusov = Math.min(plocha * hustota, druh === 'trava' ? (bujnost > 1 ? 18000 : 12000) : 9000);
+    const pokusov = Math.min(plocha * hustota, (druh === 'trava' ? (bujnost > 1 ? 18000 : 12000) : 9000) * (V ? 3 : 1));
     for (let i = 0; i < pokusov; i++) {
       const b = bod();
+      if (!prijmi(druh, b)) continue;
       if (druh === 'trava') {
         const maska = o.biom === 'savana' ? -0.7 : -0.2;
         if (b.y > (o.plazH ? Math.max(0.6, o.plazH(b.x, b.z) - 0.3) : 1.5) && perlin.noise(b.x * 0.05, b.z * 0.05, o.seed) > maska && sklon(b) < 1.4) {
@@ -192,7 +207,7 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
   }
 
   // vrstvy pod korunami: podrast zhlukmi okolo kmenov (3-5 rastlin) a liany visiace z korun
-  const KORUNY = new Set(['palma', 'strom', 'mango', 'akacia']);
+  const KORUNY = new Set(['palma', 'strom', 'mango', 'akacia', 'gumovnik']);
   const podrast = ['ker', 'papradie', 'monstera', 'hibiskus', 'kvet', 'spiral', 'bobule', 'ibistek'].filter(d => B[d]);
   for (const u of uzly.slice()) {
     if (!KORUNY.has(u.typ)) continue;
@@ -201,6 +216,7 @@ export function postavVegetaciu(o, skupina, r, h, zobrate) {
         const a = r() * Math.PI * 2, d = 1.2 + r() * 2.8, x = u.x + Math.cos(a) * d, z = u.z + Math.sin(a) * d, y = h(x, z);
         if (y < 1.6 || y > 9 || sklon({ x, y, z }) > 1.0) continue;     // pláže a strmé svahy zostanu otvorené
         const druh = podrast[Math.floor(r() * podrast.length)], P = PRAVIDLA[druh];
+        if (V && !zonaBodu({ x, y, z })?.[druh]) continue;          // rucny ostrov: podrast len tam, kde ho zona dovoluje
         const mierka = P.m[0] + r() * (P.m[1] - P.m[0]), v = Math.floor(r() * DRUHY[druh].varianty.length);
         pridaj(druh, v, x, y + P.dy, z, mierka, P.odtien, uzol(druh, x, y, z, P.rK * mierka, P.rZ), P.naklon);
       }
@@ -294,7 +310,7 @@ function skryTravu(d, gx, gz, kluc, koniec) {
 // Najblizsia zberatelna rastlina pred hracom do ~2 m (fx, fz = smer pohladu), inak travne policko.
 // Vrati null alebo { text, akcia }; akcia() vykona zber a vrati pole [[predmet, pocet], ...].
 export function najdiZber(x, z, fx, fz) {
-  const d = ostrovy.get(Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA));
+  const d = ostrovy.get(klucOstrova(x, z));
   if (!d) return null;
   let naj = null, najD = Infinity;
   for (const u of d.uzly) {
@@ -344,7 +360,7 @@ function zberTravy(d, gx, gz, kluc) {
 export function najdiCiel(uzly, x, z, fx, fz) {
   let naj = null, najD = Infinity;
   for (const u of uzly) {
-    if (u.zniceny) continue;
+    if (u.zniceny || !u.zdroj) continue;                   // pamiatky (kolizne kruhy) sa neudieraju
     const dx = u.x - x, dz = u.z - z, d = Math.hypot(dx, dz);
     if (d < u.rZasah + 1.4 && d < najD && (d < 0.6 || (dx * fx + dz * fz) / d > 0.35)) { naj = u; najD = d; }
   }
@@ -369,7 +385,7 @@ export function poskod(u, fx, fz, poskodenie = 1) {
 }
 
 // ---------- animacie a dorastanie ----------
-const PADA = new Set(['palma', 'strom', 'mangrova', 'mango', 'akacia', 'bambus', 'banan']);
+const PADA = new Set(['gumovnik', 'palma', 'strom', 'mangrova', 'mango', 'akacia', 'bambus', 'banan']);
 const qPad = new THREE.Quaternion(), os = new V3();
 
 // volat kazdy snimok; casHry = herny cas v sekundach (ak sa nezada, pocita sa z dt)

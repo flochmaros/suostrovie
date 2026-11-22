@@ -701,6 +701,59 @@ function liana(seed) {
   return { zaklad: spoj([rura(pr, 4), T.geo()]), plody: null, vyska: L };
 }
 
+// ---------- suroviny rucnych ostrovov: hlinena jama, sirny vyver, gumovnik ----------
+// hlinena jama: nizky cervenohnedy val s vykopanou tmavsou jamou v strede
+function hlinaJama(seed) {
+  const g = new THREE.IcosahedronGeometry(1, 3);
+  const p = g.attributes.position, a = new Float32Array(p.count * 3), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), rr = Math.hypot(x, z);
+    const n = perlin.noise(x * 1.7 + seed, y * 1.7, z * 1.7);
+    let yy = Math.max(y, -0.1) * 0.42 * (1 + n * 0.3);
+    if (y > 0) yy -= Math.max(0, 0.55 - rr) * 0.55;          // jama v strede
+    p.setXYZ(i, x * 1.3 * (1 + n * 0.15), yy, z * 1.3 * (1 + n * 0.15));
+    c.set(0xa4532e).offsetHSL(0, 0, n * 0.06);
+    if (y > 0 && rr < 0.6) c.lerp(C(0x6b3220), 0.7);          // vlhka hlina v jame
+    else if (y > 0.5) c.lerp(C(0xc8743e), 0.4);
+    a.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  g.computeVertexNormals();
+  return g;
+}
+// sirny vyver: siva kora so zltymi krystalmi (krystaly = plody, dorastaju)
+function siraVyver(seed) {
+  const r = rng(seed), kora = kamen(seed, false, 0x9a9384).scale(1.1, 0.45, 1.1), kr = [];
+  for (let i = 0; i < 9; i++) {
+    const h = 0.25 + r() * 0.45, a = r() * PI2, d = r() * 0.8;
+    const k = farbi(new THREE.ConeGeometry(0.07 + r() * 0.08, h, 5), C(r() < 0.5 ? 0xf2d531 : 0xe3b81e)).toNonIndexed();
+    k.rotateZ((r() - 0.5) * 0.9).rotateX((r() - 0.5) * 0.9).translate(Math.cos(a) * d, 0.3 + h * 0.4, Math.sin(a) * d);
+    kr.push(k);
+  }
+  return { zaklad: kora, plody: spoj(kr) };
+}
+// gumovnik: vysoky rovny kmen s opornymi koremni, svetla kora, husta tmava koruna; na kmeni misky so zivicou (plody)
+function gumovnik(seed) {
+  const r = rng(seed), H = 8 + r() * 3;
+  const casti = [farbi(new THREE.CylinderGeometry(0.28, 0.48, H, 9, 4), C(0x9a8f7c)).translate(0, H / 2, 0)];
+  for (let i = 0; i < 5; i++)                                 // dosky opornych korenov
+    casti.push(farbi(new THREE.BoxGeometry(0.12, 1.6, 1.3), C(0x857a68)).translate(0, 0.6, 0.75).rotateX(-0.25).rotateY(i * 1.26 + r() * 0.3));
+  for (let i = 0; i < 4; i++)                                 // biele stopy zivice
+    casti.push(farbi(new THREE.BoxGeometry(0.05, 1.2 + r(), 0.02), C(0xece6d2)).translate(0, 2.2 + r(), 0.36).rotateY(r() * PI2));
+  const farba = C([0x2c5f2a, 0x36692c][Math.floor(r() * 2)]);
+  for (let i = 0; i < 8; i++) {
+    const a = r() * PI2, d = i === 0 ? 0 : 1 + r() * 1.8;
+    casti.push(chumac(1.5 + r() * 0.9, farba, seed + i * 5).translate(Math.cos(a) * d, H + 0.3 + r() * 1.2 - d * 0.25, Math.sin(a) * d));
+  }
+  const misky = [];
+  for (let i = 0; i < 2; i++) {
+    const a = i * 2.6 + r();
+    misky.push(farbi(new THREE.CylinderGeometry(0.13, 0.09, 0.16, 7), C(0xc9b27a)).translate(Math.cos(a) * 0.42, 1.1 + i * 0.25, Math.sin(a) * 0.42));
+    misky.push(farbi(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 7), C(0xe8dcb0)).translate(Math.cos(a) * 0.42, 1.17 + i * 0.25, Math.sin(a) * 0.42));
+  }
+  return { zaklad: spoj(casti), plody: spoj(misky), vyska: H };
+}
+
 // ---------- materialy s vetrom ----------
 function material(vietor, opts = {}) {
   const { zar, gradH = 2.5, ...mo } = opts;   // zar = [r,g,b] nocna biolumin. farba, gradH = vyska farebneho prechodu
@@ -783,4 +836,7 @@ export const DRUHY = {
   spiral: D('alien', false, [221, 222].map(spiralnaPapradie)),
   svetlonos: D('svetlo', false, [231, 232].map(svetlonos)),
   liana: D('liana', false, [241].map(liana)),
+  hlina: D('kamen', true, [251, 252].map(s => len(hlinaJama(s)))),
+  sira: D('kamen', true, [261, 262].map(siraVyver)),
+  gumovnik: D('strom', true, [271, 272].map(gumovnik)),
 };

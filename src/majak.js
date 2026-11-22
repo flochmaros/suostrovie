@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { MAJAKY } from './obsah/majaky.js';
 import { SPRAVY } from './obsah/spravy.js';
 import { NEPRIATELIA } from './obsah/nepriatelia.js';
-import { ostrovVBunke, vyskaTerenu, startovaciaPozicia, BUNKA } from './svet.js';
+import { ostrovVBunke, vyskaTerenu, startovaciaPozicia, BUNKA, MENOVANE_OSTROVY } from './svet.js';
 import { upokojenePasma } from './ocean.js';
 import { pocet, odober, vykresli as vykresliInventar } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -23,6 +23,7 @@ let panel, bossHud, spravaOkno, spravaCas = 0, cas = 0;
 // ---------- vyber miesta (deterministicky) ----------
 const START = { x: BUNKA / 2, z: BUNKA / 2 };
 function vyberOstrov(def) {
+  if (def.ostrovId) return MENOVANE_OSTROVY.find(o => o.id === def.ostrovId) || null;   // rucne navrhnuty ostrov
   const r = def.ostrov || {}, rozsah = Math.min(14, def.pasmo * 3 + 2);
   let naj = null, nd = Infinity;
   for (let bx = -rozsah; bx <= rozsah; bx++) for (let bz = -rozsah; bz <= rozsah; bz++) {
@@ -37,6 +38,7 @@ function vyberOstrov(def) {
 const vyskaOkolo = (x, z, r) => { let mx = -99, mn = 99; for (let k = 0; k < 8; k++) { const h = vyskaTerenu(x + Math.cos(k * 0.785) * r, z + Math.sin(k * 0.785) * r); mx = Math.max(mx, h); mn = Math.min(mn, h); } return [mn, mx]; };
 function miestoMajaka(o) {                // od stredu ostrova smerom k startu, kym sa teren neznizi pod ~4,5 m a je dost rovny
   const dx = START.x - o.x, dz = START.z - o.z, l = Math.hypot(dx, dz) || 1;
+  if (o.majak) return { x: o.x + o.majak[0], z: o.z + o.majak[1], smer: Math.atan2(dx, dz) };   // rucny ostrov urcil miesto
   for (let d = 0; d < o.R * 1.5; d += 1) {
     const x = o.x + dx / l * d, z = o.z + dz / l * d, h = vyskaTerenu(x, z);
     if (h < 4.5 && h > 1.8) { const [mn, mx] = vyskaOkolo(x, z, 5); if (mx - mn < 3.2) return { x, z, smer: Math.atan2(dx, dz) }; }
@@ -61,7 +63,18 @@ function plazBod(o, uhol) {                // plaz ostrova v danom smere (vyska 
   }
   return null;
 }
-function miestaFlias() {                   // 6 flias: 2 na startovacom ostrove, dalsie na ostrovoch pasma 1-2 (poradie podla hasu)
+// poradie flias na rucnych ostrovoch (index = index spravy v SPRAVY); kazdy ostrov ma v subore flase: [[x, z], ...]
+const FLASE_OSTROVY = ['domov', 'domov', 'sumivy_haj', 'zahrada', 'hlinisko', 'perlovy_atol'];
+function miestaFlias() {
+  const pouzite = {};
+  return FLASE_OSTROVY.map(id => {
+    const o = MENOVANE_OSTROVY.find(o => o.id === id);
+    if (!o) return null;
+    const k = pouzite[id] = (pouzite[id] ?? -1) + 1, b = o.flase?.[k];
+    return b ? [o.x + b[0], o.z + b[1]] : plazBod(o, 0.9 + k * 2.7);
+  });
+}
+function miestaFliasNahodne() {             // povodne rozmiestnenie (nahodny svet)
   const out = [], o0 = ostrovVBunke(0, 0), cand = [];
   out.push(plazBod(o0, 0.9), plazBod(o0, 3.6));
   for (let bx = -5; bx <= 5; bx++) for (let bz = -5; bz <= 5; bz++) {

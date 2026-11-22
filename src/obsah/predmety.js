@@ -67,6 +67,10 @@ predmet('huba', { meno: 'Huba', ikona: ik('mushroom', '#c9a27a'), popis: 'Lesná
     fv(new THREE.SphereGeometry(0.08, 7, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.7, 1).translate(0, 0.12, 0), 0xb98d57)), MAT_V] });
 predmet('aloe', { meno: 'Aloe', ikona: ik('agave', '#6fae7a'), popis: 'Šťava z aloe hojí a osviežuje.', jedlo: { sytost: 1, voda: 6 },
   model: [new THREE.ConeGeometry(0.06, 0.5, 4).rotateZ(Math.PI / 2).translate(0, 0.05, 0), mat(0x6f9a6a)] });
+predmet('hlina', { meno: 'Hlina', ikona: ik('rock', '#b5703a'), popis: 'Lepkavá červená hlina z Hliniska. Na pece a utesnenie trupu.',
+  model: [new THREE.IcosahedronGeometry(0.12, 1).scale(1.2, 0.6, 1).translate(0, 0.06, 0), mat(0xa4532e, { roughness: 0.95 })] });
+predmet('zivica', { meno: 'Živica', ikona: ik('water-drop', '#d89a30'), popis: 'Lepkavá šťava gumovníka z Džungle predkov. Spája a utesňuje.',
+  model: [new THREE.IcosahedronGeometry(0.09, 1).scale(1, 0.8, 1).translate(0, 0.07, 0), mat(0xd08a28, { roughness: 0.25, transparent: true, opacity: 0.9 })] });
 predmet('taro', { meno: 'Taro', ikona: ik('potato', '#a07a8a'), popis: 'Škrobový koreň, treba ho uvariť.', jedlo: { sytost: 12, voda: 0 },
   model: [new THREE.IcosahedronGeometry(0.11, 1).scale(1, 0.85, 1).translate(0, 0.1, 0), mat(0x8a6a58)] });
 

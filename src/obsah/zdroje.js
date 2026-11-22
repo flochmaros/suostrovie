@@ -61,6 +61,16 @@ export const ZDROJE = {
     vynos: [['kamen', 3], ['kamen', 1, 0.5]] },
   obsidian: { zivoty: 9, material: 'kamen', nastroj: 'krompac', rukou: 0.15,
     vynos: [['obsidian', 2], ['obsidian', 1, 0.5], ['sira', 1, 0.3]] },
+  // suroviny rucnych ostrovov (len na jednom ostrove - SUOSTROVIE.md)
+  hlina: { zivoty: 5, material: 'kamen', nastroj: 'krompac', rukou: 0.5,
+    vynos: [['hlina', [3, 5]]],
+    zber: { text: 'Vykopať hlinu', vynos: [['hlina', [1, 2]]], cas: 6 } },
+  sira: { zivoty: 6, material: 'kamen', nastroj: 'krompac', rukou: 0.25,
+    vynos: [['sira', [2, 3]], ['kamen', 1]],
+    zber: { text: 'Odlomiť síru', vynos: [['sira', 1]], cas: 10 } },
+  gumovnik: { zivoty: 7, material: 'drevo', nastroj: 'sekera', rukou: 0.25,
+    vynos: [['drevo', 4], ['zivica', 1]],
+    zber: { text: 'Zobrať živicu', vynos: [['zivica', [1, 2]]], cas: 10 } },
   // trava nie je uzol (nema hitbox ani zivoty): len zber na E s cooldownom na kazdom 3 m policku
   trava: { material: 'list', zber: { text: 'Trhať trávu', vynos: [['vlakno', 1]], cas: 5 } },
 };

@@ -26,8 +26,8 @@ for (const l of LODE) R({
 // ---------- vylepsenia kanoe (urovne s plachtou a plavakom) ----------
 const UROVNE = [
   { z: 1, na: 2, meno: 'Kanoe – plachta', ikona: ik('sail', '#efe6cf'), suroviny: [['drevo', 10], ['vlakno', 6], ['list', 8]] },
-  { z: 2, na: 3, meno: 'Kanoe – väčší trup a plavák', ikona: ik('wood-canoe', '#b07a45'), suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10]] },
-  { z: 3, na: 4, meno: 'Kanoe – dvojtrupová plachetnica', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 40], ['bambus', 20], ['vlakno', 25], ['list', 20], ['kamen', 6]] },
+  { z: 2, na: 3, meno: 'Kanoe – väčší trup a plavák (utesnený hlinou)', ikona: ik('wood-canoe', '#b07a45'), suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['hlina', 6]] },
+  { z: 3, na: 4, meno: 'Kanoe – dvojtrupová plachetnica', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 40], ['bambus', 20], ['vlakno', 25], ['list', 20], ['kamen', 6], ['zivica', 8]] },
 ];
 for (const u of UROVNE) R({
   id: `kanoe_ur${u.na}`, skupina: 'Vylepšiť najbližšiu loď', meno: u.meno, ikona: u.ikona, suroviny: u.suroviny,

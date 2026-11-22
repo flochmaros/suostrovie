@@ -7,6 +7,8 @@ import { hash, rng } from './nahoda.js';
 import { uCas, uPriliv, uNoc } from './ocean.js';
 import { postavVegetaciu, uvolniVegetaciu } from './vegetacia.js';
 import { PREDMETY } from './obsah/predmety.js';
+import { OSTROVY, MAX_EXT } from './ostrovy/index.js';
+import * as POMOC from './ostrovy/pomoc.js';
 
 export const SEED = 1337;
 export const BUNKA = 520;
@@ -70,7 +72,30 @@ const TYPY = [['palmovy', 0.17], ['dzungla', 0.12], ['skalnaty', 0.08], ['atol',
 export const BIOM_MENO = {
   palmovy: 'Palmový ostrov', dzungla: 'Džungľa', skalnaty: 'Skalnatý ostrov', atol: 'Atol s lagúnou', sopecny: 'Sopečný ostrov',
   mangrovy: 'Mangrovový močiar', bambusovy: 'Bambusový ostrov', savana: 'Savana', plytcina: 'Piesočná plytčina', ovocny: 'Ovocný ostrov',
+  ostrovcek: 'Ostrovček',
 };
+
+// ---------- rucne navrhnute ostrovy (pasma 1-3, src/ostrovy/) ----------
+// V pasmach 1-3 su len tieto ostrovy + male ostrovceky medzi nimi; od pasma 4 dalej nahodny svet.
+const RUCNE_PASMA = 3;
+const MENOVANE = OSTROVY.map(({ id, def, x, z }) => {
+  const ext = Math.min(def.ext, MAX_EXT[id] ?? def.ext);
+  return { ...def, id, x, z, ext, menovany: true, bx: Math.floor(x / BUNKA), bz: Math.floor(z / BUNKA), pasmo: 0, seed: def.seed ?? 1, H: def.H ?? 10 };
+});
+for (const o of MENOVANE) o.pasmo = pasmo(o.x, o.z);
+export const MENOVANE_OSTROVY = MENOVANE;
+// ostrov, ktoreho stvorec terenu obsahuje bod (rucne navrhnute maju prednost), inak ostrov bunky
+export function ostrovNa(x, z) {
+  for (const o of MENOVANE) if (Math.abs(x - o.x) < o.ext && Math.abs(z - o.z) < o.ext) return o;
+  return ostrovVBunke(Math.floor(x / BUNKA), Math.floor(z / BUNKA));
+}
+// kluc zaznamu nahrateho ostrova pre bod (bunka stredu ostrova)
+export function klucOstrova(x, z) {
+  const o = ostrovNa(x, z);
+  return o ? o.bx + ',' + o.bz : Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA);
+}
+// pomocne funkcie pre subory ostrovov (P)
+const P_ZAKLAD = { ...POMOC };
 
 // vahy biomov podla pasma (poradie = TYPY); chybajuci biom = 0
 const VAHY_PASMA = [null,
@@ -94,8 +119,13 @@ export function ostrovVBunke(bx, bz) {
   if (ostrovy.has(kluc)) return ostrovy.get(kluc);
   const r = rng(hash(bx, bz, SEED));
   let o = null;
-  const start = bx === 0 && bz === 0;
-  if (start || r() < 0.72) {
+  if (pasmo(bx * BUNKA + BUNKA / 2, bz * BUNKA + BUNKA / 2) <= RUCNE_PASMA || MENOVANE.some(m => m.bx === bx && m.bz === bz)) {
+    o = rucnaBunka(bx, bz, r);
+    ostrovy.set(kluc, o);
+    return o;
+  }
+  const start = false;
+  if (r() < 0.72) {
     const b = r();
     const pas = pasmo(bx * BUNKA + BUNKA / 2, bz * BUNKA + BUNKA / 2);
     const biom = start ? 'palmovy' : vyberBiom(b, pas);
@@ -123,6 +153,19 @@ export function ostrovVBunke(bx, bz) {
     };
   }
   ostrovy.set(kluc, o);
+  return o;
+}
+
+// bunka v pasmach 1-3: rucne navrhnuty ostrov (ak tu ma stred), inak mozno maly ostrovcek (ak nezasahuje do rucneho)
+function rucnaBunka(bx, bz, r) {
+  const m = MENOVANE.find(m => m.bx === bx && m.bz === bz);
+  if (m) return m;
+  if (r() > 0.3) return null;
+  const R = 13 + 22 * r() * r(), ext = R * 1.8, volno = BUNKA - 2 * ext;
+  const o = { bx, bz, R, ext, biom: 'ostrovcek', pasmo: 0, x: bx * BUNKA + ext + r() * volno, z: bz * BUNKA + ext + r() * volno,
+    H: 2.2 + r() * 3.5, seed: Math.floor(r() * 1000), meno: meno(r) };
+  for (const n of MENOVANE) if (Math.abs(o.x - n.x) < n.ext + ext + 60 && Math.abs(o.z - n.z) < n.ext + ext + 60) return null;
+  o.pasmo = pasmo(o.x, o.z);
   return o;
 }
 
@@ -254,6 +297,14 @@ function vyskaVrcholov(o, x, z, d) {
 
 function vyskaOstrova(o, x, z) {
   const f = dnoMorske(x, z);
+  if (o.menovany) {                                       // rucny ostrov: vlastna funkcia, na okraji stvorca prechod do dna
+    const lx = x - o.x, lz = z - o.z, e = Math.max(Math.abs(lx), Math.abs(lz)) / o.ext;
+    if (e >= 1) return f;
+    const h = o.vyska(lx, lz, P_ZAKLAD);
+    const w = THREE.MathUtils.smoothstep(e, 0.82, 1.0);
+    const m = hladkyMax(h, f, 6);
+    return m + (f - m) * w;
+  }
   let h = surovaVyska(o, x, z);
   if (h <= NIC + 1) return f;
   h += vyskaVrcholov(o, x, z, _d);
@@ -263,12 +314,12 @@ function vyskaOstrova(o, x, z) {
 }
 
 export function vyskaTerenu(x, z) {
-  const o = ostrovVBunke(Math.floor(x / BUNKA), Math.floor(z / BUNKA));
+  const o = ostrovNa(x, z);
   return o ? vyskaOstrova(o, x, z) : dnoMorske(x, z);
 }
 
 export function ostrovPri(x, z, faktor = 1.0) {
-  const o = ostrovVBunke(Math.floor(x / BUNKA), Math.floor(z / BUNKA));
+  const o = ostrovNa(x, z);
   return o && Math.hypot(x - o.x, z - o.z) < o.R * faktor ? o : null;
 }
 
@@ -339,11 +390,23 @@ const TEREN = {
   savana:    { tr: [0xa8b04c, 0x8fa044], piesok: 0xecdcb0, hl: 0xa3834d, hlPrah: 0.0, plaz: 1.0 },
   plytcina:  { tr: [0x6cb948, 0x55a23a], piesok: 0xf2e4bc, dno: 0xece0b4, plaz: 1.5 },
   ovocny:    { tr: [0x68b23e, 0x4e9a32], plaz: 1.4 },
+  ostrovcek: { tr: [0x6cb948, 0x55a23a], piesok: 0xf2e4bc, dno: 0xece0b4, plaz: 1.3 },
 };
 for (const t of Object.values(TEREN)) {
   t.tr = t.tr.map(C);
   for (const k of ['piesok', 'dno', 'skala', 'hl']) t[k] = t[k] === undefined ? FARBY[k === 'hl' ? 'hlina' : k] : C(t[k]);
   t.hlPrah ??= 0.35;
+}
+// farby terenu konkretneho ostrova (rucny ostrov moze prepisat farby biomu)
+function terenOstrova(o) {
+  if (o.T) return o.T;
+  const zak = TEREN[o.biom] || TEREN.palmovy;
+  if (!o.farby) return (o.T = zak);
+  const f = o.farby, T = { ...zak };
+  if (f.tr) T.tr = f.tr.map(C);
+  for (const k of ['piesok', 'dno', 'skala', 'hl']) if (f[k] !== undefined) T[k] = C(f[k]);
+  for (const k of ['hlPrah', 'plaz', 'tmavy']) if (f[k] !== undefined) T[k] = f[k];
+  return (o.T = T);
 }
 const MACH = C(0x2f5a2c), SKALA_V = C(0x3b4a3a);
 const SUCHA = C(0x9cae4c), SVIEZA = C(0x3f9a30), TMAVY_PIESOK = C(0xcdb98c), KORAL = C(0xeae2d2);
@@ -352,7 +415,7 @@ const SUCHA = C(0x9cae4c), SVIEZA = C(0x3f9a30), TMAVY_PIESOK = C(0xcdb98c), KOR
 export function hranicaPlaze(o, x, z) {
   const n = perlin.noise(x * 0.08, z * 0.08, o.seed + 1);
   const s = perlin.noise(x * 0.018, z * 0.018, o.seed + 31);
-  return Math.max(0.35, TEREN[o.biom].plaz + n * 0.5 + s * 2.4);
+  return Math.max(0.35, terenOstrova(o).plaz + n * 0.5 + s * 2.4);
 }
 // typ useku pobrezia: m > 0 skaly, m < 0 tmavsi piesok; kor = koralova drt
 function typBrehu(o, x, z) {
@@ -365,8 +428,9 @@ function odtienOstrova(o, farba) {
   return new THREE.Color().setHSL(hsl.h + (r() - 0.5) * 0.05, hsl.s * (0.88 + r() * 0.24), hsl.l * (0.92 + r() * 0.14));
 }
 
+const FB = { trava: null, piesok: null };
 function postavTeren(o) {
-  const seg = Math.round(THREE.MathUtils.clamp(o.R * 1.15, 70, 170));
+  const seg = o.menovany ? Math.round(THREE.MathUtils.clamp(o.ext * 0.8, 120, 300)) : Math.round(THREE.MathUtils.clamp(o.R * 1.15, 70, 170));
   const geo = new THREE.PlaneGeometry(o.ext * 2, o.ext * 2, seg, seg).rotateX(-Math.PI / 2);
   geo.deleteAttribute('uv');
   const poz = geo.attributes.position;
@@ -376,7 +440,7 @@ function postavTeren(o) {
   // color = trava/hora, aPiesok = farba plaze (rgb) + kolko travy (w); shader ich zmiesa (trsy travy na okraji plaze)
   const nor = geo.attributes.normal, farby = new Float32Array(poz.count * 3), piesky = new Float32Array(poz.count * 4);
   const t2 = new THREE.Color(), t3 = new THREE.Color(), ps = new THREE.Color();
-  const T = TEREN[o.biom], tr1 = odtienOstrova(o, T.tr[0]), tr2 = odtienOstrova(o, T.tr[1]);
+  const T = terenOstrova(o), tr1 = odtienOstrova(o, T.tr[0]), tr2 = odtienOstrova(o, T.tr[1]);
   const S = THREE.MathUtils.smoothstep;
   for (let i = 0; i < poz.count; i++) {
     const x = poz.getX(i) + o.x, z = poz.getZ(i) + o.z, h = poz.getY(i), strmost = 1 - nor.getY(i);
@@ -408,6 +472,7 @@ function postavTeren(o) {
       t2.lerp(SKALA_V, S(strmost, 0.3, 0.5) * 0.9 * v);
     }
     t2.offsetHSL(0, 0, n * 0.03); ps.offsetHSL(0, 0, n * 0.03);
+    if (o.farba) { FB.trava = t2; FB.piesok = ps; o.farba(x - o.x, z - o.z, h, FB, P_ZAKLAD); }
     farby.set([t2.r, t2.g, t2.b], i * 3);
     piesky.set([ps.r, ps.g, ps.b, S(h, hranica - 0.4, hranica + 1.8)], i * 4);
   }
@@ -430,7 +495,7 @@ const NAPL = (() => {
   };
 })();
 function postavNaplaveniny(o, skupina, r) {
-  if (TEREN[o.biom].tmavy) return;
+  if (terenOstrova(o).tmavy) return;
   const body = { riasa: [], drevo: [], musla: [], kamen: [] };
   const N = Math.round(o.R * 1.3);
   for (let k = 0; k < N; k++) {
@@ -487,6 +552,17 @@ function postavPredmety(o, skupina, r) {
     m.userData = { id, typ };
     skupina.add(m);
   };
+  if (o.menovany) {                                      // rucny ostrov: pevne predmety + nahodne po celom ostrove
+    const def = o.predmety || {};
+    for (const [typ, lx, lz] of def.pevne || []) if (PREDMETY[typ]) pridaj(typ, o.x + lx, o.z + lz);
+    const typy = def.nahodne || ['palica', 'kamen'];
+    for (let k = 0; k < (def.pocet ?? o.R * 0.5); k++) {
+      const x = o.x + (r() * 2 - 1) * o.R * 1.2, z = o.z + (r() * 2 - 1) * o.R * 1.2, h = vyskaOstrova(o, x, z);
+      const typ = h < 1.4 && r() < 0.35 ? 'musla' : typy[Math.floor(r() * typy.length)];
+      if (h > 0.3 && h < 25 && PREDMETY[typ]) pridaj(typ, x, z);
+    }
+    return;
+  }
   const inland = { palmovy: ['palica', 'kamen', 'kokos'], atol: ['palica', 'kokos', 'kamen'], plytcina: ['palica', 'kokos'],
     bambusovy: ['bambus', 'palica', 'kamen'], sopecny: ['kamen', 'kamen', 'palica'], skalnaty: ['kamen', 'kamen', 'palica'] }[o.biom]
     || ['palica', 'palica', 'kamen'];
@@ -498,6 +574,26 @@ function postavPredmety(o, skupina, r) {
   }
 }
 
+// pamiatky rucneho ostrova (ruiny, chatrc, vrak): modely + kolizne kruhy (ako uzly bez zberu)
+const matCache = new Map();
+const P_PAMIATKY = { ...P_ZAKLAD, THREE,
+  mat: (farba, o = {}) => { const k = farba + JSON.stringify(o); if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: farba, roughness: 0.9, ...o })); return matCache.get(k); } };
+function postavPamiatky(o, skupina, uzly) {
+  if (!o.pamiatky) return;
+  let v;
+  try { v = o.pamiatky({ ...P_PAMIATKY, vyska: (x, z) => vyskaOstrova(o, o.x + x, o.z + z) }) || {}; }
+  catch (e) { console.error('Pamiatky ostrova ' + o.id, e); return; }
+  const g = new THREE.Group();
+  g.position.set(o.x, 0, o.z);
+  for (const obj of v.objekty || []) {
+    obj.traverse(m => { if (m.isMesh) { m.castShadow = m.castShadow !== false; m.receiveShadow = true; } });
+    g.add(obj);
+  }
+  skupina.add(g);
+  for (const [lx, lz, r] of v.kolizie || [])
+    uzly.push({ id: `${o.bx},${o.bz},k${uzly.length}`, typ: 'pamiatka', x: o.x + lx, y: 0, z: o.z + lz, rKolizia: r, rZasah: 0, zniceny: false, casti: [] });
+}
+
 function postavOstrov(o) {
   const skupina = new THREE.Group();
   o.plazH ??= (x, z) => hranicaPlaze(o, x, z);           // pre vegetaciu (trava zacina tam, kde konci plaz)
@@ -506,6 +602,7 @@ function postavOstrov(o) {
   postavNaplaveniny(o, skupina, rng(o.seed * 6113 + 5));
   const uzly = postavVegetaciu(o, skupina, rng(o.seed * 7919 + 1), (x, z) => vyskaOstrova(o, x, z), zobrate);
   postavPredmety(o, skupina, rng(o.seed * 104729 + 3));
+  postavPamiatky(o, skupina, uzly);
   return { skupina, teren, uzly };
 }
 
@@ -551,12 +648,12 @@ export function aktualizujSvet(x, z) {
 
 // uzly (stromy, kriky, balvany) ostrova v bunke, kde je bod
 export function uzlyPri(x, z) {
-  return nahrate.get(Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA))?.uzly ?? [];
+  return nahrate.get(klucOstrova(x, z))?.uzly ?? [];
 }
 
 export function najblizsiPredmet(x, z, d = 2.0) {
   let naj = null;
-  const zaznam = nahrate.get(Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA));
+  const zaznam = nahrate.get(klucOstrova(x, z));
   if (!zaznam) return null;
   for (const m of zaznam.skupina.children) {
     if (!m.userData.typ) continue;
@@ -569,7 +666,7 @@ export function najblizsiPredmet(x, z, d = 2.0) {
 // polozi predmet na zem (napr. loot z nepriatela); vrati false, ak tam nie je nahrata bunka
 let dropId = 0;
 export function polozPredmet(typ, x, z) {
-  const zaznam = nahrate.get(Math.floor(x / BUNKA) + ',' + Math.floor(z / BUNKA));
+  const zaznam = nahrate.get(klucOstrova(x, z));
   if (!zaznam || !PREDMETY[typ]) return false;
   const [geo, mat] = PREDMETY[typ].model;
   const m = new THREE.Mesh(geo, mat);
@@ -589,6 +686,10 @@ export function zober(m) {
 // Startovacie miesto: plaz na vychodnej strane startovacieho ostrova
 export function startovaciaPozicia() {
   const o = ostrovVBunke(0, 0);
+  if (o.start) {
+    const [hx, hz] = o.start.hrac, [kx, kz] = o.start.kanoe;
+    return { hrac: { x: o.x + hx, z: o.z + hz }, kanoe: { x: o.x + kx, z: o.z + kz } };
+  }
   let x = o.x;
   while (vyskaOstrova(o, x, o.z) > 0.8) x += 1;
   const plaz = { x: x - 5, z: o.z };
