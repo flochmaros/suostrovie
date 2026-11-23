@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
 import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
-import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA } from './svet.js';
+import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA, MENOVANE_OSTROVY } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych, maxTrup, priPotopeni } from './kanoe.js';
@@ -321,7 +321,7 @@ function hud(dt, p) {
   if (o && o !== poslednyOstrov) {
     const kluc = o.bx + ',' + o.bz, novy = !objavene.has(kluc);
     objavene.add(kluc);
-    $('ostrov').innerHTML = menoOstrova(o) + `<small>${novy ? 'Nový ostrov objavený!' : BIOM[o.biom] + (jeBujny(o) ? ' · bujný' : '')}</small>`;
+    $('ostrov').innerHTML = menoOstrova(o) + `<small>${novy ? 'Nový ostrov objavený!' : (o.podnadpis || BIOM[o.biom]) + (jeBujny(o) ? ' · bujný' : '')}</small>`;
     if (!jePomenovany(o)) caka = o;                      // este nema meno -> opytame sa hraca (ked sa lod spomali)
     $('ostrov').style.opacity = 1;
     casNapisu = 4;
@@ -550,5 +550,15 @@ window.hra = {
   },
   posunCas(s) { cas += s; },
   ulohy: stavUloh, hlasUlohy, majaky,
+  // teleport na rucne navrhnuty ostrov (id zo src/ostrovy/index.js), na suche miesto pri brehu; dx,dz = presny lokalny bod
+  naOstrov(id, dx, dz) {
+    const o = MENOVANE_OSTROVY.find(o => o.id === id);
+    if (!o) return 'nezname id: ' + MENOVANE_OSTROVY.map(o => o.id).join(', ');
+    let x = o.x + (dx ?? 0), z = o.z + (dz ?? 0);
+    if (dx === undefined) for (let d = o.R * 1.5; d > 0; d -= 1) { x = o.x + d * 0.7; z = o.z + d * 0.7; if (vyskaTerenu(x, z) > 1) break; }
+    if (vKanoe || naPalube) vystup([x, z]);
+    hrac.poz.set(x, vyskaTerenu(x, z) + 1, z);
+    return o.meno;
+  },
   otoc(yaw, pitch) { kam.yaw = yaw; if (pitch !== undefined) kam.pitch = pitch; mys.posledny = performance.now(); },
 };

@@ -29,8 +29,9 @@ export const navi = { id: null };       // id znacky, ku ktorej hrac navigovat
 let dalsieId = 1;
 
 const kluc = o => o.bx + ',' + o.bz;
-export const jePomenovany = o => mena.has(kluc(o));
-export const menoOstrova = o => mena.get(kluc(o)) || 'Nepomenovaný ostrov';
+// rucne navrhnute ostrovy (src/ostrovy/) maju od zaciatku pribehove meno (hrac ich moze premenovat), ostrovceky pomenuva hrac
+export const jePomenovany = o => mena.has(kluc(o)) || !!o.menovany;
+export const menoOstrova = o => mena.get(kluc(o)) || (o.menovany ? o.meno : 'Nepomenovaný ostrov');
 export function nastavMeno(o, meno) { const m = meno.trim().slice(0, 26); if (m) mena.set(kluc(o), m); else mena.delete(kluc(o)); }
 
 export const ciel = () => znacky.find(z => z.id === navi.id) || null;

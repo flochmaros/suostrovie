@@ -3,7 +3,7 @@
 // Dlazdice sa generuju postupne (casovy limit na snimok), aby hra nezasekavala.
 // Suradnice: sever = -z (hore), vychod = +x (vpravo) -> na mape px = x, py = z.
 import { majaky } from './majak.js';
-import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma } from './svet.js';
+import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma, MENOVANE_OSTROVY } from './svet.js';
 import * as THREE from 'three';
 import { znacky, TYPY, navi, ciel, kresliZnacku, menoOstrova, jePomenovany, pomenujOstrov, upravZnacku, dialogOtvoreny } from './znacky.js';
 import { ik } from './ikony.js';
@@ -129,7 +129,7 @@ const BIOM_FARBY = {
   palmovy: [0x6aa83a, 0x4f8f2e, 0xead7a2, 1.4], dzungla: [0x3f8a28, 0x2a6320, 0xe2cf98, 1.4], skalnaty: [0x7f9a48, 0x7a7466, 0xd8c79a, 1.4],
   atol: [0x86bf4e, 0x6aa83a, 0xf2e2b4, 0.9], sopecny: [0x4a5a38, 0x3a3230, 0x4a4542, 0.7], mangrovy: [0x4d6b34, 0x3b5a2c, 0x8a7a58, 0.3],
   bambusovy: [0x79a83a, 0x5c8c2e, 0xe6d4a0, 1.4], savana: [0xb2ad5c, 0x8fa23f, 0xe6cf98, 1.0], plytcina: [0x7ab548, 0x5f9a37, 0xf0dcaa, 1.5],
-  ovocny: [0x7cb842, 0x5ea330, 0xead7a2, 1.4],
+  ovocny: [0x7cb842, 0x5ea330, 0xead7a2, 1.4], ostrovcek: [0x7ab548, 0x5f9a37, 0xf0dcaa, 1.3],
 };
 const PLYTKA = hex(0x6fe0d2), STREDNA = hex(0x2296b8), HLBOKA = hex(0x0c3a63), PENA = hex(0xe8fbf6), SKALA = hex(0x8d877c);
 const OCEAN_CSS = '#1b5f87';
@@ -151,11 +151,14 @@ const dlazdice = new Map();     // "bx,bz" -> { platno, vysky, riadok, hotova, o
 
 function novaDlazdica(bx, bz) {
   const o = ostrovVBunke(bx, bz);
-  const f = BIOM_FARBY[o?.biom] || BIOM_FARBY.palmovy;
+  // velky rucny ostrov moze zasahovat aj do susednej bunky -> farby a jemne vzorkovanie aj tam
+  const x0 = bx * BUNKA, z0 = bz * BUNKA;
+  const p = o || MENOVANE_OSTROVY.find(m => m.x + m.ext > x0 && m.x - m.ext < x0 + BUNKA && m.z + m.ext > z0 && m.z - m.ext < z0 + BUNKA);
+  const f = BIOM_FARBY[p?.biom] || BIOM_FARBY.palmovy;
   const d = { bx, bz, o, riadok: 0, hotova: false, vysky: new Float32Array((RES + 1) * (RES + 1)), platno: null,
     b: { tr1: hex(f[0]), tr2: hex(f[1]), piesok: hex(f[2]), plaz: f[3] } };
   // bunka bez ostrova = len dno -> staci hrubsia vzorka (kazdy 3. bod), zvysok sa dopocita
-  d.krok = o ? 1 : 3;
+  d.krok = p ? 1 : 3;
   return d;
 }
 

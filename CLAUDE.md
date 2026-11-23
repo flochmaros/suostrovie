@@ -30,7 +30,9 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/main.js` | štart, hlavná slučka, HUD, udalosti (úder, zber), ukladanie, `window.hra.sim()` na testy |
 | `src/grafika.js` | renderer, obloha, slnko + tiene, bloom; 2 prechody (svet bez vody → textúra pre vodu) |
 | `src/ocean.js` | shader vody (vlny, lom, hĺbka, pena, odlesky) + `vyskaVody(x,z,t)` (rovnaký vzorec v JS aj GLSL), príliv |
-| `src/svet.js` | bunky 520 m, ostrovy + biómy, terén (kaustiky, mokrý piesok), predmety na zemi |
+| `src/svet.js` | bunky 520 m, ostrovy + biómy, terén (kaustiky, mokrý piesok), predmety na zemi; v pásmach 1–3 len ručné ostrovy + ostrovčeky (`ostrovNa`, `klucOstrova`) |
+| `src/ostrovy/` | **ručne navrhnuté ostrovy** (1 súbor = 1 ostrov: tvar, farby, zóny vegetácie, predmety, pamiatky); polohy + API v `index.js`, pomocné funkcie `pomoc.js`; návrh a príbeh `SUOSTROVIE.md` |
+| `nastroje/ostrov.html` | náhľad ostrova zhora bez hry (`?id=<id>`, `?id=vsetky`); zadanie pre tvorcu ostrova `nastroje/ZADANIE_OSTROVA.md` |
 | `src/vegetacia.js` | rozmiestnenie rastlín podľa biómu, uzly (hitbox, životy, pád), zber plodov + dorastanie (`najdiZber`, `stavRastlin`) |
 | `src/svet/modely.js` | modely rastlín kódom + materiály s vetrom |
 | `src/zivocichy.js` | kraby, ryby, vtáky, motýle, korytnačka, delfín (`najdiUlovok`) |
@@ -60,6 +62,8 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 - Nový zdroj (strom, kameň…): `src/obsah/zdroje.js` + druh a hustota v `src/vegetacia.js` (`DRUHY`, `BIOMY`).
 - Dev režim v hre: **F2**.
 - Testovanie bez hrania: v konzole `hra.sim(sekundy, ['KeyW'], ['Mys0'])`, `hra.otoc(yaw, pitch)`.
+- Nový ručný ostrov: súbor v `src/ostrovy/` + riadok v `OSTROVY` a `MAX_EXT` (`index.js`); teleport v konzole `hra.naOstrov('id')`.
+- Výhradné suroviny ostrovov (bambus len na Šumivom háji, hlina na Hlinisku…) sú v `SUOSTROVIE.md` – nepridávať ich inam.
 
 ## Pracovný štýl (spätná väzba 19. 11. 2026)
 - Nezastavuj po malých úlohách – rob väčšie celky poriadne a sám ich vyskúšaj v hre (screenshot), kým to nevyzerá dobre.
