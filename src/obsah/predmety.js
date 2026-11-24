@@ -4,13 +4,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ik } from '../ikony.js';
+import { modelKokos, modelKamen, modelMusla } from './modely_predmetov.js';
 
 export const PREDMETY = {};
 export function predmet(id, def) { PREDMETY[id] = { id, kopa: 20, popis: '', ...def }; }
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, ...o });
 const matV = (o = {}) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, ...o });
-const DREVO = mat(0x8a6240), KAMEN = mat(0x8f8c86), KOKOS = mat(0x5b3b1f), MUSLA = mat(0xf1d2bf, { roughness: 0.45 });
+const DREVO = mat(0x8a6240);
 const MAT_V = matV();
 
 // geometria s jednou farbou vo vrcholoch (kvoli spajaniu viac farieb do jedneho modelu)
@@ -29,15 +30,15 @@ predmet('drevo', { meno: 'Drevo', ikona: ik('log', '#b07a45'), popis: 'Poleno zo
 predmet('palica', { meno: 'Palica', ikona: ik('wood-stick', '#c9a06a'), popis: 'Suchá palica.',
   model: [new THREE.CylinderGeometry(0.035, 0.05, 1.1, 5).rotateZ(Math.PI / 2).translate(0, 0.05, 0), DREVO] });
 predmet('kamen', { meno: 'Kameň', ikona: ik('rock', '#a19d95'), popis: 'Hodí sa na nástroje.',
-  model: [new THREE.IcosahedronGeometry(0.16, 0).scale(1, 0.7, 1).translate(0, 0.1, 0), KAMEN] });
+  model: modelKamen() });
 predmet('obsidian', { meno: 'Obsidián', ikona: ik('crystal-growth', '#56487e'), popis: 'Čierne sopečné sklo, ostré ako britva.',
   model: [spoj(fv(new THREE.ConeGeometry(0.09, 0.3, 5).rotateZ(0.5).translate(0, 0.14, 0), 0x15181c), fv(new THREE.ConeGeometry(0.07, 0.2, 4).rotateZ(-0.6).translate(0.08, 0.08, 0.03), 0x1d2228)), matV({ roughness: 0.1, metalness: 0.35 })] });
 predmet('sira', { meno: 'Síra', ikona: ik('ore', '#e8d040'), popis: 'Žltá hrudka z kráteru.',
   model: [new THREE.IcosahedronGeometry(0.11, 0).scale(1, 0.7, 1).translate(0, 0.08, 0), mat(0xe3c92a, { roughness: 0.6 })] });
 predmet('kokos', { meno: 'Kokos', ikona: ik('coconuts', '#8a5a32'), popis: 'Jedlo aj pitie.', jedlo: { sytost: 10, voda: 30 },
-  model: [new THREE.IcosahedronGeometry(0.15, 1).scale(1, 1.15, 1).translate(0, 0.16, 0), KOKOS] });
+  model: modelKokos() });
 predmet('musla', { meno: 'Mušľa', ikona: ik('spiral-shell', '#f2cdb5'), popis: 'Pekná mušľa z pláže.',
-  model: [new THREE.ConeGeometry(0.09, 0.15, 7).rotateX(-1.3).translate(0, 0.07, 0), MUSLA] });
+  model: modelMusla() });
 predmet('list', { meno: 'Palmový list', ikona: ik('monstera-leaf', '#5fae4c'), popis: 'Na strechy a vlákno.',
   model: [new THREE.SphereGeometry(0.1, 6, 3).scale(3.2, 0.12, 1).translate(0, 0.03, 0), mat(0x4f8a35, { side: THREE.DoubleSide })] });
 predmet('vlakno', { meno: 'Vlákno', ikona: ik('herbs-bundle', '#d6c08a'), popis: 'Z kríkov a trávy, na viazanie.',

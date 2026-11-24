@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>Náhľad predmetov</title>
+<style>
+  body { margin: 0; background: #2b3a44; color: #eee; font: 13px sans-serif; overflow: hidden; }
+  #ikony { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: #0006; }
+  #ikony div { width: 72px; text-align: center; cursor: pointer; } #ikony img { width: 64px; height: 64px; background: #5a4a3a; border-radius: 8px; }
+  #info { position: fixed; top: 8px; left: 10px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script></head><body>
+<div id="info">?id=kokos,kamen,... (predvolene: vzorka). Klik na ikonu = zobrazit. Ťahaj myšou = otáčať.</div>
+<div id="ikony"></div>
+<script type="module">
+// Nahlad 3D modelov predmetov bez hry: hore velky model (otacanie), dole ikony z ikony3d.js
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PREDMETY } from '../src/obsah/predmety.js';
+import '../src/obsah/nastroje.js';
+import '../src/obsah/zivocichy.js';
+import '../src/obsah/jedlo.js';
+import '../src/obsah/more.js';
+// ikony (importuju aj zvysok obsahu) - ak cast obsahu hadze chybu, modely sa aj tak zobrazia
+await import('../src/ikony3d.js').catch(e => console.warn('ikony3d sa nenacitali:', e.message));
+
+const par = new URLSearchParams(location.search).get('id');
+const ids = par === 'vsetky' ? Object.keys(PREDMETY).filter(id => PREDMETY[id].model)
+  : (par || 'kokos,kamenna_sekera,kamen,ryba,musla,lasturova_sekera,obsidianova_sekera').split(',');
+
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); r.setPixelRatio(devicePixelRatio);
+r.shadowMap.enabled = true; document.body.prepend(r.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x87b8d0);
+s.add(new THREE.HemisphereLight(0xfff2dd, 0x6a7a5a, 1.4));
+const slnko = new THREE.DirectionalLight(0xfff0d8, 2.4); slnko.position.set(1, 2, 1.2); slnko.castShadow = true; s.add(slnko);
+const zem = new THREE.Mesh(new THREE.CircleGeometry(3, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe6d3a3 }));
+zem.receiveShadow = true; s.add(zem);
+const kam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 50);
+const ovl = new OrbitControls(kam, r.domElement);
+
+// vsetky vybrane predmety vedla seba
+const skup = new THREE.Group(); s.add(skup);
+let x = 0;
+for (const id of ids) {
+  const p = PREDMETY[id]; if (!p?.model) continue;
+  const m = new THREE.Mesh(p.model[0], p.model[1]); m.castShadow = true;
+  m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox;
+  m.position.x = x - b.min.x; x += b.max.x - b.min.x + 0.12; skup.add(m);
+  m.userData.id = id;
+}
+skup.position.x = -x / 2;
+function ukaz(mesh) {
+  const b = new THREE.Box3().setFromObject(mesh), c = b.getCenter(new THREE.Vector3()), d = b.getSize(new THREE.Vector3()).length();
+  ovl.target.copy(c); kam.position.copy(c).add(new THREE.Vector3(0.5, 0.6, 1).multiplyScalar(d * 1.1)); ovl.update();
+}
+ukaz(skup);
+const tri = ids.reduce((a, id) => a + (PREDMETY[id]?.model ? PREDMETY[id].model[0].attributes.position.count / 3 : 0), 0);
+document.getElementById('info').textContent += `  | trojuholníkov spolu: ${tri}`;
+const ik = document.getElementById('ikony');
+for (const m of skup.children) {
+  const p = PREDMETY[m.userData.id], el = document.createElement('div');
+  el.innerHTML = `<img src="${p.ikona3d || ''}"><br>${p.meno}`; el.onclick = () => ukaz(m); ik.append(el);
+}
+addEventListener('resize', () => { r.setSize(innerWidth, innerHeight); kam.aspect = innerWidth / innerHeight; kam.updateProjectionMatrix(); });
+r.setAnimationLoop(() => r.render(s, kam));
+window.nahlad = { ukaz, skup };
+</script></body></html>

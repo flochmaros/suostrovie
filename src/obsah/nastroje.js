@@ -6,9 +6,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { predmet } from './predmety.js';
 import { ik } from '../ikony.js';
+import { hladka, tvar, dokonci, lano, fbm, smooth, stylMat } from './styl.js';
 
 const C = { drevo: 0x7a5535, tmavy: 0x5a3d25, bambus: 0xc9b266, vlakno: 0xcfb87c, kamen: 0x8f8c86, kamen2: 0xb9b6ae, musla: 0xf1d2bf, ostrie: 0xd8d4c8, obsidian: 0x3d4248 };
-const MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 });
+const MAT = stylMat({ roughness: 0.75 });
 
 // zafarbi geometriu (vertex colors) a pripravi ju na spojenie
 const farba = (g, hex) => {
@@ -38,9 +39,36 @@ function drzanie(g, sklon = 0.5) {
 
 // ---------- modely ----------
 function sekera(hlavaHex, ostrieHex, sirka = 1) {
-  const L = 0.62;
-  return zloz([rukovat(L, 0.028, C.drevo, 0.024), kamenHlava(0.07, L - 0.06, 0.11 * sirka, 0.085, 0.032, hlavaHex),
-    farba(new THREE.BoxGeometry(0.03, 0.15 * sirka, 0.014).translate(0.16 * sirka, L - 0.06, 0), ostrieHex), omotaj(L - 0.11), omotaj(L - 0.02)]);
+  const L = 0.62, YH = L - 0.06;
+  // rukovat: mierne prehnuta, s pozdlznymi letokruhmi a guľkou na konci
+  const drevo = new THREE.Color(C.drevo), svetle = new THREE.Color(0xb98a55), tmave = new THREE.Color(0x4a2f1a);
+  const ruk = tvar(hladka(new THREE.CylinderGeometry(0.023, 0.028, L, 12, 18).translate(0, L / 2, 0)), (v, c) => {
+    v.x += 0.014 * Math.sin(Math.PI * v.y / L);   // rovnaky ohyb ako ohyb(y) nizsie
+    const n = fbm(v.x * 90, v.y * 4, v.z * 90, 3);
+    c.copy(drevo).lerp(svetle, smooth(0.45, 0.8, n)).lerp(tmave, smooth(0.35, 0.15, n) * 0.6);
+  });
+  const hlavicka = tvar(hladka(new THREE.SphereGeometry(0.032, 12, 8)).scale(1, 0.7, 1), (v, c) => c.copy(drevo).multiplyScalar(0.85));
+  // kamenna hlava: klin (tenky k ostriu na +x), nerovny povrch, vybrusene svetlejsie ostrie
+  const H = new THREE.Color(hlavaHex), O = new THREE.Color(ostrieHex);
+  let hlava = tvar(hladka(new THREE.IcosahedronGeometry(1, 3)), (v, c) => {
+    const x = v.x, n = fbm(v.x * 2.2 + 5, v.y * 2.2, v.z * 2.2, 3), n2 = fbm(v.x * 7, v.y * 7, v.z * 7, 2);
+    const hrubka = 1 - 0.85 * smooth(-0.4, 1, x);                     // klin: tenky k ostriu
+    const vejar = 0.4 + 0.8 * smooth(-1, 0.9, x);                     // ostrie vyssie ako tylo
+    const s = 1 + (n - 0.5) * 0.25 + (n2 - 0.5) * 0.12;
+    v.set(v.x * 0.13 * sirka * s, v.y * 0.09 * vejar * s, v.z * 0.04 * hrubka * s);
+    v.x += 0.075 * sirka; v.y += YH;
+    c.copy(H).multiplyScalar(0.62 + n * 0.5 + (n2 - 0.5) * 0.2).lerp(O, smooth(0.35, 0.8, x) * 0.9);
+    c.lerp(new THREE.Color(0xffffff), smooth(0.8, 0.97, x) * 0.4);   // vybrusena hrana
+  });
+  hlava = hlava.toNonIndexed(); hlava.computeVertexNormals();      // ploche plosky = otlkany kamen
+  // vlakno: dve krizom cez hlavu + omotavky pod hlavou a na uchope
+  const vl = C.vlakno, ohyb = y => 0.014 * Math.sin(Math.PI * y / L);
+  const dielyLana = [
+    ...[-1, 1].map(i => lano(0.042, 0.009, vl).scale(1, 1, 1.25).rotateX(Math.PI / 2).rotateZ(i * 0.65).translate(0.01, YH, 0)),
+    ...[0, 1, 2].map(i => lano(0.03, 0.0075, vl).rotateX(Math.PI / 2).translate(ohyb(YH - 0.075 - i * 0.016), YH - 0.075 - i * 0.016, 0)),
+    ...[0, 1, 2, 3, 4, 5].map(i => lano(0.03, 0.007, 0x6a4a30, 18).rotateX(Math.PI / 2).translate(ohyb(0.1 + i * 0.014), 0.1 + i * 0.014, 0)),
+  ];
+  return [dokonci(ruk, hlavicka, hlava, ...dielyLana).rotateZ(Math.PI / 2).translate(0, YZEM, 0), MAT];
 }
 function krompac(hlavaHex, rukovatHex) {
   const L = 0.7;
