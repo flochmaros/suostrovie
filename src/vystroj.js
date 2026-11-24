@@ -16,6 +16,7 @@ import { postavModel } from './postava.js';
 import { aktivnySlot, klucVystroje } from './sloty.js';
 import { ostrovPri } from './svet.js';
 import { majaky } from './majak.js';
+import { vietor } from './kanoe.js';
 
 const KLUC = klucVystroje(aktivnySlot());
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
@@ -53,17 +54,36 @@ const dielyPre = id => {
   return [{ j: 'kL', o: modelCizmy() }, { j: 'kP', o: modelCizmy() }];
 };
 // pripoji nasadene kusy na klby postavy J (hlavnej aj tej v nahlade batohu)
-function oblecenie(J) {
-  const pripojene = {};
-  return () => {
+// vrati funkciu obnov(); obnov.anim(s) kazdy snimok zavola userData.anim vsetkych dielov a dobehne "pop" pri nasadeni
+function oblecenie(J, priNasadeni) {
+  const pripojene = {}, animy = [], popy = [];
+  const obnov = () => {
+    let zmena = false;
     for (const [slot] of SLOTY) {
       const id = nas[slot];
       if (pripojene[slot]?.id === id) continue;
       pripojene[slot]?.objs.forEach(o => o.parent?.remove(o));
-      pripojene[slot] = null;
-      if (id) { const d = dielyPre(id); d.forEach(x => J[x.j].add(x.o)); pripojene[slot] = { id, objs: d.map(x => x.o) }; }
+      pripojene[slot] = null; zmena = true;
+      if (id) {
+        const d = dielyPre(id); d.forEach(x => J[x.j].add(x.o)); pripojene[slot] = { id, objs: d.map(x => x.o) };
+        for (const x of d) popy.push({ o: x.o, s: x.o.scale.clone(), t: 0 });   // predmet "naskoci"
+        priNasadeni?.(id, d);
+      }
+    }
+    if (!zmena) return;
+    animy.length = 0;                                       // zoznam animovanych objektov (aj vnorenych)
+    for (const p of Object.values(pripojene)) p?.objs.forEach(o => o.traverse(c => { if (c.userData.anim) animy.push(c.userData.anim); }));
+  };
+  obnov.anim = s => {
+    for (const a of animy) a(s);
+    for (let i = popy.length - 1; i >= 0; i--) {
+      const p = popy[i]; p.t += s.dt / 0.35;
+      const k = p.t >= 1 ? 1 : 1 + Math.sin(p.t * Math.PI * 2.5) * (1 - p.t) * 0.45 * (p.t < 0.2 ? p.t / 0.2 : 1) - (p.t < 0.2 ? (1 - p.t / 0.2) * 0.7 : 0);
+      p.o.scale.copy(p.s).multiplyScalar(k);
+      if (p.t >= 1) popy.splice(i, 1);
     }
   };
+  return obnov;
 }
 
 const CSS = `#postava-box{display:flex;flex-direction:column;align-items:center;gap:8px;padding-right:22px;margin-right:22px;border-right:1px solid var(--okraj)}
@@ -78,9 +98,21 @@ const CSS = `#postava-box{display:flex;flex-direction:column;align-items:center;
 #postava-plat{width:210px;height:340px;border-radius:14px;background:radial-gradient(ellipse at 50% 35%,rgba(255,255,255,.22),rgba(0,0,0,.28));cursor:grab;touch-action:none}
 #pb-obrana{font-size:15px;font-weight:700;text-align:center;line-height:1.35}#pb-obrana small{display:block;font-weight:500;opacity:.7;font-size:12px}`;
 
-export function initVystroj(hrac, oznam, kam) {
+export function initVystroj(hrac, oznam, kam, iskry) {
   const J = hrac.J;
-  const obleclHrac = oblecenie(J);
+  let nacitane = false;
+  // pri nasadeni: iskricky vo farbe kusu okolo klbu, kam sa pripojil
+  const FARBY = { list: 0x7ad050, bambus: 0xe8d080, lastura: 0xffe8f0, krab: 0xff6a40, supina: 0xff8a20,
+    ohnivzdorny_plast: 0xff6a20, kozene_cizmy: 0xa0b060, amulet_hlbin: 0xc080ff };
+  const wp = new THREE.Vector3();
+  const obleclHrac = oblecenie(J, (id, diely) => {
+    if (!nacitane || !iskry) return;
+    const f = FARBY[VYBAVA[id].tier] ?? FARBY[id] ?? 0xffffff;
+    for (const d of diely) {
+      d.o.getWorldPosition(wp);
+      for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28; iskry.vypust(wp.x, wp.y, wp.z, Math.cos(a) * 1.4, 0.8 + Math.random() * 1.6, Math.sin(a) * 1.4, f, 0.6, 4); }
+    }
+  });
   let obleclNahlad = null;
 
   // ---------- panel Postava v batohu ----------
@@ -210,7 +242,28 @@ export function initVystroj(hrac, oznam, kam) {
 
   setInterval(() => { const o = ostrovPri(hrac.poz.x, hrac.poz.z, 1.1); vystroj.mociar = !!o && o.biom === 'mangrovy' && !hrac.plava; }, 500);
   zmena();
+  nacitane = true;
   hrac.prepniVystroj = nasad;
+
+  // ---------- animacie vystroja (userData.anim dielov, kontrakt v modely_vystroja.js / modely_trofeji.js) ----------
+  const sH = { t: 0, dt: 0, rych: 0, vpred: 0, vy: 0, vietor, vietorLok: { x: 0, z: 0 }, podVodou: false, plava: false, nahlad: false };
+  const sN = { ...sH, vietor: { smer: 0, sila: 0 }, vietorLok: { x: 0, z: 0.15 }, nahlad: true };
+  let casA = performance.now();
+  const tikAnim = () => {
+    requestAnimationFrame(tikAnim);
+    const t = performance.now(), dt = Math.min(0.1, (t - casA) / 1000); casA = t;
+    const a = hrac.smer || 0, sa = Math.sin(a), ca = Math.cos(a);
+    const wx = -Math.sin(vietor.smer) * vietor.sila, wz = -Math.cos(vietor.smer) * vietor.sila;   // svetovy vektor vetra
+    sH.t = sN.t = t / 1000; sH.dt = sN.dt = dt;
+    sH.rych = Math.hypot(hrac.rych.x, hrac.rych.z);
+    sH.vpred = -hrac.rych.x * sa - hrac.rych.z * ca;
+    sH.vy = hrac.vy || 0;
+    sH.vietorLok.x = wx * ca - wz * sa; sH.vietorLok.z = wx * sa + wz * ca;   // do lokalnych suradnic postavy (+z = dozadu)
+    sH.podVodou = !!hrac.potapa; sH.plava = !!hrac.plava;
+    obleclHrac.anim(sH);
+    if (obleclNahlad && batoh.style.display !== 'none') obleclNahlad.anim(sN);
+  };
+  tikAnim();
 
   // Kompas hmly: sipka (relativne k smeru kamery) k najblizsiemu nezapalenemu majaku
   const komp = document.createElement('div');

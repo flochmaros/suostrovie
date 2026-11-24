@@ -259,7 +259,7 @@ initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vK
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initBoj({ scena, kamera, kam, hrac });
-initVystroj(hrac, t => oznam(t), kam);
+initVystroj(hrac, t => oznam(t), kam, triesky);
 let napovedaZbrane = false;
 initInventar(() => { hrac.drz(vybranyPredmet()); if (!napovedaZbrane && hrac.zbran !== 'pest') { napovedaZbrane = true; oznam('⚔ Ľavé tlačidlo = sek, klikaj rýchlo = kombo, podrž = silný úder'); } });
 initUlohy({ poz: () => (vKanoe || naPalube ? { x: kanoe.poz.x, z: kanoe.poz.y } : hrac.poz), lodUroven: () => Math.max(0, ...lode.filter(l => l.druh === 'kanoe').map(l => l.uroven || 1)), oznam, zvuk: () => zvuky.zober() });
