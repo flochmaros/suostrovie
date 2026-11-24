@@ -31,7 +31,6 @@ import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, 
 import { PREDMETY } from './obsah/predmety.js';
 import { UI } from './ikony.js';
 import { initVystroj } from './vystroj.js';
-import { initBrnenie } from './brnenie.js';
 import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
 import { aktivnySlot, klucSlotu } from './sloty.js';
@@ -261,7 +260,6 @@ const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { ulo
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initBoj({ scena, kamera, kam, hrac });
 initVystroj(hrac, t => oznam(t), kam);
-initBrnenie(hrac, t => oznam(t));
 let napovedaZbrane = false;
 initInventar(() => { hrac.drz(vybranyPredmet()); if (!napovedaZbrane && hrac.zbran !== 'pest') { napovedaZbrane = true; oznam('⚔ Ľavé tlačidlo = sek, klikaj rýchlo = kombo, podrž = silný úder'); } });
 initUlohy({ poz: () => (vKanoe || naPalube ? { x: kanoe.poz.x, z: kanoe.poz.y } : hrac.poz), lodUroven: () => Math.max(0, ...lode.filter(l => l.druh === 'kanoe').map(l => l.uroven || 1)), oznam, zvuk: () => zvuky.zober() });

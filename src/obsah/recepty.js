@@ -41,7 +41,6 @@ recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny:
 // trofeje bossov: recepty sa zobrazia, az ked hrac niekedy mal trofej (pamata si to v localStorage)
 const MA_TROFEJ = () => { try { if (pocet('krabi_pancier') + pocet('obrie_klepeto') > 0) localStorage.setItem('hra_trofej', '1'); return localStorage.getItem('hra_trofej') === '1'; } catch (e) { return true; } };
 recept({ id: 'klepetovy_kyj', skupina: N, vysledok: ['klepetovy_kyj', 1], podmienka: MA_TROFEJ, suroviny: [['obrie_klepeto', 1], ['krabi_pancier', 2], ['drevo', 1], ['vlakno', 1]] });
-recept({ id: 'krabia_prilba', skupina: 'Výstroj', vysledok: ['krabia_prilba', 1], podmienka: MA_TROFEJ, suroviny: [['krabi_pancier', 3], ['vlakno', 1]] });
 // trofeje strazcov 2-5: recept sa ukaze, ked hrac niekedy mal danu trofej
 const malTrofej = id => () => { try { if (pocet(id) > 0) localStorage.setItem('hra_trofej_' + id, '1'); return localStorage.getItem('hra_trofej_' + id) === '1'; } catch (e) { return true; } };
 recept({ id: 'zeravy_mec', skupina: N, vysledok: ['zeravy_mec', 1], podmienka: malTrofej('zerave_jadro'), suroviny: [['zerave_jadro', 1], ['lavova_supina', 2], ['obsidian', 3], ['drevo', 1]] });

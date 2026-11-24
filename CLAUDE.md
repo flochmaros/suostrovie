@@ -50,6 +50,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/kanoe.js` | lode: `DRUHY` (kanoe 4 úrovne `STATY`, pretekárske, barža, katamaran), sklad, vylepšenia, fyzika, plachta + vietor, brázda; voda v lodi + trup (`VODA`, `maxTrup`, V = vylievať, G = oprava), potopenie → sudy s nákladom (`vypustNaklad` v more.js); `stat.maska` = voda pod palubou (ocean.js) |
 | `src/lode_modely.js`, `src/lodenica.js` | 3D modely nových lodí; lodenica (stavba pri vode, spúšťanie lodí) |
 | `src/stavba.js` | stavanie: podlaha/stena/strecha na mriežke 2 m (F), náhľad, kolízie (`odtlacOdStien`, `vyskaPodlahy` v hrac.js), rozobratie úderom, ukladanie |
+| `src/vystroj.js`, `src/modely_vystroja.js`, `src/obsah/vystroj.js` | **výstroj**: panel Postava v batohu (3D náhľad + 6 slotov hlava/telo/nohy/čižmy/plášť/amulet), 5 sád brnenia × 4 kusy (`SADY` v obsah/vystroj.js, modely v modely_vystroja.js), obrana sa sčíta (`vystroj.obrana` → `zran`), kompas hmly |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
 | `src/ikony.js` | ikony: `ik(tvar, farba, ...vrstvy)` → SVG (game-icons.net CC BY 3.0 + vlastné), `UI` ikony HUD, `data-ik` v HTML |
 | `src/inventar.js` | batoh 32 políčok (prvých 8 = lišta), ťahanie, Shift+klik, delenie stohu, zoradenie; výroba so záložkami (Tab); stavebné menu (B) |

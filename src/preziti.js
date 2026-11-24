@@ -68,13 +68,11 @@ function umri(pricina) {
 
 // poskodenie od okolia (zralok, pad...). pricina: text/kod
 // vystroj (src/vystroj.js): prilba = -25 % poskodenia, plast = lava nepali, cizmy = +25 % v mociari (mociar nastavuje vystroj.js), amulet = dych (hrac.js)
-export const vystroj = { prilba: false, plast: false, cizmy: false, amulet: false, mociar: false, brnenie: null };
-export const obranaBrnenia = {};   // naplni obsah/brnenie.js: id -> obrana 0-1
+export const vystroj = { obrana: 0, plast: false, cizmy: false, amulet: false, mociar: false };   // obrana 0-1 = sucet kusov brnenia (src/vystroj.js)
 export function zran(n, pricina = 'zranenie') {
   if (stav.mrtvy || n <= 0) return;
   if (vystroj.plast && pricina === 'lava') return;    // ohnivzdorny plast
-  if (vystroj.prilba) n *= 0.75;
-  if (vystroj.brnenie) n *= 1 - (obranaBrnenia[vystroj.brnenie] ?? 0);   // brnenie na hrudi (src/brnenie.js)
+  n *= 1 - vystroj.obrana;                              // nasadene brnenie
   stav.zdravie = clamp(stav.zdravie - n);
   blesk = Math.min(1, blesk + 0.4 + n / 40);
   if (stav.zdravie <= 0) umri(pricina);

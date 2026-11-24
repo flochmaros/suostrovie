@@ -1,5 +1,6 @@
-// Vystroj: nositelne predmety z trofeji strazcov. Pravy klik na predmet v liste = nasadit/zlozit (H = prilba).
-//   prilba (Krabia prilba)        -25 % poskodenia            (preziti.js zran)
+// Vystroj: nositelne predmety. Nasadzuju sa v batohu (Tab): panel Postava s 3D nahladom a 6 slotmi (hlava, telo, nohy, cizmy, plast, amulet).
+//   Ťahaj kus z batohu na postavu / pravy klik na predmet v batohu alebo v liste / klik na slot ho zlozi / H = helma.
+//   brnenie (5 sad x 4 kusy)      znizuje poskodenie (sucet kusov, max 80 %, cela sada +5 %)   (preziti.js zran, vystroj.obrana)
 //   plast  (Ohnivzdorny plast)    lavove kaluze nepalia       (preziti.js zran, pricina 'lava')
 //   cizmy  (Kozene cizmy)         +25 % rychlost v mociari    (preziti.js rychlostNasobok, vystroj.mociar)
 //   amulet (Amulet hlbin)         2x dlhsi dych pod vodou     (hrac.js h.dychNasobok)
@@ -7,8 +8,11 @@
 // Stav sa uklada sam (localStorage), modely su male a decentne, sedia na klboch postavy.
 import * as THREE from 'three';
 import { vystroj } from './preziti.js';
-import { sloty, pocet } from './inventar.js';
-import { ik } from './ikony.js';
+import { sloty, pocet, odober, pridaj, obnov as obnovInventar } from './inventar.js';
+import { PREDMETY } from './obsah/predmety.js';
+import { VYBAVA, SLOTY, SADA_PODLA_TIERU, BONUS_SADY, MAX_OBRANA } from './obsah/vystroj.js';
+import { kusVystroje } from './modely_vystroja.js';
+import { postavModel } from './postava.js';
 import { aktivnySlot, klucVystroje } from './sloty.js';
 import { ostrovPri } from './svet.js';
 import { majaky } from './majak.js';
@@ -17,19 +21,6 @@ const KLUC = klucVystroje(aktivnySlot());
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
 const kus = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; return o; };
 
-function modelPrilby() {
-  const g = new THREE.Group();
-  const cerv = mat(0xc8422c, { roughness: 0.5, metalness: 0.15 }), tmav = mat(0x7a2414);
-  const kopula = kus(new THREE.SphereGeometry(0.15, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), cerv, 0, 0.125, 0.005);
-  kopula.scale.set(0.98, 1.05, 1.08); g.add(kopula);
-  const okraj = kus(new THREE.TorusGeometry(0.143, 0.011, 6, 24).rotateX(Math.PI / 2), tmav, 0, 0.16, 0.005);
-  okraj.scale.set(0.98, 1, 1.08); g.add(okraj);
-  g.add(kus(new THREE.BoxGeometry(0.02, 0.025, 0.25), tmav, 0, 0.275, 0));
-  for (const s of [-1, 1]) {           // dve "ocne stopky" krabej hlavy vpredu
-    const k = kus(new THREE.ConeGeometry(0.018, 0.1, 6), tmav, 0.05 * s, 0.27, -0.12); k.rotation.set(-0.5, 0, -0.25 * s); g.add(k);
-  }
-  return g;
-}
 // plast: tenka doska na chrbte (vzadu = +z) + golier; jemne zeravy lem
 function modelPlasta() {
   const g = new THREE.Group(), m = mat(0x2e2420, { roughness: 0.8 }), lem = mat(0x401008, { emissive: 0xff5010, emissiveIntensity: 1.2 });
@@ -38,68 +29,188 @@ function modelPlasta() {
   g.add(kus(new THREE.BoxGeometry(0.3, 0.04, 0.12), m, 0, 0.45, 0.1));
   return g;
 }
-// cizma: kratky valec okolo clenku (na klbe kolena)
-const modelCizmy = () => kus(new THREE.CylinderGeometry(0.07, 0.075, 0.13, 7), mat(0x4a5a30, { roughness: 0.9 }), 0, -0.4, 0);
+// kozene cizmy: holen + priehlavok z krokodilej koze (na klbe kolena)
+function modelCizmy() {
+  const g = new THREE.Group(), k = mat(0x4a5a30, { roughness: 0.9 }), t = mat(0x2c3a1c, { roughness: 0.95 });
+  g.add(kus(new THREE.CylinderGeometry(0.076, 0.068, 0.25, 10), k, 0, -0.29, 0));
+  g.add(kus(new THREE.CylinderGeometry(0.082, 0.082, 0.03, 10), t, 0, -0.15, 0));
+  const noha = kus(new THREE.CapsuleGeometry(0.056, 0.13, 6, 10).rotateX(Math.PI / 2), k, 0, -0.445, -0.085); noha.scale.set(1.12, 0.85, 1); g.add(noha);
+  g.add(kus(new THREE.BoxGeometry(0.125, 0.026, 0.29), t, 0, -0.484, -0.07));
+  return g;
+}
 // amulet: maly osemsten na hrudi (vpredu = -z)
 const modelAmuletu = () => kus(new THREE.OctahedronGeometry(0.028, 0), mat(0x6a30b0, { emissive: 0x8040e0, emissiveIntensity: 0.8 }), 0, 0.38, -0.15);
 
-const VYSTROJ = [
-  { slot: 'prilba', id: 'krabia_prilba', meno: 'Krabiu prilbu', efekt: '−25 % poškodenia', ikona: ik('spiral-shell', '#e0583a') },
-  { slot: 'plast', id: 'ohnivzdorny_plast', meno: 'Ohnivzdorný plášť', efekt: 'láva ťa nepáli', ikona: ik('spiral-shell', '#c8501e') },
-  { slot: 'cizmy', id: 'kozene_cizmy', meno: 'Kožené čižmy', efekt: '+25 % v močiari', ikona: ik('spiral-shell', '#6a7a3a') },
-  { slot: 'amulet', id: 'amulet_hlbin', meno: 'Amulet hlbín', efekt: '2× dlhší dych', ikona: ik('glass-ball', '#a060e0') },
-];
+
+// ---------- stav ----------
+const PRAZDNE = () => Object.fromEntries(SLOTY.map(([s]) => [s, null]));
+const nas = PRAZDNE();                                   // nasadene kusy: slot -> id predmetu
+const dielyPre = id => {
+  const v = VYBAVA[id];
+  if (v.tier) return kusVystroje(v.slot, v.tier);
+  if (id === 'ohnivzdorny_plast') return [{ j: 'chrbat', o: modelPlasta() }];
+  if (id === 'amulet_hlbin') return [{ j: 'chrbat', o: modelAmuletu() }];
+  return [{ j: 'kL', o: modelCizmy() }, { j: 'kP', o: modelCizmy() }];
+};
+// pripoji nasadene kusy na klby postavy J (hlavnej aj tej v nahlade batohu)
+function oblecenie(J) {
+  const pripojene = {};
+  return () => {
+    for (const [slot] of SLOTY) {
+      const id = nas[slot];
+      if (pripojene[slot]?.id === id) continue;
+      pripojene[slot]?.objs.forEach(o => o.parent?.remove(o));
+      pripojene[slot] = null;
+      if (id) { const d = dielyPre(id); d.forEach(x => J[x.j].add(x.o)); pripojene[slot] = { id, objs: d.map(x => x.o) }; }
+    }
+  };
+}
+
+const CSS = `#postava-box{display:flex;flex-direction:column;align-items:center;gap:8px;padding-right:22px;margin-right:22px;border-right:1px solid var(--okraj)}
+#postava-box h2{margin:0;align-self:flex-start;font-size:22px}
+.pb-radek{display:flex;gap:8px;align-items:center}
+.pb-stlpec{display:flex;flex-direction:column;gap:7px}
+.ekv{position:relative;width:66px;height:66px;border-radius:12px;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,border-color .12s}
+.ekv:hover{background:rgba(255,255,255,.26);border-color:rgba(255,255,255,.5)}
+.ekv .ikona{font-size:36px;line-height:1}.ekv .ikona img,.ekv .ikona svg{width:54px;height:54px}
+.ekv.prazdny::after{content:attr(data-meno);font-size:11px;opacity:.55;text-align:center}
+.ekv.ciel{border-color:var(--zlta);background:rgba(255,210,122,.25)}
+#postava-plat{width:210px;height:340px;border-radius:14px;background:radial-gradient(ellipse at 50% 35%,rgba(255,255,255,.22),rgba(0,0,0,.28));cursor:grab;touch-action:none}
+#pb-obrana{font-size:15px;font-weight:700;text-align:center;line-height:1.35}#pb-obrana small{display:block;font-weight:500;opacity:.7;font-size:12px}`;
 
 export function initVystroj(hrac, oznam, kam) {
   const J = hrac.J;
-  const modely = { prilba: [modelPrilby()], plast: [modelPlasta()], cizmy: [modelCizmy(), modelCizmy()], amulet: [modelAmuletu()] };
-  J.hlava.add(modely.prilba[0]); J.chrbat.add(modely.plast[0]); J.chrbat.add(modely.amulet[0]);
-  J.kL.add(modely.cizmy[0]); J.kP.add(modely.cizmy[1]);
+  const obleclHrac = oblecenie(J);
+  let obleclNahlad = null;
 
-  // HUD: male ikonky nasadeneho vystroja vlavo dole
+  // ---------- panel Postava v batohu ----------
+  const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+  const box = document.createElement('div'); box.id = 'postava-box';
+  const slotHtml = s => `<div class="ekv prazdny" data-ekv="${s[0]}" data-meno="${s[1]}"></div>`;
+  box.innerHTML = `<h2>Postava</h2><div class="pb-radek"><div class="pb-stlpec">${SLOTY.slice(0, 4).map(slotHtml).join('')}</div>`
+    + `<canvas id="postava-plat"></canvas><div class="pb-stlpec">${SLOTY.slice(4).map(slotHtml).join('')}</div></div><div id="pb-obrana"></div>`;
+  const batoh = document.getElementById('batoh');
+  batoh.insertBefore(box, batoh.firstChild);
+  const plat = box.querySelector('canvas');
+
+  // HUD: znacka obrany vedla listy
   const hud = document.createElement('div');
-  hud.style.cssText = 'position:fixed;left:18px;bottom:110px;display:flex;gap:4px;pointer-events:none;z-index:4';
-  for (const v of VYSTROJ) {
-    v.hud = document.createElement('div'); v.hud.title = v.meno + ' (' + v.efekt + ')';
-    v.hud.style.cssText = 'width:34px;height:34px;display:none;padding:3px;border-radius:8px;background:#0008;border:1px solid #fff5';
-    v.hud.innerHTML = v.ikona; hud.appendChild(v.hud);
-  }
+  hud.style.cssText = 'position:fixed;left:calc(50% + 165px);bottom:68px;height:34px;display:none;padding:0 10px;border-radius:8px;background:#0008;border:1px solid #fff5;pointer-events:none;z-index:4;color:#fff;font:600 14px/32px sans-serif';
   document.body.appendChild(hud);
 
-  try {                                              // stary format: '1' = prilba
-    const s = localStorage.getItem(KLUC);
-    if (s === '1') vystroj.prilba = true;
-    else if (s && s[0] === '{') { const d = JSON.parse(s); for (const v of VYSTROJ) vystroj[v.slot] = !!d[v.slot]; }
-  } catch (e) { /* bez ukladania */ }
-  const zapis = () => { try { localStorage.setItem(KLUC, JSON.stringify(Object.fromEntries(VYSTROJ.map(v => [v.slot, vystroj[v.slot] ? 1 : 0])))); } catch (e) { /* bez ukladania */ } };
-
-  const obnov = () => {
-    for (const v of VYSTROJ) {
-      if (vystroj[v.slot] && pocet(v.id) < 1 && sloty.some(Boolean)) { vystroj[v.slot] = false; zapis(); }   // predmet sa stratil z batohu
-      for (const m of modely[v.slot]) m.visible = vystroj[v.slot];
-      v.hud.style.display = vystroj[v.slot] ? 'block' : 'none';
+  const obrana = () => {
+    let o = 0, bonus = 0, sada = null;
+    for (const [s] of SLOTY) if (nas[s]) o += VYBAVA[nas[s]].obrana;
+    for (const [t, ids] of Object.entries(SADA_PODLA_TIERU)) if (ids.every(id => Object.values(nas).includes(id))) { bonus = BONUS_SADY; sada = t; }
+    return { o: Math.min(MAX_OBRANA, o + bonus), bonus, sada };
+  };
+  const proc = x => Math.round(x * 100);
+  function kresli() {
+    for (const e of box.querySelectorAll('.ekv')) {
+      const id = nas[e.dataset.ekv], p = id && PREDMETY[id];
+      e.classList.toggle('prazdny', !id);
+      e.innerHTML = p ? `<span class="ikona">${p.ikona}</span>` : '';
+      e.title = p ? `${p.meno} – ${VYBAVA[id].efekt} (klik = zložiť)` : `${e.dataset.meno}: ťahaj sem kus výstroje z batohu`;
     }
+    const r = obrana();
+    box.querySelector('#pb-obrana').innerHTML = `🛡 Obrana: −${proc(r.o)} %<small>${r.sada ? 'Celá sada: bonus +' + proc(r.bonus) + ' %' : 'Celá sada (4 kusy) dá +' + proc(BONUS_SADY) + ' %'}</small>`;
+    hud.style.display = r.o > 0 ? 'block' : 'none'; hud.textContent = '🛡 −' + proc(r.o) + ' %';
+  }
+  const prepocitaj = () => {
+    vystroj.obrana = obrana().o;
+    vystroj.plast = nas.plast === 'ohnivzdorny_plast';
+    vystroj.cizmy = nas.cizmy === 'kozene_cizmy';
+    vystroj.amulet = nas.amulet === 'amulet_hlbin';
     hrac.dychNasobok = vystroj.amulet ? 2 : 1;
-    const o = ostrovPri(hrac.poz.x, hrac.poz.z, 1.1);
-    vystroj.mociar = !!o && o.biom === 'mangrovy' && !hrac.plava;
   };
-  const prepni = id => {
-    const v = VYSTROJ.find(v => v.id === id); if (!v) return false;
-    if (!vystroj[v.slot] && pocet(v.id) < 1) return false;
-    vystroj[v.slot] = !vystroj[v.slot]; zapis(); obnov();
-    oznam(vystroj[v.slot] ? `Nasadil si ${v.meno} (${v.efekt})` : `Zložil si ${v.meno}`);
-    return true;
+  const zapis = () => { try { localStorage.setItem(KLUC, JSON.stringify({ v: 2, n: nas })); } catch (e) { /* bez ukladania */ } };
+  const zmena = () => { prepocitaj(); obleclHrac(); obleclNahlad?.(); kresli(); zapis(); obnovInventar(); };
+
+  // nacitanie (aj zo stareho formatu: '1' = prilba, {prilba,plast,cizmy,amulet} = 0/1; kusy boli vtedy este v batohu)
+  try {
+    const s = localStorage.getItem(KLUC);
+    const staryNaId = { prilba: 'krabia_prilba', plast: 'ohnivzdorny_plast', cizmy: 'kozene_cizmy', amulet: 'amulet_hlbin' };
+    if (s === '1') { if (pocet('krabia_prilba') > 0) { odober('krabia_prilba', 1); nas.hlava = 'krabia_prilba'; } }
+    else if (s && s[0] === '{') {
+      const d = JSON.parse(s);
+      if (d.v === 2) { for (const [sl] of SLOTY) if (VYBAVA[d.n?.[sl]]?.slot === sl) nas[sl] = d.n[sl]; }
+      else for (const [k, id] of Object.entries(staryNaId)) if (d[k] && pocet(id) > 0) { odober(id, 1); nas[VYBAVA[id].slot] = id; }
+    }
+  } catch (e) { /* bez ukladania */ }
+
+  const nasad = id => {
+    const v = VYBAVA[id]; if (!v || pocet(id) < 1) return false;
+    const stary = nas[v.slot];
+    odober(id, 1); nas[v.slot] = id; if (stary) pridaj(stary, 1);
+    zmena(); oznam(`Nasadil si ${PREDMETY[id].meno} (${v.efekt})`); return true;
   };
+  const zloz = slot => {
+    const id = nas[slot]; if (!id) return false;
+    if (pridaj(id, 1) > 0) { oznam('Batoh je plný'); return false; }
+    nas[slot] = null; zmena(); oznam(`Zložil si ${PREDMETY[id].meno}`); return true;
+  };
+
+  // ovladanie: pravy klik v liste / v batohu (udalost 'nasad' z inventar.js), tahanie na postavu ('naVybavu'), klik na slot = zlozit, H = helma
   addEventListener('pointerdown', e => {
     const s = e.button === 2 && e.target.closest('#lista .slot');
-    if (s && prepni(sloty[+s.dataset.i]?.typ)) e.preventDefault();
+    if (s && nasad(sloty[+s.dataset.i]?.typ)) e.preventDefault();
   });
   addEventListener('contextmenu', e => { if (e.target.closest('#lista')) e.preventDefault(); });
-  addEventListener('keydown', e => { if (e.code === 'KeyH' && !e.repeat && !/INPUT|TEXTAREA/.test(e.target.tagName)) prepni('krabia_prilba'); });
-  setInterval(obnov, 500);
-  obnov();
-  hrac.prepniPrilbu = () => prepni('krabia_prilba');
-  hrac.prepniVystroj = prepni;
+  addEventListener('nasad', e => nasad(e.detail.id));
+  addEventListener('naVybavu', e => {
+    const { id, slot } = e.detail, v = VYBAVA[id];
+    if (!v) return;
+    if (slot && v.slot !== slot) { oznam(`${PREDMETY[id].meno} sa nosí na slot „${SLOTY.find(s => s[0] === v.slot)[1]}“`); return; }
+    nasad(id);
+  });
+  box.addEventListener('click', e => { const s = e.target.closest('.ekv'); if (s) zloz(s.dataset.ekv); });
+  addEventListener('keydown', e => {
+    if (e.code !== 'KeyH' || e.repeat || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (nas.hlava) zloz('hlava'); else { const s = sloty.find(s => s && VYBAVA[s.typ]?.slot === 'hlava'); if (s) nasad(s.typ); }
+  });
+  hrac.prepniPrilbu = () => (nas.hlava ? zloz('hlava') : false);
+
+  // ---------- 3D nahlad postavy (vlastny renderer, druha kopia modelu) ----------
+  let rend = null, scena = null, kamN = null, model = null, yaw = 0, tahaPostavu = false;
+  function zalozNahlad() {
+    try { rend = new THREE.WebGLRenderer({ canvas: plat, alpha: true, antialias: true }); } catch (e) { rend = false; return; }
+    rend.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); rend.setSize(210, 340, false); rend.setClearColor(0x000000, 0);
+    scena = new THREE.Scene();
+    scena.add(new THREE.HemisphereLight(0xfff4e0, 0x7a8aa0, 1.6));
+    const k = new THREE.DirectionalLight(0xffffff, 2.6); k.position.set(-1.5, 2.5, -3); scena.add(k);
+    const o = new THREE.DirectionalLight(0xbfd8ff, 1.0); o.position.set(2.5, 1.5, 2); scena.add(o);
+    const JN = postavModel(); model = JN.telo; model.position.y = 0.95; scena.add(model);
+    obleclNahlad = oblecenie(JN); obleclNahlad();
+    kamN = new THREE.PerspectiveCamera(27, 210 / 340, 0.1, 30); kamN.position.set(0, 1.12, -5.0); kamN.lookAt(0, 0.98, 0);
+    plat.addEventListener('pointerdown', e => { tahaPostavu = true; plat.setPointerCapture(e.pointerId); plat.style.cursor = 'grabbing'; });
+    plat.addEventListener('pointermove', e => { if (tahaPostavu) yaw -= e.movementX * 0.012; });
+    plat.addEventListener('pointerup', () => { tahaPostavu = false; plat.style.cursor = 'grab'; });
+  }
+  let cas = performance.now();
+  const tikNahlad = () => {
+    requestAnimationFrame(tikNahlad);
+    const t = performance.now(), dt = Math.min(0.1, (t - cas) / 1000); cas = t;
+    if (batoh.style.display === 'none') return;
+    if (rend === null) zalozNahlad();
+    if (!rend) return;
+    if (!tahaPostavu) yaw += dt * 0.35;
+    model.rotation.y = yaw;
+    rend.render(scena, kamN);
+  };
+  tikNahlad();
+
+  // zvyrazni cielovy slot pri tahani predmetu z batohu
+  addEventListener('pointermove', e => {
+    box.querySelectorAll('.ekv.ciel').forEach(x => x.classList.remove('ciel'));
+    const d = document.getElementById('duch');
+    if (!d || d.style.display === 'none') return;
+    const pod = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ekv');
+    if (pod) pod.classList.add('ciel');
+  });
+
+  setInterval(() => { const o = ostrovPri(hrac.poz.x, hrac.poz.z, 1.1); vystroj.mociar = !!o && o.biom === 'mangrovy' && !hrac.plava; }, 500);
+  zmena();
+  hrac.prepniVystroj = nasad;
 
   // Kompas hmly: sipka (relativne k smeru kamery) k najblizsiemu nezapalenemu majaku
   const komp = document.createElement('div');

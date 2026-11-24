@@ -163,8 +163,8 @@ export function vykresli() {
   nove.clear();
   $('batoh').style.display = otvoreny && rezim !== 'stavba' ? 'flex' : 'none';
   $('stavba').style.display = otvoreny && rezim === 'stavba' ? 'flex' : 'none';
-  const z = Math.min(1, innerWidth / 1200, innerHeight / 780);   // male okno = zmensi menu
-  $('batoh').style.zoom = $('stavba').style.zoom = z;
+  $('stavba').style.zoom = Math.min(1, innerWidth / 1200, innerHeight / 780);   // male okno = zmensi menu
+  $('batoh').style.zoom = Math.min(1, innerWidth / 1560, innerHeight / 780);
   if (!otvoreny) return;
   if (rezim === 'stavba') {
     const sk = receptySkupiny();
@@ -192,6 +192,8 @@ export function initInventar(onZmena) {
     const s = e.target.closest('#batoh .slot');
     const P = s && (s.dataset.z === 's' ? sklad : sloty);
     if (!s || !P?.[+s.dataset.i]) return;
+    const vyb = P === sloty && PREDMETY[P[+s.dataset.i].typ].vybava;           // nositelny kus (brnenie...) -> nasadit na postavu
+    if (vyb && (e.button === 2 || e.shiftKey)) { dispatchEvent(new CustomEvent('nasad', { detail: { id: P[+s.dataset.i].typ } })); return; }
     if (e.button === 2) { rozdel(P, +s.dataset.i); zmena(); return; }          // pravy klik = polovica stohu do prazdneho policka
     if (e.shiftKey) {                                                           // Shift+klik = rychly presun
       const i = +s.dataset.i;
@@ -208,7 +210,10 @@ export function initInventar(onZmena) {
   addEventListener('pointermove', e => { if (tahany !== null) { duch.style.left = e.clientX + 'px'; duch.style.top = e.clientY + 'px'; } });
   addEventListener('pointerup', e => {
     if (tahany === null) return;
-    const s = document.elementFromPoint(e.clientX, e.clientY)?.closest('.slot');
+    const pod = document.elementFromPoint(e.clientX, e.clientY);
+    const ek = pod?.closest('[data-ekv], #postava-plat');
+    if (ek && tahany.P === sloty && PREDMETY[sloty[tahany.i]?.typ]?.vybava) dispatchEvent(new CustomEvent('naVybavu', { detail: { id: sloty[tahany.i].typ, slot: ek.dataset.ekv } }));
+    const s = pod?.closest('.slot');
     if (s) presunMedzi(tahany.P, tahany.i, s.dataset.z === 's' ? sklad : sloty, +s.dataset.i);
     tahany = null; duch.style.display = 'none';
     zmena();
