@@ -5,6 +5,9 @@ import { predmet } from './predmety.js';
 import { ik } from '../ikony.js';
 import { modelKoral, modelPerla, modelHviezdica, modelRiasa, modelUstrica, modelMinca, modelKompas, modelLano } from './modely_predmetov.js';
 
+// id predmetov z mora (pouziva dev konzola: "Vsetko z mora")
+export const MORSKE = ['koral', 'perla', 'hviezdica', 'riasa', 'ustrica', 'zlata_minca', 'stary_kompas', 'lano'];
+
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, ...o });
 
 predmet('koral', { meno: 'Koral', ikona: ik('coral', '#ef7a6a'), popis: 'Kúsok koralu z útesu. Pekná dekorácia.',

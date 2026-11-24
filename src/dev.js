@@ -12,6 +12,7 @@ import { VYL_MAX } from './kanoe.js';
 import { NEPRIATELIA } from './obsah/nepriatelia.js';
 import { spawnPriHracovi } from './nepriatelia.js';
 import { majaky } from './majak.js';
+import { MORSKE } from './obsah/more.js';
 
 export const dev = {
   zapnuty: false,
@@ -64,7 +65,7 @@ const html = () => `
 <div class="obsah" data-t="predmety" hidden>
   <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
     <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
-  <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
+  <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="more">Všetko z mora</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
 </div>
 <div class="obsah" data-t="svet" hidden data-dev-nepr>
   <div class="skup"><b>Nepriateľ</b>${Object.entries(NEPRIATELIA).map(([k, v]) => `<button data-nepr="${k}">${v.meno}</button>`).join('')}</div>
@@ -178,6 +179,11 @@ export function initDev(c) {
     if (a === 'nastroje') {
       let zv = 0; for (const id of Object.keys(PREDMETY)) if (PREDMETY[id].nastroj && !pocet(id)) zv += pridaj(id, 1);
       vykresli(); ctx.oznam(zv ? 'Batoh je plný – nie všetky nástroje sa zmestili' : 'Pridané nástroje');
+    }
+    if (a === 'more') {
+      // po 1 kuse kazdeho predmetu z mora (obsah/more.js)
+      let zv = 0; for (const id of MORSKE) zv += pridaj(id, 1);
+      vykresli(); ctx.oznam(zv ? `Batoh je plný (nezmestilo sa ${zv}×)` : 'Pridané: všetko z mora');
     }
     if (a === 'vyprazdni') { sloty.fill(null); vykresli(); }
     if (a === 'cas') ctx.posunCas(60);
