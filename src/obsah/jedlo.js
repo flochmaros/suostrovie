@@ -3,26 +3,31 @@ import * as THREE from 'three';
 import { PREDMETY, predmet } from './predmety.js';
 import { ik, PECENE, SUSENE } from '../ikony.js';
 
-const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, ...o });
+import { modelKokosovaVoda, modelKrab, modelRybaIna, modelSusOvocie, modelTaro, modelHuba, modelBanan } from './modely_predmetov.js';
+
+// farby upecenych / ususenych variantov (pouziva modelKrab a modelRybaIna)
+const KRAB_PECENY = { telo: 0xdc3a22, svetla: 0xff6a44, tmava: 0xa8200f, hrot: 0xffd9b0, brucho: 0xffc89a, oko: 0xe8d8c0 };
+const RYBA_PECENA = { chrbat: 0x7a4a1c, bok: 0xc2803a, brucho: 0xe8c78a, pruh: 0xd89a30, plutva: 0x8a5a24, spicka: 0xc0803a };
+const RYBA_SUSENA = { chrbat: 0x8a7a54, bok: 0xb8a070, brucho: 0xd8c8a0, pruh: 0xb8a060, plutva: 0x9a8458, spicka: 0xc8b078 };
 
 predmet('kokosova_voda', { meno: 'Kokosová voda', ikona: ik('coconuts', '#8a5a32', ['water-drop', '#4aa8ea', .46, 290, 290]), popis: 'Čerstvá voda z otvoreného kokosu.', jedlo: { sytost: 3, voda: 40 },
-  model: [new THREE.IcosahedronGeometry(0.13, 1).scale(1, 1.1, 1).translate(0, 0.14, 0), mat(0xd8c9a8)] });
+  model: modelKokosovaVoda() });
 predmet('vareny_krab', { meno: 'Pečený krab', ikona: ik('crab', '#e0472c', PECENE), popis: 'Upečený na táboráku. Sýty a bezpečný.', vareny: true, jedlo: { sytost: 28, voda: 2 },
-  model: [new THREE.SphereGeometry(0.12, 7, 5).scale(1.2, 0.5, 1).translate(0, 0.07, 0), mat(0xd24a2a)] });
+  model: modelKrab(KRAB_PECENY) });
 predmet('vareny_ryba', { meno: 'Pečená ryba', ikona: ik('fish-cooked', '#c9813a', PECENE), popis: 'Upečená na táboráku. Sýta a bezpečná.', vareny: true, jedlo: { sytost: 32, voda: 3, zdravie: 3 },
-  model: [new THREE.SphereGeometry(0.14, 7, 5).scale(1.8, 0.45, 0.7).translate(0, 0.06, 0), mat(0xc58a52)] });
+  model: modelRybaIna(RYBA_PECENA, 0.8) });
 predmet('susene_ovocie', { meno: 'Sušené ovocie', ikona: ik('fruit-bowl', '#b0603a', SUSENE), popis: 'Usušené na sušiaku. Sladké, dobre zasýti a hojí.', jedlo: { sytost: 24, voda: 2, zdravie: 4 },
-  model: [new THREE.IcosahedronGeometry(0.08, 0).scale(1, 0.6, 1).translate(0, 0.05, 0), mat(0x6a3a4a)] });
+  model: modelSusOvocie() });
 
 predmet('pecene_taro', { meno: 'Pečené taro', ikona: ik('potato', '#8a5a3a', PECENE), popis: 'Upečený koreň taro. Veľmi sýty.', vareny: true, jedlo: { sytost: 30, voda: 0, zdravie: 2 },
-  model: [new THREE.IcosahedronGeometry(0.11, 1).scale(1, 0.85, 1).translate(0, 0.1, 0), mat(0x5a3a22)] });
+  model: modelTaro(true) });
 predmet('pecena_huba', { meno: 'Pečená huba', ikona: ik('sliced-mushroom', '#a8703e', PECENE), popis: 'Opečená na ohni, voňavá.', vareny: true, jedlo: { sytost: 16, voda: 1 },
-  model: [new THREE.SphereGeometry(0.08, 7, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.7, 1).translate(0, 0.08, 0), mat(0x6a4426)] });
+  model: modelHuba(true) });
 predmet('peceny_banan', { meno: 'Pečený banán', ikona: ik('banana-peeled', '#d99a3a', PECENE), popis: 'Karamelovo sladký.', vareny: true, jedlo: { sytost: 24, voda: 2 },
-  model: [new THREE.CylinderGeometry(0.035, 0.028, 0.24, 6).rotateZ(Math.PI / 2).translate(0, 0.04, 0), mat(0x5a3a1a)] });
+  model: modelBanan(1, true) });
 
 predmet('susena_ryba', { meno: 'Sušená ryba', ikona: ik('fish-corpse', '#b08850', SUSENE), popis: 'Vysušená na slnku. Sýta a ľahká, oheň netreba.', jedlo: { sytost: 30, voda: 0, zdravie: 2 },
-  model: [new THREE.SphereGeometry(0.13, 7, 5).scale(1.8, 0.3, 0.7).translate(0, 0.05, 0), mat(0x9a6a3a)] });
+  model: modelRybaIna(RYBA_SUSENA, 0.6) });
 
 // co sa da upiect na taboraku: surove -> pecene (pouziva ohen.js)
 export const PECENIE = { krab: 'vareny_krab', ryba: 'vareny_ryba', taro: 'pecene_taro', huba: 'pecena_huba', banan: 'peceny_banan' };
