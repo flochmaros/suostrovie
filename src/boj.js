@@ -74,8 +74,9 @@ function cislo(x, y, z, text, silne) {
 
 // zasah: zavolat z hrac.priUdere. Vrati pocet zasiahnutych.
 export function zasahni(hrac, info, nast, silaDev = 1) {
-  const dmg = poskodenieNepriatela(nast?.nastroj ? nast : null) * silaDev * info.mult;
-  const hity = udriNepriatela(hrac.poz.x, hrac.poz.z, info.fx, info.fz, dmg, info);
+  const n = nast?.nastroj || {}, voda = n.vodaBonus && hrac.poz.y < 0.3 ? n.vodaBonus : 1;
+  const dmg = poskodenieNepriatela(nast?.nastroj ? nast : null) * silaDev * info.mult * voda;
+  const hity = udriNepriatela(hrac.poz.x, hrac.poz.z, info.fx, info.fz, dmg, { ...info, dosah: (info.dosah ?? 2.3) + (n.dosah || 0), horenie: n.horenie || 0 });
   if (!hity.length) return 0;
   const silne = info.silny || info.mult > 1;
   for (const e of hity) {

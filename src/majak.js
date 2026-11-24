@@ -53,6 +53,17 @@ function suchyBod(x, z, smer, r, ...uhly) {    // sucho okolo (x,z) vo vzdialeno
   }
   return [x, z];
 }
+function vodnyBod(x, z) {                  // najblizsia voda hlbsia ako ~1,6 m od majaka (kraken sedi tesne pri brehu)
+  let naj = [x, z + 30], nd = 1e9;
+  for (let k = 0; k < 24; k++) {
+    const a = k / 24 * 6.283;
+    for (let d = 6; d < 120; d += 1) {
+      const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+      if (vyskaTerenu(px, pz) < -1.6) { if (d < nd) { nd = d; naj = [x + Math.cos(a) * (d + 1.5), z + Math.sin(a) * (d + 1.5)]; } break; }
+    }
+  }
+  return naj;
+}
 function plazBod(o, uhol) {                // plaz ostrova v danom smere (vyska 0,45..1,1 m)
   for (let k = 0; k < 8; k++) {
     const a = uhol + k * 0.8;
@@ -272,7 +283,7 @@ export function aktualizujMajak(dt, t, { hrac, tma = 0, pesi = true }) {
       if (b && b.mrtvy) { m.porazeny = true; }
       else if (b && (d > 140 || !zivy)) { odstranNepriatela(b); m.boss = b = null; }     // hrac zomrel / odisiel -> strazca sa vylieci (spawne sa znova)
       if (!b && !m.porazeny && zivy && pesi && d < 55 && NEPRIATELIA[m.def.strazca]) {
-        const [sx, sz] = suchyBod(m.x, m.z, m.smer, 11);
+        const [sx, sz] = NEPRIATELIA[m.def.strazca].voda ? (m.bodVoda ||= vodnyBod(m.x, m.z)) : suchyBod(m.x, m.z, m.smer, 11);
         m.boss = spawnNepriatela(m.def.strazca, sx, sz);
       }
       if (m.boss && !m.boss.mrtvy && d < 60) bossNaOko = m.boss;

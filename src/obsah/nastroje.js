@@ -138,3 +138,13 @@ predmet('bambusova_ostep', { kopa: 1, meno: 'Bambusový oštep', ikona: ik('ston
   nastroj: nastroj('ostep', 1.2, { drevo: 0.3, kamen: 0.05, list: 1 }, 30), drzanie: drzanie(0.5, 0.35), model: ostep(C.bambus) });
 predmet('kamenna_ostep', { kopa: 1, meno: 'Kamenný oštep', ikona: ik('stone-spear', '#a19d95'), popis: 'Oštep s kamenným hrotom, vydrží viac.',
   nastroj: nastroj('ostep', 1.8, { drevo: 0.3, kamen: 0.05, list: 1 }, 60), drzanie: drzanie(0.5, 0.35), model: ostep(C.kamen2) });
+
+// ---- zbrane z trofeji strazcov 2-5 (horenie = s, kolko nepriatel hori; dosah = m navyse; vodaBonus = nasobok poskodenia, ked hrac stoji vo vode) ----
+predmet('zeravy_mec', { kopa: 1, meno: 'Žeravý meč', ikona: ik('shard-sword', '#ff6a20'), popis: 'Čepeľ zo žeravého jadra. Zapáli nepriateľa – horí ešte 3 sekundy.',
+  nastroj: { ...nastroj('mec', 2.4, { drevo: 0.8, kamen: 0, list: 3 }, 120), zivocichy: 13, horenie: 3 }, drzanie: drzanie(0.08, 0.7), model: noz(0.8, 0xff5a20, 0x1a1412) });
+predmet('krokodilia_harpuna', { kopa: 1, meno: 'Krokodília harpúna', ikona: ik('stone-spear', '#f3ecd6'), popis: 'Hrot z krokodílieho zuba. Bodá rýchlo a ďaleko (+1,5 m dosahu).',
+  nastroj: { ...nastroj('noz', 2, { drevo: 0.4, kamen: 0, list: 2 }, 120), zivocichy: 12, dosah: 1.5 }, drzanie: drzanie(0.5, 0.35), model: ostep(0xf3ecd6, 1.7) });
+predmet('trojzubec', { kopa: 1, meno: 'Trojzubec hlbín', ikona: ik('stone-spear', '#3aa8a0'), popis: 'Zbraň krakena. Vo vode udiera o 60 % silnejšie.',
+  nastroj: { ...nastroj('mec', 2.2, { drevo: 0.5, kamen: 0, list: 2 }, 140), zivocichy: 15, vodaBonus: 1.6 }, drzanie: drzanie(0.5, 0.35), model: ostep(0x3aa8a0, 1.6) });
+predmet('runove_kladivo', { kopa: 1, meno: 'Runové kladivo', ikona: ik('claw-hammer', '#40d8ff'), popis: 'Kladivo s jadrom golema. Najťažší úder v súostroví – omráči a odhodí.',
+  nastroj: { ...nastroj('klepeto', 3.5, { drevo: 1.2, kamen: 2.5, list: 1.5 }, 160), zivocichy: 24 }, drzanie: drzanie(0.15), model: kyj() });

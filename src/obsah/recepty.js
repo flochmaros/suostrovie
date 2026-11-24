@@ -42,3 +42,9 @@ recept({ id: 'lodenica', skupina: 'Tábor', vysledok: ['lodenica', 1], suroviny:
 const MA_TROFEJ = () => { try { if (pocet('krabi_pancier') + pocet('obrie_klepeto') > 0) localStorage.setItem('hra_trofej', '1'); return localStorage.getItem('hra_trofej') === '1'; } catch (e) { return true; } };
 recept({ id: 'klepetovy_kyj', skupina: N, vysledok: ['klepetovy_kyj', 1], podmienka: MA_TROFEJ, suroviny: [['obrie_klepeto', 1], ['krabi_pancier', 2], ['drevo', 1], ['vlakno', 1]] });
 recept({ id: 'krabia_prilba', skupina: 'Výstroj', vysledok: ['krabia_prilba', 1], podmienka: MA_TROFEJ, suroviny: [['krabi_pancier', 3], ['vlakno', 1]] });
+// trofeje strazcov 2-5: recept sa ukaze, ked hrac niekedy mal danu trofej
+const malTrofej = id => () => { try { if (pocet(id) > 0) localStorage.setItem('hra_trofej_' + id, '1'); return localStorage.getItem('hra_trofej_' + id) === '1'; } catch (e) { return true; } };
+recept({ id: 'zeravy_mec', skupina: N, vysledok: ['zeravy_mec', 1], podmienka: malTrofej('zerave_jadro'), suroviny: [['zerave_jadro', 1], ['lavova_supina', 2], ['obsidian', 3], ['drevo', 1]] });
+recept({ id: 'krokodilia_harpuna', skupina: N, vysledok: ['krokodilia_harpuna', 1], podmienka: malTrofej('krokodili_zub'), suroviny: [['krokodili_zub', 3], ['krokodilia_koza', 1], ['drevo', 2], ['vlakno', 2]] });
+recept({ id: 'trojzubec', skupina: N, vysledok: ['trojzubec', 1], podmienka: malTrofej('krakenove_chapadlo'), suroviny: [['krakenove_chapadlo', 1], ['atrament', 2], ['perla', 3], ['drevo', 2]] });
+recept({ id: 'runove_kladivo', skupina: N, vysledok: ['runove_kladivo', 1], podmienka: malTrofej('kamenne_jadro'), suroviny: [['kamenne_jadro', 1], ['kamen', 10], ['zivica', 2], ['drevo', 2]] });

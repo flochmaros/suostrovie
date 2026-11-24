@@ -43,6 +43,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/pocasie.js` | deň/noc (24 min), mesiac, hviezdy, oblaky, dážď, búrka; nastavuje `uNoc` (plankton, medúzy) a nočné farby |
 | `src/noc.js` | svetlušky (volá sa z pocasie.js); svietiaci plankton je v `ocean.js` (`porucha(x,z,r)`) |
 | `src/dev.js` | dev režim (F2): lietanie, teleport na biom, predmety, úroveň kanoe, hustota vegetácie, FPS |
+| `src/nepriatelia.js`, `src/modely_bossov.js` | nepriatelia + bossovia (strážcovia majákov 1–5): útoky klepeto/dupot/vrh (kruh na zemi)/vypad, lávové kaluže; čísla v `obsah/nepriatelia.js`, majáky v `obsah/majaky.js` + `src/majak.js` |
 | `src/hrac.js` | postava s kĺbmi, procedurálne animácie, pohyb, kolízie, potápanie, úder |
 | `src/kamera.js` | kamera tretej osoby (rýchla, kolízia s terénom) |
 | `src/ohen.js` | táborák: položenie, palivo/pahreba, plamene+dym+svetlo, pečenie (`PECENIE` v `obsah/jedlo.js`), praskanie |

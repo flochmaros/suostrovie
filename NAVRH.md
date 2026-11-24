@@ -23,6 +23,7 @@ Kniha s kapitolami podľa pásiem, úlohy sa plnia samy (`src/obsah/ulohy.js`), 
 3. ✅ Denník úloh (kapitola 1–2)
 4. ✅ Boj + prví nepriatelia (nočné kraby, lávový jašter)
 5. ✅ Prvý maják + strážca + fľaše so správami
+5b. ✅ Strážcovia 2–5 (lávový jašter, krokodíl, kraken, golem) + majáky 2–5 + zbrane z trofejí (24. 11.)
 6. Ďalšie pásma
 
 ## Trofeje bossov (nápad 21. 11.)
@@ -31,6 +32,6 @@ Každý strážca dá okrem srdca (na maják) aj **trofejný materiál**, z ktor
 |---|---|---|---|
 | Obrovský krab | krabí pancier, obrie klepeto | **Klepetový kyj** (pomalý, veľký knockback, omráči) | **Krabia prilba** (−25 % poškodenia) |
 | Lávový jašter | lávová šupina, žeravé jadro | **Žeravý meč** (podpáli nepriateľa) | **Ohnivzdorný plášť** (láva, sopka) |
-| Krokodíl | krokodílí zub, koža | **Harpúna** (hádzanie, ryby aj nepriatelia) | **Kožené čižmy** (rýchlejší beh v močiari) |
+| Krokodíl | krokodílí zub, koža | **Harpúna** (zatiaľ: dlhý dosah; hádzanie neskôr) | **Kožené čižmy** (rýchlejší beh v močiari) |
 | Kraken | atrament, chápadlo | **Trojzubec** (bonus vo vode) | **Amulet hlbín** (dlhšie pod vodou) |
 | Golem | kamenné jadro | **Runové kladivo** | **Kompas hmly** (ukáže cestu v hmle) |
