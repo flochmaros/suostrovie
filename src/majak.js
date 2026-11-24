@@ -160,8 +160,9 @@ function modelMajaka(rnd) {
         vLucV = uv.y; vec4 mvL = modelViewMatrix * vec4(position, 1.0);
         vLucN = normalize(normalMatrix * normal); vLucD = normalize(-mvL.xyz);`);
       sh.fragmentShader = 'varying float vLucV; varying vec3 vLucN; varying vec3 vLucD;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );',
-        `float stred = abs(dot(normalize(vLucN), normalize(vLucD)));
-        vec4 diffuseColor = vec4( diffuse, opacity * 2.2 * pow(vLucV, 2.2) * stred * stred );`);
+        `float stred = clamp(abs(dot(vLucN, vLucD) * inversesqrt(max(dot(vLucN, vLucN) * dot(vLucD, vLucD), 1e-8))), 0.0, 1.0);
+        float lv = clamp(vLucV, 0.0, 1.0);
+        vec4 diffuseColor = vec4( diffuse, clamp(opacity * 2.2 * lv * sqrt(lv) * stred * stred, 0.0, 1.0) );`);
     };
     m.frustumCulled = false; return m;
   };
