@@ -48,3 +48,8 @@ recept({ id: 'zeravy_mec', skupina: N, vysledok: ['zeravy_mec', 1], podmienka: m
 recept({ id: 'krokodilia_harpuna', skupina: N, vysledok: ['krokodilia_harpuna', 1], podmienka: malTrofej('krokodili_zub'), suroviny: [['krokodili_zub', 3], ['krokodilia_koza', 1], ['drevo', 2], ['vlakno', 2]] });
 recept({ id: 'trojzubec', skupina: N, vysledok: ['trojzubec', 1], podmienka: malTrofej('krakenove_chapadlo'), suroviny: [['krakenove_chapadlo', 1], ['atrament', 2], ['perla', 3], ['drevo', 2]] });
 recept({ id: 'runove_kladivo', skupina: N, vysledok: ['runove_kladivo', 1], podmienka: malTrofej('kamenne_jadro'), suroviny: [['kamenne_jadro', 1], ['kamen', 10], ['zivica', 2], ['drevo', 2]] });
+// vystroj z trofeji strazcov 2-5 (src/vystroj.js)
+recept({ id: 'ohnivzdorny_plast', skupina: 'Výstroj', vysledok: ['ohnivzdorny_plast', 1], podmienka: malTrofej('lavova_supina'), suroviny: [['lavova_supina', 1], ['jasterie_supiny', 4], ['vlakno', 3]] });
+recept({ id: 'kozene_cizmy', skupina: 'Výstroj', vysledok: ['kozene_cizmy', 1], podmienka: malTrofej('krokodilia_koza'), suroviny: [['krokodilia_koza', 1], ['vlakno', 2]] });
+recept({ id: 'amulet_hlbin', skupina: 'Výstroj', vysledok: ['amulet_hlbin', 1], podmienka: malTrofej('atrament'), suroviny: [['atrament', 1], ['perla', 1], ['vlakno', 1]] });
+recept({ id: 'kompas_hmly', skupina: 'Výstroj', vysledok: ['kompas_hmly', 1], podmienka: malTrofej('kamenne_jadro'), suroviny: [['kamenne_jadro', 1], ['kamen', 3], ['zivica', 1]] });

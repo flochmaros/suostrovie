@@ -54,7 +54,7 @@ export const NEPRIATELIA = {
     boss: true, scale: 4.6, polomer: 2.2, farba: 0x9ad8e8, ohnivzdorny: true, fazaHp: 0.5,
     dupot: { dosah: 10, napriah: 1.8, dmg: 36, knock: 22 },
     vrh: { dosah: 38, min: 8, napriah: 1.4, sanca: 0.4, dmg: 34, r: 3.2, pocet: 1, pocet2: 3, druh: 'kamen' },
-    loot: [['srdce_strazcu_5', 1, 1, 1], ['kamenne_jadro', 1, 1, 1], ['kamen', 8, 10, 1]] },
+    loot: [['srdce_strazcu_5', 1, 1, 1], ['kamenne_jadro', 2, 2, 1], ['kamen', 8, 10, 1]] },
 };
 
 const SUPINY = new THREE.MeshStandardMaterial({ color: 0x3a2a24, roughness: 0.5, metalness: 0.3, emissive: 0xff5a10, emissiveIntensity: 0.6 });
@@ -93,3 +93,16 @@ trofej('krokodilia_koza', 'Krokodília koža', 0x4a5a30, 'Hrubá pancierová ko�
 trofej('atrament', 'Atrament krakena', 0x1a1030, 'Fľaštička čierneho atramentu z hlbín.', new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8).translate(0, 0.1, 0), { roughness: 0.2 });
 trofej('krakenove_chapadlo', 'Chápadlo krakena', 0x6a2a4a, 'Odseknuté chápadlo, ešte sa mykne.', new THREE.CylinderGeometry(0.04, 0.1, 0.6, 8).rotateZ(1.4).translate(0, 0.08, 0));
 trofej('kamenne_jadro', 'Kamenné jadro', 0x40e8ff, 'Runový kameň, ktorý golemovi dával život.', new THREE.DodecahedronGeometry(0.16, 0).translate(0, 0.16, 0), { emissive: 0x40e8ff, emissiveIntensity: 1.5 });
+
+// ---- vystroj z trofeji strazcov 2-5 (nasadenie pravym klikom na liste, logika src/vystroj.js) ----
+// modely su schvalne male a jednoduche (par primitiv)
+const vyst = (id, meno, ikona, popis, geo, farba, o = {}) => predmet(id, { meno, kopa: 1, ikona, popis,
+  model: [geo, new THREE.MeshStandardMaterial({ color: farba, roughness: 0.6, ...o })] });
+vyst('ohnivzdorny_plast', 'Ohnivzdorný plášť', ik('spiral-shell', '#c8501e'), 'Plášť zo šupín lávového jaštera. Nasadený (pravý klik na lište) ťa ochráni pred lávovými kalužami.',
+  new THREE.BoxGeometry(0.3, 0.03, 0.24).translate(0, 0.015, 0), 0x8a2a14, { emissive: 0xff4a10, emissiveIntensity: 0.25 });
+vyst('kozene_cizmy', 'Kožené čižmy', ik('spiral-shell', '#6a7a3a'), 'Čižmy z krokodílej kože. Nasadené (pravý klik na lište) – o 25 % rýchlejší pohyb v močiari.',
+  new THREE.CylinderGeometry(0.06, 0.07, 0.14, 6).translate(0, 0.07, 0), 0x4a5a30, { roughness: 0.9 });
+vyst('amulet_hlbin', 'Amulet hlbín', ik('glass-ball', '#a060e0'), 'Perla v atramente krakena. Nasadený (pravý klik na lište) – vydržíš pod vodou dvakrát dlhšie.',
+  new THREE.OctahedronGeometry(0.07, 0).translate(0, 0.07, 0), 0x5a2a9a, { emissive: 0x8040e0, emissiveIntensity: 0.6 });
+vyst('kompas_hmly', 'Kompas hmly', ik('glass-ball', '#40d8ff'), 'Úlomok kamenného jadra sa vždy otočí k nezapálenému majáku. Stačí ho mať v batohu.',
+  new THREE.CylinderGeometry(0.08, 0.08, 0.03, 8).translate(0, 0.015, 0), 0x40c8e8, { emissive: 0x40e8ff, emissiveIntensity: 0.5 });

@@ -236,7 +236,7 @@ export function vytvorHraca(scena) {
       odtlacOdMajaka(h.poz);                                           // maják je pevny
       const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y));
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
-      h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / 20 : dt / 4), 0, 1);
+      h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / (20 * (h.dychNasobok ?? 1)) : dt / 4), 0, 1);
       if (h.plava && zem < voda - 1.15) {
         const ciel = h.potapa ? Math.max(zem + 0.8, voda - 40) : voda - 1.2;
         h.poz.y = tlm(h.poz.y, ciel, h.potapa ? 1.5 : 5, dt);
