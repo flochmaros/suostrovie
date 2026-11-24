@@ -67,11 +67,14 @@ function umri(pricina) {
 }
 
 // poskodenie od okolia (zralok, pad...). pricina: text/kod
-// vystroj (src/vystroj.js): nasadena krabia prilba = -25 % prijateho poskodenia
-export const vystroj = { prilba: false };
+// vystroj (src/vystroj.js): prilba = -25 % poskodenia, plast = lava nepali, cizmy = +25 % v mociari (mociar nastavuje vystroj.js), amulet = dych (hrac.js)
+export const vystroj = { prilba: false, plast: false, cizmy: false, amulet: false, mociar: false, brnenie: null };
+export const obranaBrnenia = {};   // naplni obsah/brnenie.js: id -> obrana 0-1
 export function zran(n, pricina = 'zranenie') {
   if (stav.mrtvy || n <= 0) return;
+  if (vystroj.plast && pricina === 'lava') return;    // ohnivzdorny plast
   if (vystroj.prilba) n *= 0.75;
+  if (vystroj.brnenie) n *= 1 - (obranaBrnenia[vystroj.brnenie] ?? 0);   // brnenie na hrudi (src/brnenie.js)
   stav.zdravie = clamp(stav.zdravie - n);
   blesk = Math.min(1, blesk + 0.4 + n / 40);
   if (stav.zdravie <= 0) umri(pricina);
@@ -99,9 +102,10 @@ export function zjedz(def) {
 
 // nasobok rychlosti pohybu (hrac)
 export function rychlostNasobok() {
-  if (stav.hlad <= 0 || stav.smad <= 0) return 0.75;
-  if (stav.hlad < 15 || stav.smad < 15) return 0.9;
-  return 1;
+  const cizmy = vystroj.cizmy && vystroj.mociar ? 1.25 : 1;   // kozene cizmy v mociari
+  if (stav.hlad <= 0 || stav.smad <= 0) return 0.75 * cizmy;
+  if (stav.hlad < 15 || stav.smad < 15) return 0.9 * cizmy;
+  return cizmy;
 }
 
 // 0..1 sila rozmazania obrazu (nizke zdravie / vycerpanie)
