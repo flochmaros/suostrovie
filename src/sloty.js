@@ -27,5 +27,5 @@ export function prehlad(n) {
 }
 
 export function zmaz(n) {
-  try { localStorage.removeItem(klucSlotu(n)); localStorage.removeItem(klucVystroje(n)); } catch (e) { /* nic */ }
+  try { localStorage.removeItem(klucSlotu(n)); localStorage.removeItem(klucVystroje(n)); localStorage.removeItem(klucVystroje(n) + '-telo'); } catch (e) { /* nic */ }
 }

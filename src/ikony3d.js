@@ -7,6 +7,7 @@ import './obsah/nastroje.js';
 import './obsah/jedlo.js';
 import './obsah/more.js';
 import './obsah/nepriatelia.js';
+import './obsah/brnenie.js';
 
 const VELKOST = 128;
 
