@@ -103,6 +103,42 @@ export function vytvorGrafiku() {
       }`,
   });
   composer.addPass(grad);   // ShaderPass si uniformy kopiruje -> uNocGrad ukazuje na jeho kopiu
+  // strach (strach.js): rozmazane okraje, odfarbenie, tmava vinetacia, zrnenie, pulz s tlkotom srdca.
+  // Pri strachu 0 je prechod vypnuty (enabled = false), takze nic nemeni a nic nestoji.
+  const strachPass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uStrach: { value: 0 }, uPulz: { value: 0 }, uCas: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uStrach, uPulz, uCas; varying vec2 vUv;
+      void main() {
+        float s = uStrach, p = uPulz * s;
+        vec2 uv = 0.5 + (vUv - 0.5) * (1.0 - 0.012 * p);          // jemne "nadychnutie" obrazu pri udere srdca
+        vec2 d = uv - 0.5;
+        float r = length(d);
+        float okraj = smoothstep(0.18, 0.7, r);
+        // rozmazanie okrajov smerom do stredu (6 vzoriek, v strede obrazu nulove)
+        vec2 krok = d * okraj * (0.022 * s + 0.012 * p);
+        vec3 c = vec3(0.0);
+        for (int i = 0; i < 6; i++) c += texture2D(tDiffuse, uv - krok * (float(i) / 5.0)).rgb;
+        c /= 6.0;
+        // odfarbenie (teple svetla, napr. ohen, si kus farby nechaju) a trochu chladnejsi ton
+        float l = dot(c, vec3(0.299, 0.587, 0.114));
+        float teple = smoothstep(0.1, 0.4, c.r - c.b) * smoothstep(0.35, 0.8, l);
+        c = mix(c, vec3(l), s * 0.62 * (1.0 - 0.7 * teple));
+        c *= mix(vec3(1.0), vec3(0.9, 0.98, 1.05), s);
+        // vinetacia: cim vacsi strach, tym uzsie "tunelove" videnie
+        float v = smoothstep(0.74 - 0.48 * s - 0.05 * p, 0.86 - 0.17 * s, r);
+        c *= 1.0 - v * min(1.0, s * 1.25) * 0.9;
+        c *= 1.0 - 0.07 * p;
+        // zrnenie (meni sa 24x za sekundu, viac ho vidno v tmavych miestach)
+        vec3 h = fract(vec3(gl_FragCoord.xyx + floor(uCas * 24.0) * 37.0) * 0.1031);
+        h += dot(h, h.yzx + 33.33);
+        float zrno = fract((h.x + h.y) * h.z) - 0.5;
+        c += zrno * s * 0.085 * (1.0 - 0.6 * l);
+        gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+      }`,
+  });
+  strachPass.enabled = false;
+  composer.addPass(strachPass);
 
   const uObrazovka = { value: velkost.clone() };
 
@@ -122,7 +158,15 @@ export function vytvorGrafiku() {
     uNocGrad: grad.uniforms.uNoc,
     renderer, scena, kamera, slnko,
     obloha, hemi, obnovProstredie, bloom,
-    podvod, uObrazovka,
+    podvod, uObrazovka, strachPass,
+    // strach 0..1, pulz 0..1 (uder srdca); vola main.js kazdy snimok
+    nastavStrachObrazu(strach, pulz = 0) {
+      strachPass.enabled = strach > 0.003;
+      if (!strachPass.enabled) return;
+      strachPass.uniforms.uStrach.value = Math.min(1, strach);
+      strachPass.uniforms.uPulz.value = pulz;
+      strachPass.uniforms.uCas.value = (performance.now() / 1000) % 100;
+    },
     // slnko a tiene idu za hracom (po celych pixeloch tiena, aby tiene neblikali)
     sledujSlnkom(stred) {
       const x = Math.round(stred.x / krokTiena) * krokTiena, z = Math.round(stred.z / krokTiena) * krokTiena;

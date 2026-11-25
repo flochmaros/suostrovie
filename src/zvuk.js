@@ -13,20 +13,22 @@ export function initZvuk() {
   sum = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = sum.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  // bAmbient = bezne prostredie (vlny, vietor, cvrcky); pri horore sa stisi cez tlmProstredie()
+  bAmbient = ctx.createGain(); bAmbient.gain.value = 1 - tlmenie * 0.96; bAmbient.connect(bProstredie);
   // more: tlmeny sum, hlasitost sa vlni ako prichadzajuce vlny
   more = ctx.createGain(); more.gain.value = 0;
-  smycka().connect(filter('lowpass', 480)).connect(more).connect(bProstredie);
+  smycka().connect(filter('lowpass', 480)).connect(more).connect(bAmbient);
   // vietor: pasmovy sum, hlasnejsi pri rychlosti
   vietor = ctx.createGain(); vietor.gain.value = 0;
   vietorF = filter('bandpass', 600, 0.6);
-  smycka().connect(vietorF).connect(vietor).connect(bProstredie);
+  smycka().connect(vietorF).connect(vietor).connect(bAmbient);
   // dazd: siroky sum (siks) + nizsi sum (bubnovanie)
   dazdG = ctx.createGain(); dazdG.gain.value = 0;
   smycka().connect(filter('highpass', 1800)).connect(filter('lowpass', 9000)).connect(dazdG);
   smycka().connect(filter('bandpass', 700, 0.5)).connect(dazdG);
   dazdG.connect(bProstredie);
   // noc: dva sverciky (ton 4-5 kHz zapinany a vypinany nizkou frekvenciou)
-  nocG = ctx.createGain(); nocG.gain.value = 0; nocG.connect(bProstredie);
+  nocG = ctx.createGain(); nocG.gain.value = 0; nocG.connect(bAmbient);
   for (const [f, lf] of [[4300, 7.3], [5100, 10.9]]) {
     const o = ctx.createOscillator(), amp = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
     o.frequency.value = f; amp.gain.value = 0.5;
@@ -37,6 +39,19 @@ export function initZvuk() {
   }
 }
 let dazdG = null, nocG = null, ohenG = null;
+
+// ticho pred hororom: 0 = bezne prostredie, 1 = cvrcky, vlny a vietor takmer nepocut a vesela hudba nehra.
+// Dazd, ohen, hromy a efekty sa netlmia.
+let bAmbient = null, tlmenie = 0;
+export function tlmProstredie(k) {
+  k = Math.max(0, Math.min(1, k));
+  if (Math.abs(k - tlmenie) < 0.005 && !(k === 0 && tlmenie !== 0)) return;
+  tlmenie = k;
+  if (bAmbient) bAmbient.gain.setTargetAtTime(1 - k * 0.96, ctx.currentTime, 1.5);
+}
+
+// pre dalsie zvukove moduly (strach.js): kontext, spolocny sum a zbernice, aby platili hlasitosti z nastaveni
+export const zvukovyKontext = () => ctx && { ctx, sum, efekty: bEfekty, hudba: bHudba, prostredie: bProstredie };
 
 // hlasitosti zo nastaveni (0..1; hudba/prostredie/efekty su samostatne zbernice, vsetko ide cez hlavnu)
 export const hlasitost = { hlavna: 1, hudba: 1, prostredie: 1, efekty: 1 };
@@ -103,7 +118,7 @@ export function aktualizujZvuk(t, { silaVetra = 0.5, rychlost = 0, pobrezie = 0,
   vietor.gain.setTargetAtTime(podVodou ? 0 : 0.012 + silaVetra * 0.02 + Math.min(rychlost, 16) * 0.004, n, 0.4);
   vietorF.frequency.setTargetAtTime(450 + Math.min(rychlost, 16) * 40, n, 0.5);
   // hudba: obcas kratka fraza z pentatoniky (ako drevena marimba s ozvenou), pod vodou ticho
-  if (!podVodou && n > dalsiaFraza) {
+  if (!podVodou && tlmenie < 0.3 && n > dalsiaFraza) {
     const zaklad = 220 * 2 ** (STUPNE[Math.floor(Math.random() * 3)] / 12);
     for (let i = 0, d = 0; i < 2 + Math.floor(Math.random() * 4); i++, d += 0.35 + Math.random() * 0.5)
       nota(zaklad * 2 ** (STUPNE[Math.floor(Math.random() * STUPNE.length)] / 12), n + d);
