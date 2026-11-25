@@ -62,7 +62,7 @@ const html = () => `
 </div>
 <div class="obsah" data-t="teleport" hidden>
   <div class="skup"><b>Biom</b><select id="dev-biom">${Object.entries(BIOM_MENO).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select><button data-a="teleport">Na najbližší</button></div>
-  <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button><button data-a="majak">K majáku 1</button></div>
+  <div class="skup"><b>Miesta</b><button data-a="kuKanoe">Ku kanoe</button><button data-a="kanoeKuMne">Kanoe ku mne</button><button data-a="start">Na štart</button><button data-a="majak">K majáku 1</button><button data-a="zatoka">Tichá zátoka</button></div>
 </div>
 <div class="obsah" data-t="predmety" hidden>
   <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
@@ -175,6 +175,7 @@ export function initDev(c) {
     if (t.dataset.k) { if (kanoe.druh !== 'kanoe') ctx.oznam('Najbližšia loď nie je kanoe'); else { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); } }
     if (t.dataset.h) { nastavHustotu(+t.dataset.h); prestavSvet(); ctx.oznam(`Hustota vegetácie ${t.dataset.h}×`); }
     const a = t.dataset.a;
+    if (a === 'zatoka') { window.hra.naOstrov('ticha_zatoka'); ctx.oznam('Teleport: Tichá zátoka'); }
     if (a === 'teleport') {
       const biom = panel.querySelector('#dev-biom').value;
       const o = najdiBiom(biom, hrac.poz.x, hrac.poz.z);

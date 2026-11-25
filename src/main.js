@@ -5,6 +5,7 @@ import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA, MENOVANE_OSTROVY } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv, uNoc } from './ocean.js';
+import { initHororovaZona, aktualizujOdliv, aktualizujHororovuZonu, naznakTicha } from './horor_zona.js';
 import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych, maxTrup, priPotopeni } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
@@ -259,6 +260,7 @@ udalostiPreziti.priZobudeni = () => {
   hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
   zamkni();
 };
+initHororovaZona(scena, oznam);
 initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
   mesiac: i => { nastavFazu(i, cas); return menoFazy(); }, pocasie: nastavPocasie, start: start.hrac, uloz, kluc: KLUC });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
@@ -370,6 +372,7 @@ function aktualizuj(dt) {
   aktualizujBoj(dt);
   if (bojStav.hitstop > 0) { bojStav.hitstop -= dt; dt *= 0.08; }     // hitstop: kratke spomalenie pri zasahu
   cas += dt;
+  { const s = vKanoe ? kanoe.model.position : hrac.poz; aktualizujOdliv(s.x, s.z, hodinaHry()); }   // Ticha zatoka: nocny odliv
   aktualizujVietor(cas);
   if (poc) vietor.sila = Math.min(1.2, 0.3 + 0.7 * poc.vietorSila + pasmoVietor);
   const letim = aktualizujDev(dt, g);
@@ -516,6 +519,8 @@ function aktualizuj(dt) {
   scena.fog.color.set(podVodou ? POD_VODOU : FARBA_HMLY);
   scena.fog.near = podVodou ? 0.5 : MLHA.near;
   scena.fog.far = podVodou ? 40 : MLHA.far;
+  aktualizujHororovuZonu(cas, { scena, kamera, g, stred, podVodou });
+  if (naznakTicha(stred)) oznam('Aké ticho… ani jeden vták.');
 
   ocean.aktualizuj(stred.x, stred.z, cas);
   const hotovo = aktualizujSvet(stred.x, stred.z);
@@ -582,6 +587,7 @@ window.hra = {
   naOstrov(id, dx, dz) {
     const o = MENOVANE_OSTROVY.find(o => o.id === id);
     if (!o) return 'nezname id: ' + MENOVANE_OSTROVY.map(o => o.id).join(', ');
+    if (dx === undefined && o.teleport) [dx, dz] = o.teleport;
     let x = o.x + (dx ?? 0), z = o.z + (dz ?? 0);
     if (dx === undefined) for (let d = o.R * 1.5; d > 0; d -= 1) { x = o.x + d * 0.7; z = o.z + d * 0.7; if (vyskaTerenu(x, z) > 1) break; }
     if (vKanoe || naPalube) vystup([x, z]);

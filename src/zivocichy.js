@@ -5,6 +5,8 @@ import { vyskaTerenu, ostrovPri } from './svet.js';
 import { vyskaVody, priliv } from './ocean.js';
 import { rng, hash } from './nahoda.js';
 import './obsah/zivocichy.js';
+import { hororovaZona } from './ostrovy/ticha_zatoka.js';
+import { uNoc } from './ocean.js';
 
 // Callbacky, ktore moze nastavit main.js (castice / zvuk). Vsetky mozu byt null.
 export const udalosti = { priSplachu: null };   // priSplachu(x, y, z, sila)
@@ -154,6 +156,9 @@ export function initZivocichy(scena) {
 const hlbka = (x, z, cas) => vyskaVody(x, z, cas) - vyskaTerenu(x, z);
 const dist2 = (ax, az, bx, bz) => (ax - bx) ** 2 + (az - bz) ** 2;
 
+// na Tichej zatoke nic nezije (cez den ziadne kraby a vtaky, v noci ani motyle)
+const ticho = (x, z) => hororovaZona(x, z) > 0.3;
+
 // ---------- kraby ----------
 function novyKrab(x, z) {
   const g = new THREE.Group();
@@ -173,14 +178,14 @@ function aktKraby(dt, cas, hx, hz) {
     casSpawn = 0.25;
     for (let t = 0; t < 3; t++) {
       const a = rnd(0, 6.283), d = rnd(9, 42), x = hx + Math.cos(a) * d, z = hz + Math.sin(a) * d;
-      if (!ostrovPri(x, z, 1.35)) continue;
+      if (!ostrovPri(x, z, 1.35) || ticho(x, z)) continue;
       const h = vyskaTerenu(x, z);
       if (h > pr + 0.2 && h < pr + 1.1) { novyKrab(x, z); break; }
     }
   }
   for (let i = kraby.length - 1; i >= 0; i--) {
     const k = kraby[i], d2 = dist2(k.x, k.z, hx, hz);
-    if (d2 > 3600) { zrusKraba(i); continue; }
+    if (d2 > 3600 || ticho(k.x, k.z)) { zrusKraba(i); continue; }
     if (k.mrtvy) {                                   // potapa sa v mori
       k.pad += dt * 2.2; k.g.position.y -= dt * 0.35;
       k.g.scale.setScalar(Math.max(0.01, k.s0 * (1 - k.pad)));
@@ -293,7 +298,8 @@ function aktSkokani(dt, cas, hx, hz, kx, kz, vKanoe) {
 function aktMevy(dt, cas, hx, hz, kx, kz, vKanoe) {
   if (cas - hrZ > 1) {                               // raz za sekundu: je blizko ostrov?
     hrZ = cas;
-    vidMevy = !!ostrovPri(vKanoe ? kx : hx, vKanoe ? kz : hz, 2.6);
+    const mx = vKanoe ? kx : hx, mz = vKanoe ? kz : hz;
+    vidMevy = !!ostrovPri(mx, mz, 2.6) && !ticho(mx, mz);
   }
   for (const g of vtaky) {
     g.visible = vidMevy; if (!vidMevy) continue;
@@ -316,7 +322,7 @@ function aktPapagaje(dt, cas, hx, hz) {
   if (casPap <= 0) {
     casPap = rnd(14, 30);
     const o = ostrovPri(hx, hz, 1.3), g = papagaje.find(p => !p.userData.o.akt);
-    if (o && o.biom !== 'skalnaty' && g) {
+    if (o && o.biom !== 'skalnaty' && !ticho(hx, hz) && g) {
       const a = rnd(0, 6.283), sx = hx + Math.cos(a) * 55, sz = hz + Math.sin(a) * 55, b = a + Math.PI + rnd(-0.5, 0.5);
       Object.assign(g.userData.o, { akt: true, t: 0, dx: Math.cos(b), dz: Math.sin(b), ph: rnd(0, 6), y: vyskaTerenu(sx, sz) + 10 });
       g.position.set(sx, g.userData.o.y, sz); g.visible = true;
@@ -325,6 +331,7 @@ function aktPapagaje(dt, cas, hx, hz) {
   for (const g of papagaje) {
     const o = g.userData.o; if (!o.akt) continue;
     o.t += dt;
+    if (ticho(g.position.x, g.position.z)) { o.akt = false; g.visible = false; continue; }
     g.position.x += o.dx * 9 * dt; g.position.z += o.dz * 9 * dt;
     const ty = Math.max(10, vyskaTerenu(g.position.x, g.position.z) + 8);   // leti nad korunami
     o.y += (ty - o.y) * Math.min(1, dt * 0.8);
@@ -343,12 +350,12 @@ function aktMotyle(dt, cas, hx, hz) {
   if (motyle.length < MAX_MOTYL) {
     for (let t = 0; t < 2; t++) {
       const a = rnd(0, 6.283), d = rnd(4, 22), x = hx + Math.cos(a) * d, z = hz + Math.sin(a) * d, o = ostrovPri(x, z, 0.85);
-      if (o && o.biom !== 'skalnaty' && vyskaTerenu(x, z) > pr + 1.2) motyle.push({ x, z, hd: rnd(0, 6.28), ph: rnd(0, 6.28), v: rnd(0.7, 1.4), vy: rnd(0.5, 1.6) });
+      if (o && o.biom !== 'skalnaty' && !(uNoc.value > 0.3 && ticho(x, z)) && vyskaTerenu(x, z) > pr + 1.2) motyle.push({ x, z, hd: rnd(0, 6.28), ph: rnd(0, 6.28), v: rnd(0.7, 1.4), vy: rnd(0.5, 1.6) });
     }
   }
   for (let i = motyle.length - 1; i >= 0; i--) {
     const m = motyle[i];
-    if (dist2(m.x, m.z, hx, hz) > 700) { motyle.splice(i, 1); continue; }
+    if (dist2(m.x, m.z, hx, hz) > 700 || (uNoc.value > 0.3 && ticho(m.x, m.z))) { motyle.splice(i, 1); continue; }
     m.hd += Math.sin(cas * 2.3 + m.ph) * 2.2 * dt;
     const nx = m.x + Math.cos(m.hd) * m.v * dt, nz = m.z + Math.sin(m.hd) * m.v * dt;
     if (vyskaTerenu(nx, nz) < pr + 1.0) m.hd += Math.PI * 0.6; else { m.x = nx; m.z = nz; }
@@ -372,7 +379,7 @@ function aktKorytnacku(dt, cas, hx, hz) {
     casKor = rnd(20, 40);
     const a = rnd(0, 6.283), d = rnd(14, 40), x = hx + Math.cos(a) * d, z = hz + Math.sin(a) * d;
     const h = ostrovPri(x, z, 1.35) ? vyskaTerenu(x, z) : -9;
-    if (h > pr + 0.3 && h < pr + 1.0) {
+    if (h > pr + 0.3 && h < pr + 1.0 && !ticho(x, z)) {
       let best = 0, bh = 1e9;                         // smer k moru = klesajuci teren
       for (let k = 0; k < 16; k++) { const b = k * Math.PI / 8, hh = vyskaTerenu(x + Math.cos(b) * 8, z + Math.sin(b) * 8); if (hh < bh) { bh = hh; best = b; } }
       const g = new THREE.Mesh(geoKorytnacka, matZ);
