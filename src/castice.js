@@ -26,6 +26,7 @@ export function vytvorCastice(scena, { pocet = 600, velkost = 0.3, aditivne = fa
   const farba = new THREE.Color();
   let dalsia = 0;
   return {
+    jas(k) { body.material.color.setScalar(jas * k); },     // stmavenie neosvetlenych castic (pena v noci)
     vypust(x, y, z, vx, vy, vz, hex = 0xffffff, zivot = 1, g = 9.8) {
       const i = dalsia; dalsia = (dalsia + 1) % pocet;
       Object.assign(c[i], { vx, vy, vz, zivot, max: zivot, g });

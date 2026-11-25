@@ -7,6 +7,7 @@ import { VODA, uNoc } from './ocean.js';
 import { initNoc, aktualizujNoc } from './noc.js';
 import { pasmoPlynule } from './svet.js';
 import { dazd as zvukDazd, noc as zvukNoc, hrom } from './zvuk.js';
+import { nastavenia } from './nastavenia.js';
 
 export const DEN_MINUT = 24;          // jeden herny den = 24 realnych minut
 const START_HODINA = 9;               // hra zacina o 9:00
@@ -17,6 +18,26 @@ export let pasmoVietor = 0, pasmoPopol = 0;   // doplnky pre vietor (main.js) a 
 export const MLHA = { near: 220, far: 1300 };
 export const POD_VODOU = new THREE.Color(0x0d5468);
 
+// ---------- fazy mesiaca + tma ----------
+export const NOCI_V_CYKLE = 8;
+export const MENA_FAZ = ['Nov', 'Dorastajúci kosák', 'Prvá štvrť', 'Dorastajúci mesiac', 'Spln', 'Ubúdajúci mesiac', 'Posledná štvrť', 'Ubúdajúci kosák'];
+let fazaPosun = 0;                  // posun cyklu (meni ho len dev rezim), uklada sa s pocasim
+let fazaIdx = 4, tma = 0;           // 0 = nov, 4 = spln (prva noc hry je spln)
+// herna noc cislo n: meni sa napoludnie, takze cela noc (aj po polnoci) ma jednu fazu
+const cisloNoci = cas => Math.floor((START_HODINA + cas / (DEN_MINUT * 60) * 24 - 12) / 24);
+const fazaPre = cas => (((cisloNoci(cas) + 4 + fazaPosun) % NOCI_V_CYKLE) + NOCI_V_CYKLE) % NOCI_V_CYKLE;
+
+export const fazaMesiaca = () => fazaIdx / NOCI_V_CYKLE;          // poloha v cykle 0..1: 0 = nov, 0.5 = spln
+export const svitMesiaca = () => 0.5 - 0.5 * Math.cos(fazaIdx / NOCI_V_CYKLE * Math.PI * 2);   // osvetlena cast 0 (nov) .. 1 (spln)
+export const tmaNoci = () => tma;                                 // 0 = svetlo (den) .. 1 = uplna tma (noc za novu)
+export const menoFazy = () => MENA_FAZ[fazaIdx];
+export function nastavFazu(idx, cas) { fazaPosun += idx - fazaPre(cas); fazaIdx = fazaPre(cas); }   // dev
+// o kolko sekund hry treba posunut cas, aby bola dana hodina (dev: skok na polnoc)
+export const sekundDoHodiny = (cas, h) => {
+  const teraz = ((START_HODINA + cas / (DEN_MINUT * 60) * 24) % 24 + 24) % 24;
+  return ((h - teraz + 24) % 24) / 24 * DEN_MINUT * 60;
+};
+
 // ---------- pomocne ----------
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const sm = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };   // smoothstep (aj opacne a>b)
@@ -25,7 +46,7 @@ const C = h => new THREE.Color(h);
 
 // ---------- stav ----------
 let G = null;
-let hodinaEnv = -99;                                  // pri ktorej hodine sme naposledy prepocitali prostredie
+let hodinaEnv = -99, envJasPosledny = 1;              // pri ktorej hodine / jase sme naposledy prepocitali prostredie
 const SUN = new THREE.Vector3(), MESIAC = new THREE.Vector3(), SMER = new THREE.Vector3();
 const t1 = new THREE.Color(), t2 = new THREE.Color();
 
@@ -49,12 +70,18 @@ function novyStav(s) {
 }
 
 export function ulozPocasie() {
-  return { stav: W.stav, casovac: W.casovac, cover: W.cover, dazd: W.dazd, burka: W.burka, sila: W.sila };
+  return { stav: W.stav, casovac: W.casovac, cover: W.cover, dazd: W.dazd, burka: W.burka, sila: W.sila, mesiac: fazaPosun };
+}
+// dev: okamzite prepne pocasie (0 jasno, 1 oblacno, 2 dazd, 3 burka)
+export function nastavPocasie(s) {
+  novyStav(s); W.casovac = 600;
+  W.cover = CIELE[s].c; W.dazd = CIELE[s].d * W.sila; W.burka = CIELE[s].b;
 }
 export function nacitajPocasie(o) {
   if (!o || typeof o !== 'object') return;
   for (const k of ['stav', 'casovac', 'cover', 'dazd', 'burka', 'sila']) if (Number.isFinite(o[k])) W[k] = o[k];
   W.stav = Math.min(3, Math.max(0, W.stav | 0));
+  if (Number.isFinite(o.mesiac)) fazaPosun = o.mesiac | 0;
 }
 
 // ---------- obloha: oblaky (kupola so shaderom) ----------
@@ -136,14 +163,21 @@ const MESIAC_VS = `
 varying vec2 vUv;
 void main() { vUv = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const MESIAC_FS = `
-uniform float uAlfa;
+uniform float uAlfa, uFaza, uSvit;
 varying vec2 vUv;
 void main() {
+  const float R = 0.125;                                   // polomer kotuca
   float d = length(vUv);
-  float disk = smoothstep(0.11, 0.1, d);
-  float mora = 0.72 + 0.28 * sin(vUv.x * 80.0 + sin(vUv.y * 55.0) * 2.0) * sin(vUv.y * 70.0 + 1.3);
-  float zar = exp(-d * d * 30.0) * 0.35 + exp(-d * d * 9.0) * 0.04;   // ziara plynule do nuly (inak bolo vidno hranu stvorca)
-  vec3 col = vec3(1.0, 0.97, 0.88) * (disk * mora * 2.2 + zar) * smoothstep(0.95, 0.45, d);
+  float disk = smoothstep(R, R - 0.006, d);
+  // faza: kotuc beriem ako gulu a osvetlim ju "slnkom" z uhla podla fazy (0 nov .. 0.5 spln)
+  vec2 q = vUv / R;
+  vec3 n = vec3(q, sqrt(max(1.0 - dot(q, q), 0.0)));
+  float u = uFaza * 6.28318;
+  float lit = smoothstep(-0.06, 0.16, dot(n, vec3(sin(u), 0.0, -cos(u))));
+  float mora = 0.74 + 0.26 * sin(q.x * 9.0 + sin(q.y * 6.0) * 2.0) * sin(q.y * 8.0 + 1.3);
+  float tvar = disk * mora * (lit * 2.3 + 0.035);          // 0.035 = popolavy svit tmavej casti
+  float zar = (exp(-d * d * 30.0) * 0.32 + exp(-d * d * 9.0) * 0.045) * uSvit;   // ziara podla velkosti osvetlenej casti
+  vec3 col = vec3(1.0, 0.97, 0.88) * (tvar + zar) * smoothstep(0.95, 0.45, d);
   gl_FragColor = vec4(col * uAlfa, 1.0);
 }`;
 
@@ -177,6 +211,12 @@ export function initPocasie(g) {
   G = g;
   const scena = g.scena;
   initNoc(scena);
+
+  // jas oblohy: v noci z nej ide takmer vsetko "okolite" svetlo (odrazy PBR), preto ho treba vediet stlmit
+  const mo = g.obloha.material;
+  mo.uniforms.uJas = { value: 1 };
+  mo.fragmentShader = 'uniform float uJas;\n' + mo.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );', 'gl_FragColor = vec4( retColor * uJas, 1.0 );');
+  mo.needsUpdate = true;
 
   // oblaky
   uObl = {
@@ -212,7 +252,7 @@ export function initPocasie(g) {
   hviezdy.frustumCulled = false; hviezdy.renderOrder = 1;
 
   // mesiac (plocha otocena ku kamere)
-  uMes = { uAlfa: { value: 0 } };
+  uMes = { uAlfa: { value: 0 }, uFaza: { value: 0.5 }, uSvit: { value: 1 } };
   mesiac = new THREE.Mesh(new THREE.PlaneGeometry(1700, 1700), new THREE.ShaderMaterial({
     vertexShader: MESIAC_VS, fragmentShader: MESIAC_FS, uniforms: uMes,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
@@ -249,6 +289,11 @@ const SED_DEN = C(0x8a9299), SED_BURKA = C(0x4a5058), SED_NOC = C(0x06080b);
 const SL_DEN = C(0xffe6c0), SL_NIZKE = C(0xff8a40), SL_SEDE = C(0xb8c4d0), SL_MESIAC = C(0x8fa8e0);
 const HS_DEN = C(0xa8d8ff), HS_NOC = C(0x1b2a55), HS_SUM = C(0xffb08a), HS_SEDA = C(0x9aa4ae);
 const HZ_DEN = C(0xc9a86a), HZ_NOC = C(0x0c0e14);
+// nocne farby pre nov (tma) a spln (modrasta noc); medzi nimi sa miesa podla svitu mesiaca
+const H_NOV = C(0x010204), H_SPLN = C(0x0a1428);
+const HS_NOV = C(0x16203c), HS_SPLN = C(0x4a68a8), HS_JAS = C(0x7a8cb4);
+const HZ_NOV = C(0x07080c), HZ_SPLN = C(0x1a1e2a);
+const NOC_H = new THREE.Color(), NOC_HS = new THREE.Color(), NOC_HZ = new THREE.Color();
 const AMB_DEN = new THREE.Color(0.5, 0.56, 0.66), AMB_NOC = new THREE.Color(0.012, 0.02, 0.045), AMB_SUM = new THREE.Color(0.55, 0.3, 0.28);
 const ZEN_DEN = new THREE.Color(0.16, 0.38, 0.72), ZEN_NOC = new THREE.Color(0.004, 0.008, 0.025), ZEN_SUM = new THREE.Color(0.25, 0.22, 0.42), ZEN_SEDA = new THREE.Color(0.28, 0.31, 0.35);
 const OB_DEN = new THREE.Color(0.62, 0.78, 0.9), OB_NOC = new THREE.Color(0.01, 0.015, 0.035), OB_SUM = new THREE.Color(0.9, 0.5, 0.35), OB_SEDA = new THREE.Color(0.4, 0.43, 0.47);
@@ -297,6 +342,15 @@ export function aktualizujPocasie(dt, cas, stred) {
   const twi = Math.exp(-Math.pow(e / 0.17, 2)) * (1 - cover * 0.6);
   const svetlo = sm(0.0, 0.3, e) * (1 - 0.7 * cover);
 
+  // --- mesiac: faza a kolko jeho svetla prejde cez oblaky ---
+  fazaIdx = fazaPre(cas);
+  const svit = svitMesiaca();
+  const oblacnost = sm(0.2, 0.95, cover);                       // jasno 0 .. zatiahnute 1
+  const mm = svit * (1 - 0.85 * oblacnost) * (1 - 0.6 * burkaF);   // "mesacne svetlo na zemi" 0..1
+  const zatah = Math.max(oblacnost * 0.7, burkaF);              // oblaky pohltia aj zvysok svetla hviezd
+  const jas = clamp01(nastavenia.jasNoci ?? 0);                 // posuvnik "Jas noci"
+  tma = noc * clamp01(1 - 0.55 * mm + 0.1 * zatah);
+
   // --- obloha (Sky) ---
   const u = g.obloha.material.uniforms;
   u.sunPosition.value.copy(SUN);
@@ -304,6 +358,8 @@ export function aktualizujPocasie(dt, cas, stred) {
   u.rayleigh.value = 0.7 + twi * 1.8;
   u.mieCoefficient.value = 0.002 + twi * 0.008;
   g.obloha.position.copy(g.kamera.position);
+  u.uJas.value = lerp(1, 0.16 + 0.5 * mm + jas, noc);                // viditelna obloha
+  const envJas = lerp(1, (lerp(0.07, 0.62, mm ** 0.75) * (1 - 0.4 * zatah) + 0.75 * jas), noc);   // svetlo z oblohy na zem
 
   // --- hlavne svetlo: slnko, v noci mesiac ---
   let farbaSvetla, intenzita, smer;
@@ -312,7 +368,7 @@ export function aktualizujPocasie(dt, cas, stred) {
     SLF.copy(SL_NIZKE).lerp(SL_DEN, sm(0.02, 0.32, e)).lerp(SL_SEDE, cover * 0.6);
     farbaSvetla = SLF;
   } else {
-    smer = MESIAC; intenzita = 0.5 * sm(-0.04, -0.25, e) * (1 - 0.7 * cover);
+    smer = MESIAC; intenzita = (lerp(0.015, 0.55, mm) + 0.25 * jas) * sm(-0.04, -0.25, e);
     farbaSvetla = SL_MESIAC;
   }
   SLNKO.copy(smer); if (SLNKO.y < 0.1) { SLNKO.y = 0.1; SLNKO.normalize(); }
@@ -322,8 +378,13 @@ export function aktualizujPocasie(dt, cas, stred) {
   const hs = g.hemi;
   hs.color.copy(HS_NOC).lerp(HS_DEN, den2).lerp(HS_SUM, twi * 0.5).lerp(HS_SEDA, cover * 0.7);
   hs.groundColor.copy(HZ_NOC).lerp(HZ_DEN, den2);
-  hs.intensity = lerp(0.42, 0.7, den2) * (1 - 0.2 * cover) + flash * 2.5;
-  g.renderer.toneMappingExposure = lerp(0.7, 0.72, noc) * (1 + flash * 0.35);
+  // v noci (noc -> 1) prejdu farby aj sila na nocne hodnoty podla mesiaca; cez den sa nic nemeni
+  NOC_HS.copy(HS_NOV).lerp(HS_SPLN, mm).lerp(HS_JAS, jas);
+  NOC_HZ.copy(HZ_NOV).lerp(HZ_SPLN, mm).lerp(HS_JAS, jas * 0.5);
+  hs.color.lerp(NOC_HS, noc); hs.groundColor.lerp(NOC_HZ, noc);
+  const hemiNoc = lerp(0.05, 0.3, mm) * (1 - 0.5 * zatah) + 0.55 * jas;
+  hs.intensity = lerp(lerp(0.42, 0.7, den2) * (1 - 0.2 * cover), hemiNoc, noc) + flash * 2.5;
+  g.renderer.toneMappingExposure = lerp(0.7, 0.72 * (1 + 0.5 * jas), noc) * (1 + flash * 0.35);
 
   // --- hmla (farba sa meni na mieste; main.js ju kopiruje do scena.fog) ---
   const mokro = clamp01(Math.max(dazd * 0.7, burkaF, cover * 0.3));
@@ -331,32 +392,39 @@ export function aktualizujPocasie(dt, cas, stred) {
   t2.copy(SED_BURKA).lerp(SED_DEN, 1 - burkaF * 0.6).multiplyScalar(0.15 + 0.85 * den2);
   t2.lerp(SED_NOC, noc * 0.6);
   FARBA_HMLY.copy(t1).lerp(t2, clamp01(cover * 0.85));
+  NOC_H.copy(H_NOV).lerp(H_SPLN, mm).lerp(HS_JAS, jas * 0.12);   // nocna hmla: za novu takmer cierna
+  FARBA_HMLY.lerp(NOC_H, noc);
   FARBA_HMLY.r += flash * 0.25; FARBA_HMLY.g += flash * 0.25; FARBA_HMLY.b += flash * 0.3;
   MLHA.near = 220 * (1 - 0.65 * mokro);
   MLHA.far = 1300 * (1 - 0.55 * mokro) * (1 - 0.2 * noc);
+  const hustaTma = tma * (1 - 0.7 * jas);                       // cim tmavsie, tym blizsie sa dialka straca v tme
+  MLHA.near *= 1 - 0.8 * hustaTma; MLHA.far *= 1 - 0.4 * hustaTma;
   // atmosfera podla pasma (plynule): 2 oranzovy opar, 3 zelenkava hustejsia hmla, 4 sivsie, 5 hustá biela hmla
   if (stred) {
     const pf = pasmoPlynule(stred.x, stred.z), w = i => Math.max(0, 1 - Math.abs(pf - i));   // vaha pasma i (1..5)
-    const svetlo = 0.35 + 0.65 * den2;                      // v noci nech tinty nesvietia
+    const svetlo = lerp(0.35 + 0.65 * den2, 0.01 + 0.07 * mm, noc);   // v noci nech tinty nesvietia
     FARBA_HMLY.lerp(PAS_T2.set(1.0, 0.62, 0.38).multiplyScalar(svetlo), 0.35 * w(2));
     FARBA_HMLY.lerp(PAS_T3.set(0.42, 0.62, 0.38).multiplyScalar(svetlo), 0.45 * w(3));
     FARBA_HMLY.lerp(PAS_T4.set(0.52, 0.56, 0.62).multiplyScalar(svetlo), 0.5 * w(4));
-    FARBA_HMLY.lerp(PAS_T5.set(0.9, 0.93, 0.96).multiplyScalar(0.25 + 0.75 * den2), 0.75 * w(5));
+    FARBA_HMLY.lerp(PAS_T5.set(0.9, 0.93, 0.96).multiplyScalar(lerp(0.25 + 0.75 * den2, 0.015 + 0.09 * mm, noc)), 0.75 * w(5));
     const hustota = 1 + 0.25 * w(2) + 0.55 * w(3) + 0.35 * w(4) + 1.6 * w(5);   // vacsie = hustejsia hmla
     MLHA.near /= hustota; MLHA.far /= hustota;
     pasmoVietor = 0.18 * w(4) + 0.08 * w(3);
     pasmoPopol = w(2);
   }
-  POD_VODOU.set(0x0d5468).multiplyScalar(0.1 + 0.9 * clamp01(den2 * (1 - 0.35 * cover)));
+  POD_VODOU.set(0x0d5468).multiplyScalar(lerp(0.1 + 0.9 * clamp01(den2 * (1 - 0.35 * cover)), 0.012 + 0.06 * mm + 0.08 * jas, noc));
 
   // --- voda: farby oblohy pre odraz, farba slnka, celkove svetlo ---
   const vu = VODA.u;
   if (vu) {
     vu.uObzor.value.copy(OB_NOC).lerp(OB_DEN, den2).lerp(OB_SUM, twi * 0.7).lerp(OB_SEDA, cover * 0.75).multiplyScalar(1 + flash);
     vu.uZenit.value.copy(ZEN_NOC).lerp(ZEN_DEN, den2).lerp(ZEN_SUM, twi * 0.5).lerp(ZEN_SEDA, cover * 0.8).multiplyScalar(1 + flash);
-    const k = e > -0.04 ? intenzita / 3.2 : intenzita / 3.2 * 0.5;   // mesiac sa v odleskoch ukaze o trochu viac
+    const k = e > -0.04 ? intenzita / 3.2 : intenzita / 3.2 * 0.5 * (0.25 + 0.75 * mm);   // mesacna cesticka na vode len ked mesiac svieti
+    // odraz oblohy na vode: za novu skoro cierny
+    const obl = lerp(1, 0.18 + 1.0 * mm + 2.5 * jas, noc);
+    vu.uObzor.value.multiplyScalar(obl); vu.uZenit.value.multiplyScalar(obl);
     vu.uSlnkoFarba.value.copy(farbaSvetla).multiplyScalar(k);
-    vu.uSvetlo.value = lerp(0.07, 1, den2 * (1 - 0.45 * cover)) + flash * 0.5;
+    vu.uSvetlo.value = lerp(lerp(0.07, 1, den2 * (1 - 0.45 * cover)), 0.004 + 0.036 * mm + 0.09 * jas, noc) + flash * 0.5;
   }
 
   // --- oblaky ---
@@ -368,6 +436,7 @@ export function aktualizujPocasie(dt, cas, stred) {
   uObl.uDark.value = clamp01(dazd * 0.6 + burkaF * 0.5 + cover * 0.25);
   uObl.uFlash.value = flash;
   AMB.copy(AMB_NOC).lerp(AMB_DEN, den2).lerp(AMB_SUM, twi * 0.7).multiplyScalar(1 - 0.5 * Math.max(dazd, burkaF));
+  AMB.multiplyScalar(lerp(1, 0.1 + 0.9 * mm + 1.5 * jas, noc));   // oblaky v noci: bez mesiaca takmer neviditelne
   uObl.uAmb.value.copy(AMB);
   uObl.uSlnkoF.value.copy(SL_NIZKE).lerp(SL_DEN, sm(0.02, 0.32, e)).multiplyScalar(0.9 * slnkoK * (1 - cover * 0.6));
 
@@ -381,6 +450,7 @@ export function aktualizujPocasie(dt, cas, stred) {
     uHv.uAlfa.value = hviezdAlfa; uHv.uCas.value = cas;
   }
   const mesAlfa = sm(0.1, -0.12, e) * (1 - cover * 0.92);
+  uMes.uFaza.value = fazaMesiaca(); uMes.uSvit.value = svit;
   mesiac.visible = mesAlfa > 0.01 && MESIAC.y > -0.05;
   if (mesiac.visible) {
     mesiac.position.copy(kp).addScaledVector(MESIAC, 6000);
@@ -417,7 +487,11 @@ export function aktualizujPocasie(dt, cas, stred) {
 
   // --- prostredie (odrazy PBR) prepocitaj zriedka: pri posune casu o ~20 herných minut ---
   let dh = Math.abs(hodina - hodinaEnv); if (dh > 12) dh = 24 - dh;
-  if (dh > 0.35) { hodinaEnv = hodina; g.obnovProstredie(); }
+  if (dh > 0.35 || Math.abs(envJas - envJasPosledny) > 0.012 + 0.12 * envJasPosledny) {
+    hodinaEnv = hodina; envJasPosledny = envJas;
+    const vidJas = u.uJas.value;
+    u.uJas.value = envJas; g.obnovProstredie(); u.uJas.value = vidJas;
+  }
 
   return { hodina, den, svetlo, dazd, burka, vietorSila };
 }

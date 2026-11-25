@@ -68,7 +68,7 @@ function vyrenderuj(renderer, s, kam, p) {
   // dlhe predmety (nastroje, palice) polozime uhlopriecne, ako byva zvykom v inventaroch
   const dlhy = b.x > 1.7 * Math.max(b.y, b.z);
   if (dlhy) { skupina.rotation.set(0, 0.5, 0.75); }
-  else skupina.rotation.y = -0.5;
+  else skupina.rotation.set(0, -0.5, p.ikonaSklon ?? 0);   // ikonaSklon: stojaci tenky predmet sa nakreslí šikmo
   s.add(skupina); skupina.updateMatrixWorld(true);
   zaber(kam, skupina, dlhy && p.nastroj ? 0.62 : 1);   // orez len u nastrojov
   renderer.render(s, kam);

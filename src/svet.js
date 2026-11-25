@@ -369,7 +369,7 @@ matTeren.onBeforeCompile = sh => {
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.84, 0.78, 0.66), (1.0 - smoothstep(-0.1, 1.0, nadVodou)) * step(-0.6, nadVodou));   // mokry piesok: zlatobezovy, nie hnedy`)
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       float hl = uPriliv - vSvetP.y;
-      totalEmissiveRadiance += vec3(0.85, 1.0, 0.95) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.93 * uNoc)
+      totalEmissiveRadiance += vec3(0.85, 1.0, 0.95) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.995 * uNoc)
         * smoothstep(0.0, 0.5, hl) * (1.0 - smoothstep(3.0, 12.0, hl)) * 2.3;`);
 };
 

@@ -6,6 +6,7 @@ export const nastavenia = {
   hlavna: 1, hudba: 1, prostredie: 1, efekty: 1,   // hlasitosti 0..1
   ticho: false,                                     // M = vypnut vsetok zvuk
   citlivost: 1,                                     // nasobok citlivosti mysi
+  jasNoci: 0,                                       // 0 = naozajstna tma, 1 = najsvetlejsia noc (pre tmave monitory)
   bloom: true,                                      // ziara slnka (vypnutie zvysi FPS)
   hud: true,
 };
@@ -14,6 +15,7 @@ try { Object.assign(nastavenia, JSON.parse(localStorage.getItem(KLUC) || '{}'));
 const SUVAKY = [
   ['hlavna', 'Celková hlasitosť', 0, 1], ['hudba', 'Hudba', 0, 1], ['prostredie', 'Prostredie (more, vietor, dážď)', 0, 1],
   ['efekty', 'Zvuky akcií (údery, kroky)', 0, 1], ['citlivost', 'Citlivosť myši', 0.3, 2.5],
+  ['jasNoci', 'Jas noci', 0, 1],
 ];
 const PREPINACE = [['ticho', 'Vypnúť všetok zvuk (M)'], ['bloom', 'Žiara slnka (efekt)'], ['hud', 'Zobrazovať HUD (ukazovatele)']];
 

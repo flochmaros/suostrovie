@@ -76,6 +76,11 @@ const html = () => `
   <div class="skup"><b>Vylepšenia</b><button data-vyl="1">Max</button><button data-vyl="0">0</button></div>
 </div>
 <div class="obsah" data-t="svet" hidden>
+  <div class="skup"><b>Mesiac</b><button data-mes="0">🌑 Nov</button><button data-mes="1">🌒</button><button data-mes="2">🌓 Štvrť</button><button data-mes="3">🌔</button><button data-mes="4">🌕 Spln</button><button data-mes="6">🌗</button></div>
+  <div class="skup"><b>Čas</b><button data-hod="0">Polnoc</button><button data-hod="12">Poludnie</button><button data-hod="18.6">Súmrak</button></div>
+  <div class="skup"><b>Počasie</b><button data-poc="0">Jasno</button><button data-poc="1">Oblačno</button><button data-poc="2">Dážď</button><button data-poc="3">Búrka</button></div>
+</div>
+<div class="obsah" data-t="svet" hidden>
   <div class="skup"><b>Vegetácia</b><button data-h="0.5">0.5×</button><button data-h="1">1×</button><button data-h="2">2×</button><button data-h="3">3×</button></div>
   <div class="skup"><button data-a="cas">Čas +60 s (príliv)</button><button data-a="hud">Skryť/ukázať HUD</button><button data-a="reset">Zmazať uloženie a reštart</button></div>
 </div>
@@ -148,6 +153,9 @@ export function initDev(c) {
     if (t.dataset.a === 'hraj') return zamkni();
     const { hrac, kanoe } = ctx;
     if (t.dataset.nepr) ctx.oznam(spawnPriHracovi(t.dataset.nepr, ctx.hrac.poz) ? `Spawn: ${NEPRIATELIA[t.dataset.nepr].meno}` : 'Nie je kde spawnovať');
+    if (t.dataset.mes) ctx.oznam(`Mesiac: ${ctx.mesiac(+t.dataset.mes)}`);
+    if (t.dataset.hod) { ctx.skokNaHodinu(+t.dataset.hod); ctx.oznam(`Skok na ${t.textContent}`); }
+    if (t.dataset.poc) { ctx.pocasie(+t.dataset.poc); ctx.oznam(`Počasie: ${t.textContent}`); }
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
     if (t.dataset.vyl) { for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? VYL_MAX : 0); ctx.oznam(t.dataset.vyl === '1' ? 'Vylepšenia na maximum' : 'Vylepšenia vynulované'); }
     if (t.dataset.k) { if (kanoe.druh !== 'kanoe') ctx.oznam('Najbližšia loď nie je kanoe'); else { kanoe.nastavUroven(+t.dataset.k); ctx.oznam(`Kanoe: úroveň ${t.dataset.k}`); } }
