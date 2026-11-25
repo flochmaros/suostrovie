@@ -27,6 +27,9 @@ recept({ id: 'obsidianovy_krompac', skupina: N, vysledok: ['obsidianovy_krompac'
 recept({ id: 'obsidianovy_noz', skupina: N, vysledok: ['obsidianovy_noz', 1], suroviny: [['palica', 1], ['obsidian', 2], ['vlakno', 1]] });
 recept({ id: 'obsidianovy_mec', skupina: N, vysledok: ['obsidianovy_mec', 1], suroviny: [['drevo', 1], ['obsidian', 5], ['vlakno', 3]] });
 
+// svetlo do tmy: lacne od zaciatku
+recept({ id: 'fakla', skupina: N, vysledok: ['fakla', 1], suroviny: [['palica', 1], ['vlakno', 2]] });
+
 // tabor: taborak (polozi sa klavesou F)
 recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [['kamen', 5], ['drevo', 2], ['palica', 2]] });
 

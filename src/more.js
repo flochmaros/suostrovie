@@ -58,7 +58,7 @@ function matMore(o = {}) {
         diffuseColor.rgb *= 1.0 + rp * 0.05 * smoothstep(-16.0, -3.0, vSvetP.y);` : ''}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float hl = uPriliv - vSvetP.y;
-        totalEmissiveRadiance += vec3(0.8, 0.95, 1.0) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.93 * uNoc)
+        totalEmissiveRadiance += vec3(0.8, 0.95, 1.0) * kaustika(vSvetP.xz, uCas * 1.3) * diffuseColor.rgb * (1.0 - 0.995 * uNoc)
           * smoothstep(0.0, 0.5, hl) * (1.0 - smoothstep(3.0, 12.0, hl)) * 1.3;
         ${emis ? `totalEmissiveRadiance += diffuseColor.rgb * ${f3(emis)} * (1.0 + uNoc * (5.0 + 3.0 * sin(uCas * 1.7 + vSvetP.x * 0.7)));` : ''}`);
   };

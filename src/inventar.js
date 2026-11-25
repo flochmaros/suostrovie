@@ -13,7 +13,7 @@ export const sloty = Array(32).fill(null);       // policko = null alebo { typ, 
 let vybrany = 0, otvoreny = false, rezim = 'batoh', sklad = null, skladNazov = '';   // rezim: 'batoh' | 'stavba' | 'lodenica' | 'sklad'
 let priZmene = () => {};                          // volane po kazdej zmene (napr. predmet v ruke, zvuk)
 const kopa = id => PREDMETY[id]?.kopa ?? 20;
-const trvMax = id => PREDMETY[id]?.nastroj?.trvanlivost ?? 0;   // 0 = nie je nastroj
+const trvMax = id => PREDMETY[id]?.nastroj?.trvanlivost ?? PREDMETY[id]?.horenie ?? 0;   // trvanlivost nastroja / sekundy horenia fakle; 0 = nic
 
 // prida n kusov; vrati kolko sa NEzmestilo
 const nove = new Set();                           // policka, do ktorych prave nieco pribudlo (animacia pri dalsom vykresleni)
@@ -236,7 +236,7 @@ export function initInventar(onZmena) {
     const s = e.target.closest?.('#batoh .slot');
     if (!s) return;
     const o = (s.dataset.z === 's' ? sklad : sloty)?.[+s.dataset.i], p = o && PREDMETY[o.typ];
-    $('detail').innerHTML = o ? `<b>${p.ikona} ${p.meno}</b>${o.pocet > 1 ? ` ×${o.pocet}` : ''}<br>${p.popis ?? ''}${trvMax(o.typ) ? ` <i>(trvanlivosť ${o.trv ?? trvMax(o.typ)}/${trvMax(o.typ)})</i>` : ''}` : '<span class="tichy">Prázdne políčko</span>';
+    $('detail').innerHTML = o ? `<b>${p.ikona} ${p.meno}</b>${o.pocet > 1 ? ` ×${o.pocet}` : ''}<br>${p.popis ?? ''}${trvMax(o.typ) ? ` <i>(${p.horenie ? 'horenie' : 'trvanlivosť'} ${Math.ceil(o.trv ?? trvMax(o.typ))}${p.horenie ? ' s' : ''}/${trvMax(o.typ)}${p.horenie ? ' s' : ''}${o.zhas ? ', zhasnutá' : ''})</i>` : ''}` : '<span class="tichy">Prázdne políčko</span>';
   });
 }
 

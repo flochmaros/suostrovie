@@ -102,6 +102,12 @@ export function prilozDrevo(o) {
   return true;
 }
 
+// zapali pahrebu faklou (bez dreva): ohen chvilu hori, kym nan neprilozis
+export function zapalFaklou(o, sekund = 45) {
+  o.palivo = Math.max(o.palivo, sekund);
+  for (let i = 0; i < 14; i++) iskry.vypust(o.x, o.y + 0.3, o.z, (Math.random() - 0.5) * 1.5, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 1.5, 0xffb050, 0.5 + Math.random() * 0.6, 3);
+}
+
 // zacne piect surove jedlo (napichnute nad ohnom); vrati false ak sa neda
 export const daSaUpiect = typ => !!PECENIE[typ];
 export function pec(o, typ) {

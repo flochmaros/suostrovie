@@ -895,3 +895,25 @@ export function modelLano() {
   let g = dokonci(telo, tail); g = naZem(g); ao(g, 0.04, 0.35);
   return [g, MAT_MATNY];
 }
+
+// ---------- FAKLA: suchá palica, hlava z namotaného vlákna nasiaknutá smolou (stojí zvislo, y = 0 dole) ----------
+export const FAKLA_VRCH = 0.66;      // odkial vyrasta plamen (fakla.js)
+export function modelFakla() {
+  const drevo = C(0x8a6038), svetle = C(0xb4875a), tmave = C(0x4a2f1a), smola = C(0x2a1a10), latka = C(0x8f7448), uhol = C(0x140d08);
+  const rukovat = tvar(hladka(new THREE.CylinderGeometry(0.027, 0.021, 0.56, 10, 14).translate(0, 0.28, 0)), (v, c) => {
+    v.x += 0.012 * Math.sin(v.y * 7);                                 // mierne krivá palica
+    const n = fbm(v.x * 90, v.y * 5, v.z * 90, 3);
+    c.copy(drevo).lerp(svetle, smooth(0.5, 0.8, n)).lerp(tmave, smooth(0.38, 0.15, n) * 0.7);
+  });
+  const hlava = tvar(hladka(new THREE.CylinderGeometry(0.052, 0.033, 0.15, 16, 12).translate(0.003, 0.585, 0)), (v, c) => {
+    const n = fbm(v.x * 70, v.y * 70, v.z * 70, 3), ovin = Math.sin(v.y * 210 + Math.atan2(v.z, v.x) * 2);
+    const s = 1 + (n - 0.5) * 0.35 + ovin * 0.07;
+    v.x = 0.003 + (v.x - 0.003) * s; v.z *= s;
+    c.copy(latka).lerp(smola, smooth(0.52, 0.64, v.y) * 0.85 + smooth(0.5, 0.75, n) * 0.4).lerp(uhol, smooth(0.62, 0.66, v.y));
+    c.multiplyScalar(0.85 + 0.25 * (ovin * 0.5 + 0.5));
+  });
+  const vrch = tvar(hladka(new THREE.IcosahedronGeometry(0.045, 2).scale(1, 0.6, 1).translate(0.003, 0.66, 0)), (v, c) => { c.copy(uhol).lerp(smola, fbm(v.x * 80, v.y * 80, v.z * 80, 2)); });
+  const spodny = lano(0.038, 0.011, 0xcfb87c).rotateX(Math.PI / 2).translate(0.002, 0.52, 0);
+  const uchop = lano(0.026, 0.008, 0xb89a62).rotateX(Math.PI / 2).translate(0.011, 0.2, 0);
+  return [dokonci(rukovat, hlava, vrch, spodny, uchop), stylMat({ roughness: 0.85 }, 0.3)];
+}

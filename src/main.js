@@ -20,12 +20,13 @@ import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './ziv
 import './obsah/jedlo.js';
 import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti, vypustNaklad } from './more.js';
-import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor } from './pocasie.js';
+import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor, nastavPocasie, nastavFazu, menoFazy, fazaMesiaca, tmaNoci, sekundDoHodiny } from './pocasie.js';
 import { initNastavenia } from './nastavenia.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
-import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne } from './ohen.js';
+import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne, zapalFaklou } from './ohen.js';
+import { initFakla, aktualizujFaklu, skusZapalit, zapichni, najblizsiaFakla, zoberFaklu, horiVRuke, horiaceFakle, minHorenie, ulozFakle, nacitajFakle } from './fakla.js';
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -66,6 +67,7 @@ moreUdalosti.priSplachu = udalosti.priSplachu;
 moreUdalosti.priZraneni = (dmg, pricina) => zran(dmg, pricina);
 initPocasie(g);
 initOhen(scena);
+initFakla(scena, { oznam: t => oznam(t) });
 initLodenice(scena);
 initStavba(scena, { oznam: t => oznam(t), pad: () => zvuky.pad(),   // stavanie: taborak a lodenicu polozi ich vlastny kod
   specialne: { taborak: (x, z) => polozOhen(x, z) || 'Príliš blízko iného ohňa', lodenica: (x, z) => polozLodenicu(x, z) } });
@@ -102,6 +104,7 @@ try {
     nacitajPreziti(u.preziti);
     nacitajPocasie(u.pocasie);
     nacitajOhne(u.ohne);
+    nacitajFakle(u.fakle);
     nacitajStavby(u.stavby);
     nacitajUlohy(u.ulohy);
     nacitajMajaky(u.majaky);
@@ -116,7 +119,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -255,7 +258,8 @@ udalostiPreziti.priZobudeni = () => {
   hrac.poz.set(s.x, vyskaTerenu(s.x, s.z), s.z); hrac.rych.set(0, 0, 0); hrac.vy = 0;
   zamkni();
 };
-initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, start: start.hrac, uloz, kluc: KLUC });
+initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
+  mesiac: i => { nastavFazu(i, cas); return menoFazy(); }, pocasie: nastavPocasie, start: start.hrac, uloz, kluc: KLUC });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });
 initBoj({ scena, kamera, kam, hrac });
@@ -390,10 +394,18 @@ function aktualizuj(dt) {
     else if (pocet('drevo') < 2 || pocet('vlakno') < 1) oznam(`Na opravu treba 2 ${PREDMETY.drevo.ikona} drevo a 1 ${PREDMETY.vlakno.ikona} vlákno`);
     else { kanoe.opravTrup(); odober('drevo', 2); odober('vlakno', 1); vykresliInventar(); zvuky.uder('drevo'); oznam(`🔨 Trup opravený: ${Math.round(kanoe.trup / maxTrup(kanoe) * 100)} %`); }
   }
-  for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) vyber(i);
+  for (let i = 0; i < 8; i++) if (stlacene('Digit' + (i + 1))) { vyber(i); skusZapalit(!vKanoe && !naPalube && hrac.plava); }
   if (stlacene('KeyF') && !stavPreziti.mrtvy) {           // zjest / vypit vybrany predmet
     const d = vybranyPredmet();
-    if (d?.jedlo) {
+    if (d?.id === 'fakla') {                              // zapichnut faklu do zeme pred postavu
+      if (vKanoe || naPalube || hrac.plava) oznam('Fakľu sa dá zapichnúť len na súši');
+      else {
+        const x = hrac.poz.x - Math.sin(hrac.smer) * 1.1, z = hrac.poz.z - Math.cos(hrac.smer) * 1.1;
+        const r = zapichni(x, z, vyskaVody(x, z, cas));
+        if (r !== true) oznam(r);
+        else { hrac.zdvihni(); zvuky.uder('list'); oznam('Fakľa zapichnutá – <kbd>E</kbd> ju zoberieš späť'); }
+      }
+    } else if (d?.jedlo) {
       if (zjedz(d)) { hlasUlohy('zjedz'); odober(d.id, 1); vykresliInventar(); zvuky.zober(); oznam(`Zjedol si: ${d.ikona} ${d.meno}`); }
       else oznam('Nie si hladný ani smädný');
     } else if (d?.polozit === 'taborak') {                // polozit taborak pred postavu
@@ -448,26 +460,30 @@ function aktualizuj(dt) {
     const blizko = Math.hypot(hrac.poz.x - kanoe.poz.x, hrac.poz.z - kanoe.poz.y) < dosahLode;
     const predmet = !blizko && najblizsiPredmet(hrac.poz.x, hrac.poz.z);
     const ohen = !blizko && !predmet && najblizsiOhen(hrac.poz.x, hrac.poz.z);   // taborak ma prednost pred zberom
-    const funk = !blizko && !predmet && !ohen && najdiFunkcnu(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));   // truhlica, pec, hamaka...
+    const stojaca = !blizko && !predmet && !ohen && najblizsiaFakla(hrac.poz.x, hrac.poz.z);   // zapichnuta fakla
+    const funk = !blizko && !predmet && !ohen && !stojaca && najdiFunkcnu(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));   // truhlica, pec, hamaka...
     const obs = funk && obsluha(funk, sluzbyStavieb());
-    const ulovok = !blizko && !predmet && !ohen && !funk && najdiUlovok(hrac.poz.x, hrac.poz.z);
-    const zber = !blizko && !predmet && !ohen && !funk && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
-    const more = !blizko && !predmet && !ohen && !funk && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
+    const ulovok = !blizko && !predmet && !ohen && !stojaca && !funk && najdiUlovok(hrac.poz.x, hrac.poz.z);
+    const zber = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
+    const more = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
     if (ohen) {                                            // taborak: upiect vybrane jedlo, inak prilozit drevo
       const d = vybranyPredmet(), mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
       const peci = hori(ohen) && d && daSaUpiect(d.id);
-      napoveda = peci ? `<kbd>E</kbd> upiecť: ${d.ikona} ${d.meno}`
+      const faklou = !hori(ohen) && !pocet('drevo') && horiVRuke();          // pahrebu rozfuka aj horiaca fakla
+      napoveda = faklou ? '<kbd>E</kbd> zapáliť pahrebu fakľou' : peci ? `<kbd>E</kbd> upiecť: ${d.ikona} ${d.meno}`
         : pocet('drevo') ? `<kbd>E</kbd> ${hori(ohen) ? 'priložiť drevo' : 'zapáliť (drevo)'}` : hori(ohen) ? `Na priloženie treba ${UI.drevo} drevo` : 'Pahreba – zapáliš ju drevom';
       if (hori(ohen)) napoveda += ` · ${UI.ohen} ${mmss(ohen.palivo)}${ohen.pecie.length ? ` · pečie sa ${ohen.pecie.length}×` : ''}`;
       if (stlacene('KeyE')) {
-        if (peci) { if (pec(ohen, d.id)) { odober(d.id, 1); vykresliInventar(); zvuky.syc(); } else oznam('Na ohni už nie je miesto'); }
+        if (faklou) { zapalFaklou(ohen); minHorenie(20); zvuky.faklaZapal(); hrac.zdvihni(); }
+        else if (peci) { if (pec(ohen, d.id)) { odober(d.id, 1); vykresliInventar(); zvuky.syc(); } else oznam('Na ohni už nie je miesto'); }
         else if (pocet('drevo')) { if (prilozDrevo(ohen)) { odober('drevo', 1); vykresliInventar(); zvuky.uder('drevo'); hrac.zdvihni(); } else oznam('Oheň je plný dreva'); }
       }
     } else if (vybranyPredmet()?.polozit === 'taborak') napoveda = '<kbd>F</kbd> položiť táborák';
-    const lodUk = !blizko && !predmet && !ohen && !funk && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
+    const lodUk = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
     if (blizko) napoveda = `<kbd>E</kbd> nastúpiť: ${kanoe.stat.nazov} · <kbd>R</kbd> sklad`;
     else if (lodUk) napoveda = '<kbd>E</kbd> lodenica – stavba a vylepšenie lodí';
     else if (ohen) { /* napoveda uz je */ }
+    else if (stojaca) napoveda = `<kbd>E</kbd> zobrať faklu (${Math.ceil(stojaca.trv)} s)`;
     else if (obs) napoveda = obs.text;
     else if (predmet) napoveda = `<kbd>E</kbd> zdvihnúť: ${PREDMETY[predmet.userData.typ].meno}`;
     else if (ulovok) napoveda = `<kbd>E</kbd> ${ulovok.text}`;
@@ -475,6 +491,7 @@ function aktualizuj(dt) {
     else if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
     if (obs?.akcia && stlacene('KeyE')) { obs.akcia(); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.zober(); }
     if ((ulovok || zber || more) && stlacene('KeyE')) { zoberVsetko((ulovok || zber || more).akcia()); hrac.zdvihni(); }
+    if (stojaca && stlacene('KeyE')) { if (zoberFaklu(stojaca)) { hrac.zdvihni(); zvuky.zober(); } else oznam('Batoh je plný'); }
     if (blizko && stlacene('KeyE')) nastup();
     else if (lodUk && stlacene('KeyE')) otvorOkno('lodenica');
     else if (predmet && stlacene('KeyE')) {
@@ -507,6 +524,8 @@ function aktualizuj(dt) {
   { const h = hodinaHry(); aktualizujNepriatelov(dt, cas, hrac, { pesi: !vKanoe && !naPalube, noc: h >= 19.5 || h < 5.5 }); }
   aktualizujMore(dt, cas, hrac.poz, podVodou, kanoe.poz, vKanoe);
   const ohne = aktualizujOhne(dt, cas, hrac.poz, vietor);
+  hrac.model.updateWorldMatrix(true, false);
+  aktualizujFaklu(dt, { hrac, vLodi: vKanoe || naPalube, dazd: poc.dazd, vietor, zivy });
   aktualizujFunkcne(dt, { dazd: poc.dazd, svetlo: poc.svetlo });
   dymPece.aktualizuj(dt);
   aktualizujUlohy(dt);
@@ -520,6 +539,7 @@ function aktualizuj(dt) {
     vKanoe, padluje: vKanoe && (klavesy.has('KeyW') || klavesy.has('KeyS')), teplo: 0.6 + 0.8 * poc.svetlo });
   vykresliPreziti();
   pena.aktualizuj(dt);
+  pena.jas(Math.min(1, 0.04 + 0.96 * (1 - tmaNoci()) ** 2));      // biela pena (castice nemaju osvetlenie) v tme nesvieti
   triesky.aktualizuj(dt);
   g.sledujSlnkom(stred);
   const zem = vyskaTerenu(stred.x, stred.z);
@@ -549,7 +569,7 @@ window.hra = {
     g.vykresli();
   },
   posunCas(s) { cas += s; },
-  ulohy: stavUloh, hlasUlohy, majaky,
+  ulohy: stavUloh, hlasUlohy, majaky, fazaMesiaca, tmaNoci, horiaceFakle,
   // teleport na rucne navrhnuty ostrov (id zo src/ostrovy/index.js), na suche miesto pri brehu; dx,dz = presny lokalny bod
   naOstrov(id, dx, dz) {
     const o = MENOVANE_OSTROVY.find(o => o.id === id);

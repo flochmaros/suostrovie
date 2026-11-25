@@ -90,9 +90,11 @@ export function vytvorGrafiku() {
         vec4 c = texture2D(tDiffuse, vUv);
         float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
         // noc: oko v tme nevidi farby (len modrosive odtiene), jasne svetla (ohen, plankton) si farbu nechaju
-        float sytost = mix(1.3, mix(0.28, 1.15, smoothstep(0.35, 0.8, l)), uNoc);
+        // teple pixely (osvietene ohnom / faklou) ostanu teple aj v noci
+        float teplo = smoothstep(0.015, 0.1, c.r - c.b);
+        float sytost = mix(1.3, mix(0.28, 1.15, max(smoothstep(0.35, 0.8, l), teplo)), uNoc);
         c.rgb = mix(vec3(l), c.rgb, sytost);
-        c.rgb = mix(c.rgb, c.rgb * vec3(0.72, 0.88, 1.25), uNoc * (1.0 - smoothstep(0.4, 0.9, l)));
+        c.rgb = mix(c.rgb, c.rgb * vec3(0.72, 0.88, 1.25), uNoc * (1.0 - smoothstep(0.4, 0.9, l)) * (1.0 - teplo));
         c.rgb = (c.rgb - 0.5) * 1.1 + 0.5;
         c.rgb *= mix(vec3(0.96, 0.99, 1.05), vec3(1.05, 1.0, 0.94), smoothstep(0.25, 0.85, l));
         vec2 d = vUv - 0.5;

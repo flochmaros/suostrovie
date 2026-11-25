@@ -777,7 +777,7 @@ function material(vietor, opts = {}) {
         diffuseColor.rgb *= mix(vec3(0.5, 0.66, 0.7), vec3(1.12, 1.1, 0.8), vVyska);   // dole chladnejsie a tmavsie, hore zltozelene
         diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.333))), diffuseColor.rgb, 1.08);   // sytejsie`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        ${zar ? `totalEmissiveRadiance += vec3(${zar.map(v => v.toFixed(3)).join(',')}) * uNoc * smoothstep(0.25, 1.0, vVyska) * (0.7 + 0.3 * sin(uCas * 1.3 + vVyska * 6.0));` : ''}`);
+        ${zar ? `totalEmissiveRadiance += vec3(${zar.map(v => v.toFixed(3)).join(',')}) * uNoc * 0.12 * smoothstep(0.25, 1.0, vVyska) * (0.7 + 0.3 * sin(uCas * 1.3 + vVyska * 6.0));` : ''}`);
   };
   m.customProgramCacheKey = () => 'vietor' + vietor + (zar ? zar.join() : '') + gradH;
   return m;

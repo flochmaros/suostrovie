@@ -56,6 +56,8 @@ export const VODA = { u: null };           // uniformy materialu vody (plni sa v
 export const uPriliv = { value: 0 };
 // noc 0..1 (nastavuje pocasie.js) - svietiaci plankton, meduzy
 export const uNoc = { value: 0 };
+export const uFaklaPoz = { value: new THREE.Vector3() };     // nastavuje fakla.js
+export const uFaklaFarba = { value: new THREE.Color(0, 0, 0) };
 // poruchy hladiny pre plankton: (x, z, cas vzniku, polomer) - kruhovy zasobnik, plni aktualizuj()
 const N_PORUCH = 32;
 const poruchy = Array.from({ length: N_PORUCH }, () => new THREE.Vector4(0, 0, -999, 1));
@@ -210,6 +212,8 @@ uniform vec3 uObzor;
 uniform vec3 uZenit;
 uniform float uSvetlo;
 uniform float uNoc;
+uniform vec3 uFaklaPoz;
+uniform vec3 uFaklaFarba;
 uniform vec4 uPoruchy[32];
 uniform sampler2D uStopa;
 uniform vec2 uStopaStred;
@@ -344,7 +348,16 @@ void main() {
   float penaS = max(stopa.r, 0.0);
   farba += vec3(0.02, 0.09, 0.08) * clamp(penaS * 1.5 + stopa.b * 0.15, 0.0, 1.0) * uSvetlo;
   pena += smoothstep(0.12, 0.65, penaS * (0.45 + 1.1 * pena1)) + penaS * 0.12;
-  farba = mix(farba, vec3(0.96, 0.99, 1.0) * (0.06 + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.95);
+  // pena: minimum 0.06 plati len pri svetle (noc ma uSvetlo pod 0.07 -> pena v tme nesvieti)
+  farba = mix(farba, vec3(0.96, 0.99, 1.0) * (0.06 * smoothstep(0.0, 0.07, uSvetlo) + 0.94 * uSvetlo), clamp(pena, 0.0, 1.0) * 0.95);
+  // teply odlesk fakle na vode (voda ma vlastny shader, bodove svetla na nu neposobia)
+  vec3 kF = uFaklaPoz - vSvet;
+  float d2F = dot(kF, kF);
+  if (d2F < 400.0) {
+    vec3 LF = kF * inversesqrt(d2F + 0.001);
+    float utlm = (1.0 - d2F / 400.0) / (1.0 + d2F * 0.12);
+    farba += uFaklaFarba * utlm * (0.012 * (1.0 + sumPeny * 2.0 + clamp(pena, 0.0, 1.0) * 6.0) + pow(max(dot(N, normalize(LF + V)), 0.0), 160.0) * 2.0);
+  }
   // v noci plankton svieti tam, kde sa voda pohne (stopa, vlny pri brehu); jas > 3 = bloom
   if (uNoc > 0.01) farba += vec3(0.08, 0.62, 1.0) * plankton(p, clamp(pena, 0.0, 1.0), stopa.b) * uNoc * 2.2;
 
@@ -382,6 +395,8 @@ export function vytvorOcean(g) {
   mat.uniforms.uPriliv = uPriliv;
   mat.uniforms.uVlnySila = uVlnySila;
   mat.uniforms.uNoc = uNoc;
+  mat.uniforms.uFaklaPoz = uFaklaPoz;
+  mat.uniforms.uFaklaFarba = uFaklaFarba;
   mat.uniforms.uPoruchy = { value: poruchy };
   mat.uniforms.uSvet.value = g.podvod.texture;
   mat.uniforms.uHlbka.value = g.podvod.depthTexture;

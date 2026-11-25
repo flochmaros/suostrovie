@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ik } from '../ikony.js';
-import { modelKokos, modelKamen, modelMusla, modelDrevo, modelPalica, modelObsidian, modelSira, modelList, modelVlakno, modelBambus, modelBobule, modelBanan, modelMango, modelAnanas, modelTrstina, modelKvet, modelHuba, modelAloe, modelHlina, modelZivica, modelTaro, modelTaborak, modelLodenica } from './modely_predmetov.js';
+import { modelKokos, modelKamen, modelMusla, modelDrevo, modelPalica, modelObsidian, modelSira, modelList, modelVlakno, modelBambus, modelBobule, modelBanan, modelMango, modelAnanas, modelTrstina, modelKvet, modelHuba, modelAloe, modelHlina, modelZivica, modelTaro, modelTaborak, modelLodenica, modelFakla } from './modely_predmetov.js';
 
 export const PREDMETY = {};
 export function predmet(id, def) { PREDMETY[id] = { id, kopa: 20, popis: '', ...def }; }
@@ -69,6 +69,18 @@ predmet('zivica', { meno: 'Živica', ikona: ik('water-drop', '#d89a30'), popis: 
   model: modelZivica() });
 predmet('taro', { meno: 'Taro', ikona: ik('potato', '#a07a8a'), popis: 'Škrobový koreň, treba ho uvariť.', jedlo: { sytost: 12, voda: 0 },
   model: modelTaro() });
+
+// ---- svetlo do tmy ----
+// horenie: sekundy horenia (zostatok je v policku batohu ako trv, ukazovatel ako pri nastrojoch); logika je v fakla.js
+// drzanie: ruka je pri fakli zdvihnuta pred telom (hrac.js), preto je palica otocena naspat do zvislej polohy
+const drzanieFakle = (() => {
+  const rot = new THREE.Euler(-1.92, 0, -0.74);
+  const v = new THREE.Vector3(0.01, 0.2, 0).applyEuler(rot).negate();     // uchop (y = 0.2) do dlane
+  return { poz: v.toArray(), rot: [rot.x, rot.y, rot.z] };
+})();
+predmet('fakla', { meno: 'Fakľa', ikonaSklon: -0.75, ikona: ik('wood-stick', '#c9a06a', ['fire', '#ff9a3a', .55, 220, -30]), kopa: 1, horenie: 180, drzanie: drzanieFakle,
+  popis: 'Svieti v ruke (3 minúty horenia, odložená nehorí). F ju zapichne do zeme. Vo vode a silnom daždi zhasne.',
+  model: modelFakla() });
 
 // ---- tabor ----
 // polozit: 'taborak' = klavesa F polozi predmet pred postavu (spracuva main.js + ohen.js)

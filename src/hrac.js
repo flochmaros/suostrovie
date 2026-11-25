@@ -49,6 +49,7 @@ export function vytvorHraca(scena) {
       h.zbran = predmet?.nastroj ? (predmet.nastroj.typ === 'mec' ? 'mec' : predmet.nastroj.typ === 'noz' ? 'noz' : predmet.nastroj.typ === 'klepeto' ? 'klepeto' : 'sekera') : 'pest';
       if (vRuke) J.drziak.remove(vRuke);
       vRuke = null;
+      h.nesieFaklu = !!predmet?.horenie;
       if (predmet?.model) {
         vRuke = new THREE.Mesh(predmet.model[0], predmet.model[1]);
         if (predmet.drzanie) { vRuke.position.set(...predmet.drzanie.poz); vRuke.rotation.set(...predmet.drzanie.rot); }
@@ -101,6 +102,10 @@ export function vytvorHraca(scena) {
         t.chy = Math.sin(padloFaza) * 0.35;
         t.rL = 1.0 + Math.sin(padloFaza) * 0.45; t.rP = 1.0 - Math.sin(padloFaza) * 0.45; t.lL = t.lP = 0.7;
         t.rLz = -0.25; t.rPz = 0.25; t.chx = -0.1 + Math.cos(padloFaza) * 0.08;
+      }
+      // fakla: prava ruka ju drzi zdvihnutu pred telom (utoky a zdvihanie nizsie tuto pozu prepisu)
+      if (vRuke && h.nesieFaklu && stav !== 'plavanie' && stav !== 'potapanie' && stav !== 'sedi') {
+        t.rP = 0.72 + (stav === 'chodza' ? s * 0.07 : Math.sin(cas * 1.6) * 0.015); t.lP = 0.96; t.rPz = 0.55;
       }
       // ---- boj: nabijanie (drzanie tlacidla) a utoky podla zbrane (definicie v boj.js) ----
       if (stav === 'plavanie' || stav === 'potapanie' || stav === 'sedi') { nab = -1; utokT = -1; buf = false; }

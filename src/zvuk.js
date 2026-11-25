@@ -173,3 +173,25 @@ export const zvuky = {
   smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
 };
+
+// ---------- fakla: sycive horenie (hukot plamena) + praskanie; sila 0..1 (vola fakla.js kazdy snimok) ----------
+let faklaG = null, faklaF = null, dalsiPrask = 0;
+export function fakla(sila) {
+  if (!ctx) return;
+  const n = ctx.currentTime;
+  if (!faklaG) {
+    if (!sila) return;
+    faklaG = ctx.createGain(); faklaG.gain.value = 0;
+    faklaF = filter('bandpass', 480, 0.7);
+    smycka().connect(faklaF).connect(faklaG).connect(bProstredie);
+  }
+  faklaG.gain.setTargetAtTime(sila * (0.02 + Math.random() * 0.022), n, 0.07);      // nepravidelne "fuci"
+  faklaF.frequency.setTargetAtTime(380 + Math.random() * 260, n, 0.12);
+  if (sila > 0.02 && n > dalsiPrask) {
+    burst(0.012 + Math.random() * 0.03, 'highpass', 2200 + Math.random() * 3800, sila * (0.025 + Math.random() * 0.07));
+    if (Math.random() < 0.1) burst(0.07, 'bandpass', 700 + Math.random() * 400, sila * 0.1, 2.5);
+    dalsiPrask = n + Math.random() * Math.random() * 0.4;
+  }
+}
+zvuky.faklaZapal = () => { burst(0.55, 'lowpass', 900, 0.22); burst(0.3, 'bandpass', 1900, 0.07, 0.6); };
+zvuky.faklaZhasne = () => { burst(0.7, 'highpass', 3000, 0.12); burst(0.35, 'bandpass', 800, 0.1, 0.8); };
