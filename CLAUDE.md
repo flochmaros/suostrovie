@@ -32,6 +32,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/ocean.js` | shader vody (vlny, lom, hĺbka, pena, odlesky) + `vyskaVody(x,z,t)` (rovnaký vzorec v JS aj GLSL), príliv |
 | `src/svet.js` | bunky 520 m, ostrovy + biómy, terén (kaustiky, mokrý piesok), predmety na zemi; v pásmach 1–3 len ručné ostrovy + ostrovčeky (`ostrovNa`, `klucOstrova`) |
 | `src/ostrovy/` | **ručne navrhnuté ostrovy** (1 súbor = 1 ostrov: tvar, farby, zóny vegetácie, predmety, pamiatky); polohy + API v `index.js`, pomocné funkcie `pomoc.js`; návrh a príbeh `SUOSTROVIE.md` |
+| `src/horor_zona.js` | hororový ostrov Tichá zátoka za behu: nočný odliv, kolízie a tma v jaskyni, nočná hmla; ostrov je v `ostrovy/ticha_zatoka*.js` (`hororovaZona(x,z)`, `tichaZatoka`) |
 | `nastroje/ostrov.html` | náhľad ostrova zhora bez hry (`?id=<id>`, `?id=vsetky`); zadanie pre tvorcu ostrova `nastroje/ZADANIE_OSTROVA.md` |
 | `src/vegetacia.js` | rozmiestnenie rastlín podľa biómu, uzly (hitbox, životy, pád), zber plodov + dorastanie (`najdiZber`, `stavRastlin`) |
 | `src/svet/modely.js` | modely rastlín kódom + materiály s vetrom |

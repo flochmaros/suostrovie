@@ -6,6 +6,13 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["server.py"],
       "port": 8125
+    },
+    {
+      "name": "hra-ostrov",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py"],
+      "env": { "PORT": "8127" },
+      "port": 8127
     }
   ]
 }

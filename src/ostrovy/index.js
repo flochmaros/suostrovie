@@ -31,6 +31,8 @@
 //   pamiatkyNahlad? [[x, z, polomer, 'popis'], ...]  len pre nahlad nastroje/ostrov.html (kde su pamiatky)
 //
 // P = pomocne funkcie z pomoc.js: noise, fbm, ridge, smooth, clamp, lerp, hmax, hmin, dist, distUsecka, rng, profil, zem, elipsa
+//   teleport?   [x, z]                         kam skoci hra.naOstrov(id)
+//   (kolizie mozu mat 4. prvok { lenLode: true } = brani len lodiam, { yMax } = len ked je hrac nizsie)
 //     (+ v pamiatky: THREE, vyska, mat(farba, {..}) -> MeshStandardMaterial)
 import domov from './domov.js';
 import strazna_skala from './strazna_skala.js';
@@ -42,6 +44,7 @@ import ohniva_hora from './ohniva_hora.js';
 import sirne_pramene from './sirne_pramene.js';
 import krokodili_mociar from './krokodili_mociar.js';
 import dzungla_predkov from './dzungla_predkov.js';
+import ticha_zatoka, { STRED as ZATOKA } from './ticha_zatoka.js';
 
 // [id, modul, stred x, stred z] - stred startu je (260, 260); pasmo 1 do ~1050 m, pasmo 2 do ~2100 m, pasmo 3 do ~3350 m od startu
 export const OSTROVY = [
@@ -55,7 +58,9 @@ export const OSTROVY = [
   ['sirne_pramene', sirne_pramene, -150, 2080],
   ['krokodili_mociar', krokodili_mociar, -2750, 880],
   ['dzungla_predkov', dzungla_predkov, 620, -2900],
+  ['ticha_zatoka', ticha_zatoka, ...ZATOKA],
 ].map(([id, def, x, z]) => ({ id, def, x, z }));
 // maximalne ext (m) pre kazdy ostrov - aby sa neprekryvali (subor ostrova musi mat ext <= tomuto)
 export const MAX_EXT = { domov: 240, sumivy_haj: 250, zahrada: 310, hlinisko: 220, strazna_skala: 190, perlovy_atol: 290,
-  ohniva_hora: 390, sirne_pramene: 250, krokodili_mociar: 420, dzungla_predkov: 400 };
+  ohniva_hora: 390, sirne_pramene: 250, krokodili_mociar: 420, dzungla_predkov: 400,
+  ticha_zatoka: 195 };

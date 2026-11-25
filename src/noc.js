@@ -2,6 +2,7 @@
 // Aktualizuje sa z pocasie.js (aktualizujNoc), takze netreba menit main.js.
 import * as THREE from 'three';
 import { vyskaTerenu } from './svet.js';
+import { hororovaZona } from './ostrovy/ticha_zatoka.js';
 
 const N = 160, DOSAH = 38;                       // pocet a polomer okolo hraca
 let body, poz, faza, kotvy;
@@ -42,13 +43,13 @@ function novaKotva(k, sx, sz) {
   const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * (DOSAH - 6);
   k.x = sx + Math.cos(a) * r; k.z = sz + Math.sin(a) * r;
   const h = vyskaTerenu(k.x, k.z);
-  k.on = h > 1.2;
+  k.on = h > 1.2 && hororovaZona(k.x, k.z) < 0.4;
   k.y = h + 0.4 + Math.random() * 2.2;
 }
 
 export function aktualizujNoc(cas, noc, dazd, stred) {
   if (!body) return;
-  const alfa = noc * (1 - dazd);
+  const alfa = noc * (1 - dazd) * (stred ? 1 - Math.min(1, hororovaZona(stred.x, stred.z) * 2.5) : 1);   // na Tichej zatoke nesvietia
   body.visible = alfa > 0.02 && !!stred;
   if (!body.visible) return;
   body.material.uniforms.uCas.value = cas;

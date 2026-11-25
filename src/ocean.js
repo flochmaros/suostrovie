@@ -22,7 +22,9 @@ const VLNY = [
 const STRMOST = 0.55;                        // Gerstner: kolko sa vrcholy posuvaju do boku
 
 const PRILIV_A = 0.6, PRILIV_T = 300;        // priliv/odliv: +-0.6 m, perioda 5 min
-export const priliv = t => PRILIV_A * Math.sin(t * 2 * Math.PI / PRILIV_T);
+// miestny priliv pri hororovom ostrove (nastavuje horor_zona.js): zona 0..1 tlmi priliv a vlny, pokles = nocny odliv v m
+export const miestnyPriliv = { zona: 0, pokles: 0 };
+export const priliv = t => PRILIV_A * Math.sin(t * 2 * Math.PI / PRILIV_T) * (1 - 0.8 * miestnyPriliv.zona) - miestnyPriliv.pokles;
 
 // Vyska vody v bode (x, z) v case t
 // globalny nasobok amplitudy vln podla pasma (tlmene sa nastavuje v aktualizuj; rovnaka hodnota ide do uniformu uVlnySila)
@@ -449,7 +451,7 @@ export function vytvorOcean(g) {
   return {
     mesh: ocean,
     aktualizuj(x, z, t) {
-      const cil = silaPasma(pasmoPlynule(x, z)), dt = tPred === null ? 99 : Math.max(0, Math.min(t - tPred, 0.5));
+      const cil = silaPasma(pasmoPlynule(x, z)) * (1 - 0.82 * miestnyPriliv.zona), dt = tPred === null ? 99 : Math.max(0, Math.min(t - tPred, 0.5));
       tPred = t;
       uVlnySila.value = THREE.MathUtils.damp(uVlnySila.value, cil, 0.5, dt);   // ~niekolko sekund prechodu
       uCas.value = t;

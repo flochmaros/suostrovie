@@ -5,6 +5,7 @@ import { mys } from './vstup.js';
 import { vyskaTerenu } from './svet.js';
 import { vzdialenostKStavbe } from './stavba.js';
 import { vyskaVody } from './ocean.js';
+import { vzdialenostKJaskyni } from './horor_zona.js';
 import { tlmUhol } from './hrac.js';
 import { nastavenia } from './nastavenia.js';
 
@@ -39,6 +40,7 @@ export function vytvorKameru(kamera) {
     // kolizia so stavbami: kamera nesmie byt za stenou -> priblizi sa pred nu
     SMER.set(Math.sin(k.yaw) * Math.cos(k.pitch), Math.sin(k.pitch), Math.cos(k.yaw) * Math.cos(k.pitch));
     d = Math.min(d, Math.max(vzdialenostKStavbe(k.ciel, SMER, d + 0.3) - 0.3, 0.6));
+    d = Math.min(d, Math.max(vzdialenostKJaskyni(k.ciel, SMER, d), 0.6));
     k.akt = d < k.akt ? d : tlm(k.akt, d, 5, dt);           // priblizenie hned, oddialenie plynule
     kamera.position.set(
       k.ciel.x + Math.sin(k.yaw) * Math.cos(k.pitch) * k.akt,

@@ -576,7 +576,7 @@ function postavPredmety(o, skupina, r) {
 
 // pamiatky rucneho ostrova (ruiny, chatrc, vrak): modely + kolizne kruhy (ako uzly bez zberu)
 const matCache = new Map();
-const P_PAMIATKY = { ...P_ZAKLAD, THREE,
+const P_PAMIATKY = { ...P_ZAKLAD, THREE, matTeren,
   mat: (farba, o = {}) => { const k = farba + JSON.stringify(o); if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: farba, roughness: 0.9, ...o })); return matCache.get(k); } };
 function postavPamiatky(o, skupina, uzly) {
   if (!o.pamiatky) return;
@@ -590,8 +590,8 @@ function postavPamiatky(o, skupina, uzly) {
     g.add(obj);
   }
   skupina.add(g);
-  for (const [lx, lz, r] of v.kolizie || [])
-    uzly.push({ id: `${o.bx},${o.bz},k${uzly.length}`, typ: 'pamiatka', x: o.x + lx, y: 0, z: o.z + lz, rKolizia: r, rZasah: 0, zniceny: false, casti: [] });
+  for (const [lx, lz, r, navyse] of v.kolizie || [])
+    uzly.push({ id: `${o.bx},${o.bz},k${uzly.length}`, typ: 'pamiatka', x: o.x + lx, y: 0, z: o.z + lz, rKolizia: r, rZasah: 0, zniceny: false, casti: [], ...navyse });
 }
 
 function postavOstrov(o) {

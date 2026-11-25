@@ -7,6 +7,7 @@ import { vyskaTerenu, uzlyPri } from './svet.js';
 import { vyskaVody } from './ocean.js';
 import { postavModel } from './postava.js';
 import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
+import { vyskaStrechy, odtlacOdJaskyne } from './horor_zona.js';
 import { odtlacOdMajaka } from './majak.js';
 import { drzNaPalube, naLokalne } from './kanoe.js';
 import { UTOKY, KOMBO_OKNO } from './boj.js';
@@ -214,7 +215,7 @@ export function vytvorHraca(scena) {
       if (dlzka > 0) { mx /= dlzka; mz /= dlzka; }
 
       const voda = vyskaVody(h.poz.x, h.poz.z, t);
-      h.plava = vyskaTerenu(h.poz.x, h.poz.z) < voda - 1.3;
+      h.plava = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaStrechy(h.poz.x, h.poz.z, h.poz.y)) < voda - 1.3;
       if (h.plava && !bolVoVode && h.vy < -2) h.priSplachu?.(Math.min(-h.vy / 8, 1));
       bolVoVode = h.plava;
       const sprint = klavesy.has('ShiftLeft');
@@ -227,14 +228,16 @@ export function vytvorHraca(scena) {
 
       // kolizie so stromami a balvanmi (kruhove hitboxy)
       for (const u of uzlyPri(h.poz.x, h.poz.z)) {
-        if (!u.rKolizia || u.zniceny) continue;
+        if (!u.rKolizia || u.zniceny || u.lenLode || h.poz.y > u.yMax) continue;
         const dx = h.poz.x - u.x, dz = h.poz.z - u.z, d = Math.hypot(dx, dz), min = u.rKolizia + 0.3;
         if (d < min && d > 1e-4) { h.poz.x = u.x + dx / d * min; h.poz.z = u.z + dz / d * min; }
       }
 
       odtlacOdStien(h.poz);                                            // steny zo stavania
       odtlacOdMajaka(h.poz);                                           // maják je pevny
-      const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y));
+      odtlacOdJaskyne(h.poz);                                          // steny jaskyne a zatopeny vchod
+      const strecha = vyskaStrechy(h.poz.x, h.poz.z, h.poz.y);          // po streche jaskyne sa chodi ako po zemi
+      const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y), strecha);
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
       h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / (20 * (h.dychNasobok ?? 1)) : dt / 4), 0, 1);
       if (h.plava && zem < voda - 1.15) {

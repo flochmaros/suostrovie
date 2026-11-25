@@ -15,7 +15,7 @@ kde stojí prvý maják a kde stroskotala jeho loď. Každý ostrov teda **exist
           Perlový atol (SZ)        Šumivý háj (SV)
                    Ostrov Stroskotanca (štart)      Strážna skala (V, maják 1)        Ohnivá hora (P2, V)
           Záhrada strážcov (JZ)      Hlinisko (J)
- Krokodílí močiar (P3, Z)                       Sírne pramene (P2, J)
+ Krokodílí močiar (P3, Z)                       Sírne pramene (P2, J)          Tichá zátoka (P2, JV, bokom)
 ```
 
 | # | Ostrov | Pásmo | Veľkosť | Len tu (výhradná surovina) | Ďalej | Príbeh / účel |
@@ -30,6 +30,7 @@ kde stojí prvý maják a kde stroskotala jeho loď. Každý ostrov teda **exist
 | 8 | **Sírne pramene** | 2 | stredný | **síra** | čadičové stĺpy, teplé pramene | |
 | 9 | **Krokodílí močiar** | 3 | veľký, rozliaty | mangrovy | trstina, taro | kanály, (krokodíl neskôr) |
 | 10 | **Džungľa predkov** | 3 | veľký | **živica** (gumovník) | obrie stromy, liany | ruiny predkov |
+| 11 | **Tichá zátoka** | 2 | stredný, lagúna + útes | – (žiadna výhradná) | palmy, kokosy, bobule, kvety | cez deň najmilší ostrovček, v noci horor: pri nočnom odlive sa otvorí jaskyňa (`PLAN_HOROR.md`) |
 
 ## Postup hráča (prečo plávať ďalej)
 1. Štart: sekera, oheň, kanoe I (drevo, listy, vlákno).
