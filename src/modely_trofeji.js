@@ -39,7 +39,7 @@ function rozmnoz(zaklad, zoznam) {
 // =====================================================================
 const PLAST = {
   koza: () => mat(0x3a2420, { roughness: 0.75, side: THREE.DoubleSide }),
-  supina: () => mat(0x5a2a1a, { roughness: 0.45, metalness: 0.25, emissive: 0xff4a10, emissiveIntensity: 0.12 }),
+  supina: () => mat(0x4e2418, { roughness: 0.4, metalness: 0.3, emissive: 0xff4a10, emissiveIntensity: 0.07 }),
   podsivka: () => mat(0x8a2a14, { roughness: 0.8 }),
   obsidian: () => mat(0x1a1418, { roughness: 0.25, metalness: 0.6 }),
   lem: () => mat(0x401008, { roughness: 0.5, emissive: 0xff5010, emissiveIntensity: 1.3, side: THREE.DoubleSide }),
@@ -49,7 +49,7 @@ let PLAST_M = null;
 const plastMat = () => PLAST_M || (PLAST_M = Object.fromEntries(Object.entries(PLAST).map(([k, f]) => [k, f()])));
 
 // segmenty: [horny polomer obluka, spodny polomer, vyska, pokojovy uhol (zaporny = dozadu)]
-const SEGMENTY = [[0.32, 0.33, 0.31, 0], [0.33, 0.35, 0.31, -0.12], [0.35, 0.37, 0.33, -0.05]];
+const SEGMENTY = [[0.32, 0.335, 0.31, 0], [0.335, 0.36, 0.31, -0.12], [0.36, 0.4, 0.33, -0.05]];
 const OBLUK = 1.2;        // uhol oblucika plasta (rad), stred na +z
 const SIRKA = 1.15;       // natiahnutie do sirky (x)
 // diel plasta: otvoreny valcovy oblucik, horna hrana v y=0, zadna stred v z=0 (pivot na hornej hrane)
@@ -60,17 +60,17 @@ const geoSegmentu = i => G('plast_seg' + i, () => {
 // supiny na vonkajsej strane segmentu (rady prekryvajucich sa sploštených gulicok)
 const geoSupin = i => G('plast_sup' + i, () => {
   const [rt, rb, h] = SEGMENTY[i], z = [];
-  const rady = 4, stlpce = 7;
+  const rady = 5, stlpce = 9;
   for (let r = 0; r < rady; r++) {
     const v = (r + 0.6) / rady, rr = rt + (rb - rt) * v + 0.004, y = -h * v;
     for (let c = 0; c < stlpce; c++) {
       const a = (c + (r % 2 ? 0.5 : 0) + 0.5) / stlpce - 0.5;
       if (Math.abs(a) > 0.47) continue;
       const th = a * OBLUK * 0.92;
-      z.push([rr * Math.sin(th), y, rr * Math.cos(th) - rt, -0.35, th, 0, 1, 1.25, 0.32]);
+      z.push([rr * Math.sin(th), y, rr * Math.cos(th) - rt, -0.45, th, 0, 0.85, 1.3, 0.28]);
     }
   }
-  return rozmnoz(new THREE.SphereGeometry(0.028, 6, 4), z);
+  return rozmnoz(new THREE.SphereGeometry(0.023, 6, 4), z);
 });
 const geoLemu = () => G('plast_lem', () => {
   const [, rb, h] = SEGMENTY[2], rt = SEGMENTY[2][0];
@@ -112,7 +112,7 @@ function stavPlast(m, prePostavu) {
       cielZdvih = 0.35; cielBok = 0; cielAmp = 0.14; frek = 0.9;
     } else {
       const r = Math.min(s.rych || 0, 9);
-      cielZdvih = r * 0.09 + Math.max(0, vz) * 0.06 + klamp(-(s.vy || 0) * 0.08, 0, 0.7);
+      cielZdvih = r * 0.07 + Math.max(0, vz) * 0.06 + klamp(-(s.vy || 0) * 0.08, 0, 0.7);
       if (s.plava) cielZdvih *= 0.3;
       cielZdvih = klamp(cielZdvih, 0, 1.15);
       cielBok = klamp(vx * 0.05, -0.3, 0.3);
@@ -193,7 +193,7 @@ function stavCizmu(strana, m, prePostavu) {
   g.add(M(G('ciz_spic', () => new THREE.SphereGeometry(0.046, 10, 6)), m.koza, 0, -0.455, -0.2, 1.2, 0.8, 0.9));
   // remienok cez clenok s prackou na vonkajsej strane
   const rem = M(G('ciz_rem', () => new THREE.TorusGeometry(0.075, 0.009, 5, 18).rotateX(PI / 2)), m.remien, 0, -0.39, -0.01, 1.05, 1, 1.15);
-  rem.rotation.x = 0.35; g.add(rem);
+  rem.rotation.x = -0.35; g.add(rem);     // vpredu nizsie (cez priehlavok)
   const pr = new THREE.Group(); pr.position.set(0.079 * strana, -0.392, -0.012); pr.rotation.y = strana * PI / 2;
   pr.add(M(G('ciz_pracka', () => new THREE.TorusGeometry(0.013, 0.0035, 4, 4).rotateZ(PI / 4)), m.pracka, 0, 0, 0.004, 1, 1.15, 1));
   pr.add(M(G('ciz_trn', () => new THREE.BoxGeometry(0.003, 0.022, 0.003)), m.pracka, 0, 0, 0.006));
@@ -369,9 +369,9 @@ export function modelKompasu() {
   const z = komMat(), m = { ...z, runa: z.runa.clone(), ihla: z.ihla.clone() };
   const g = new THREE.Group();
   // remienok cez opasok (opasok: torus r 0.152, scale x 1.28 -> bok x ~0.195, y 0.075)
-  g.add(M(G('kom_slucka', () => new THREE.BoxGeometry(0.012, 0.045, 0.026)), m.remien, 0.205, 0.068, -0.045));
+  g.add(M(G('kom_slucka', () => new THREE.BoxGeometry(0.012, 0.045, 0.026)), m.remien, 0.208, 0.068, -0.045));
   const { puzdro, ihla } = stavKompas(m);
-  puzdro.position.set(0.222, 0.038, -0.05);
+  puzdro.position.set(0.234, 0.036, -0.05);
   puzdro.rotation.set(0.15, 0, -0.35);       // mierne naklonene von, aby bolo vidiet sklicko
   g.add(puzdro);
   g.userData.puzdro = puzdro;

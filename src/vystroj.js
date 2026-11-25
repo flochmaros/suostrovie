@@ -17,45 +17,22 @@ import { aktivnySlot, klucVystroje } from './sloty.js';
 import { ostrovPri } from './svet.js';
 import { majaky } from './majak.js';
 import { vietor } from './kanoe.js';
+import { modelPlasta, modelCizmy, modelAmuletu, modelKompasu, smerKompasuNa } from './modely_trofeji.js';
 
 const KLUC = klucVystroje(aktivnySlot());
-const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
-const kus = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; return o; };
-
-// plast: tenka doska na chrbte (vzadu = +z) + golier; jemne zeravy lem
-function modelPlasta() {
-  const g = new THREE.Group(), m = mat(0x2e2420, { roughness: 0.8 }), lem = mat(0x401008, { emissive: 0xff5010, emissiveIntensity: 1.2 });
-  const p = kus(new THREE.BoxGeometry(0.34, 0.5, 0.025), m, 0, 0.2, 0.16); p.rotation.x = 0.12;
-  p.add(kus(new THREE.BoxGeometry(0.35, 0.035, 0.03), lem, 0, -0.24, 0)); g.add(p);
-  g.add(kus(new THREE.BoxGeometry(0.3, 0.04, 0.12), m, 0, 0.45, 0.1));
-  return g;
-}
-// kozene cizmy: holen + priehlavok z krokodilej koze (na klbe kolena)
-function modelCizmy() {
-  const g = new THREE.Group(), k = mat(0x4a5a30, { roughness: 0.9 }), t = mat(0x2c3a1c, { roughness: 0.95 });
-  g.add(kus(new THREE.CylinderGeometry(0.076, 0.068, 0.25, 10), k, 0, -0.29, 0));
-  g.add(kus(new THREE.CylinderGeometry(0.082, 0.082, 0.03, 10), t, 0, -0.15, 0));
-  const noha = kus(new THREE.CapsuleGeometry(0.056, 0.13, 6, 10).rotateX(Math.PI / 2), k, 0, -0.445, -0.085); noha.scale.set(1.12, 0.85, 1); g.add(noha);
-  g.add(kus(new THREE.BoxGeometry(0.125, 0.026, 0.29), t, 0, -0.484, -0.07));
-  return g;
-}
-// amulet: maly osemsten na hrudi (vpredu = -z)
-const modelAmuletu = () => kus(new THREE.OctahedronGeometry(0.028, 0), mat(0x6a30b0, { emissive: 0x8040e0, emissiveIntensity: 0.8 }), 0, 0.38, -0.15);
-
-
 // ---------- stav ----------
 const PRAZDNE = () => Object.fromEntries(SLOTY.map(([s]) => [s, null]));
 const nas = PRAZDNE();                                   // nasadene kusy: slot -> id predmetu
-const dielyPre = id => {
+const dielyPre = (id, hrac) => {
   const v = VYBAVA[id];
   if (v.tier) return kusVystroje(v.slot, v.tier);
   if (id === 'ohnivzdorny_plast') return [{ j: 'chrbat', o: modelPlasta() }];
-  if (id === 'amulet_hlbin') return [{ j: 'chrbat', o: modelAmuletu() }];
-  return [{ j: 'kL', o: modelCizmy() }, { j: 'kP', o: modelCizmy() }];
+  if (id === 'amulet_hlbin') return [{ j: 'chrbat', o: modelAmuletu({ svetlo: hrac }) }];   // svetielko len na hracovi
+  return [{ j: 'kL', o: modelCizmy(-1) }, { j: 'kP', o: modelCizmy(1) }];
 };
 // pripoji nasadene kusy na klby postavy J (hlavnej aj tej v nahlade batohu)
 // vrati funkciu obnov(); obnov.anim(s) kazdy snimok zavola userData.anim vsetkych dielov a dobehne "pop" pri nasadeni
-function oblecenie(J, priNasadeni) {
+function oblecenie(J, priNasadeni, hrac = false) {
   const pripojene = {}, animy = [], popy = [];
   const obnov = () => {
     let zmena = false;
@@ -65,7 +42,7 @@ function oblecenie(J, priNasadeni) {
       pripojene[slot]?.objs.forEach(o => o.parent?.remove(o));
       pripojene[slot] = null; zmena = true;
       if (id) {
-        const d = dielyPre(id); d.forEach(x => J[x.j].add(x.o)); pripojene[slot] = { id, objs: d.map(x => x.o) };
+        const d = dielyPre(id, hrac); d.forEach(x => J[x.j].add(x.o)); pripojene[slot] = { id, objs: d.map(x => x.o) };
         for (const x of d) popy.push({ o: x.o, s: x.o.scale.clone(), t: 0 });   // predmet "naskoci"
         priNasadeni?.(id, d);
       }
@@ -112,7 +89,10 @@ export function initVystroj(hrac, oznam, kam, iskry) {
       d.o.getWorldPosition(wp);
       for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28; iskry.vypust(wp.x, wp.y, wp.z, Math.cos(a) * 1.4, 0.8 + Math.random() * 1.6, Math.sin(a) * 1.4, f, 0.6, 4); }
     }
-  });
+  }, true);
+  // kompas hmly visi na opasku, ked je v batohu; ihla mieri k najblizsiemu nezapalenemu majaku
+  const kompas = modelKompasu(); kompas.visible = false; J.telo.add(kompas);
+  let cielKompasu = null;
   let obleclNahlad = null;
 
   // ---------- panel Postava v batohu ----------
@@ -257,10 +237,11 @@ export function initVystroj(hrac, oznam, kam, iskry) {
     sH.t = sN.t = t / 1000; sH.dt = sN.dt = dt;
     sH.rych = Math.hypot(hrac.rych.x, hrac.rych.z);
     sH.vpred = -hrac.rych.x * sa - hrac.rych.z * ca;
-    sH.vy = hrac.vy || 0;
+    sH.vy = hrac.naZemi || hrac.plava ? 0 : Math.max(-20, hrac.vy || 0);   // na zemi drzi hrac.vy velke zaporne cislo
     sH.vietorLok.x = wx * ca - wz * sa; sH.vietorLok.z = wx * sa + wz * ca;   // do lokalnych suradnic postavy (+z = dozadu)
     sH.podVodou = !!hrac.potapa; sH.plava = !!hrac.plava;
     obleclHrac.anim(sH);
+    if (kompas.visible) { smerKompasuNa(kompas, cielKompasu ? cielKompasu.x : null, cielKompasu?.z); kompas.userData.anim?.(sH); }
     if (obleclNahlad && batoh.style.display !== 'none') obleclNahlad.anim(sN);
   };
   tikAnim();
@@ -280,6 +261,7 @@ export function initVystroj(hrac, oznam, kam, iskry) {
       const d = Math.hypot(m.x - hrac.poz.x, m.z - hrac.poz.z); if (d < dMin) { dMin = d; ciel = m; }
     }
     komp.style.display = ciel ? 'flex' : 'none';
+    kompas.visible = pocet('kompas_hmly') > 0; cielKompasu = ciel;
     if (!ciel) return;
     const dx = ciel.x - hrac.poz.x, dz = ciel.z - hrac.poz.z, y = kam ? kam.yaw : 0;
     const dopredu = -dx * Math.sin(y) - dz * Math.cos(y), doprava = dx * Math.cos(y) - dz * Math.sin(y);   // kamera pozera v smere (-sin yaw, -cos yaw)
