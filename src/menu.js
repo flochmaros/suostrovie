@@ -69,11 +69,25 @@ async function spusti(n) {
     await new Promise(r => setTimeout(r, Math.max(0, 1300 - (performance.now() - t0))));
   } catch (e) {
     clearInterval(tik); hotovo = true;
-    $('nac-text').textContent = 'Chyba pri načítaní: ' + e.message; bar.style.background = '#e0583a';
+    // stara kopia suboru v cache prehliadaca (GitHub Pages drzi subory 10 min) -> stiahni vsetky JS nanovo a obnov raz
+    let skusene = false; try { skusene = sessionStorage.getItem('opravaCache') === '1'; } catch {}
+    if (!skusene && /export|module|import/i.test(e.message)) {
+      try { sessionStorage.setItem('opravaCache', '1'); } catch {}
+      text.textContent = 'Aktualizujem súbory hry…';
+      const js = performance.getEntriesByType('resource').map(r => r.name.split('#')[0])
+        .filter(u => u.startsWith(location.origin) && /\.js(\?|$)/.test(u));
+      for (const m of String(e.message).matchAll(/'(\.{1,2}\/[^']+\.js)'/g)) js.push(new URL(m[1], import.meta.url).href); // modul, ktory padol
+      await Promise.all([...new Set(js)].map(u => fetch(u, { cache: 'reload' }).catch(() => {})));
+      location.reload();
+      return;
+    }
+    try { sessionStorage.removeItem('opravaCache'); } catch {}
+    text.textContent = 'Chyba pri načítaní: ' + e.message + ' (skús Ctrl+F5)'; bar.style.background = '#e0583a';
     console.error(e);
     return;
   }
   hotovo = true; clearInterval(tik);
+  try { sessionStorage.removeItem('opravaCache'); } catch {}
   bar.style.width = '100%'; text.textContent = 'Hotovo';
   await new Promise(r => setTimeout(r, 350));
   nac.style.opacity = '0';
