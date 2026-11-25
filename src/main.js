@@ -4,7 +4,7 @@ import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
 import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA, MENOVANE_OSTROVY } from './svet.js';
-import { vytvorOcean, vyskaVody, priliv } from './ocean.js';
+import { vytvorOcean, vyskaVody, priliv, uNoc } from './ocean.js';
 import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych, maxTrup, priPotopeni } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
@@ -25,6 +25,7 @@ import { initNastavenia } from './nastavenia.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
+import { aktualizujStrach, nastavStrach, pridajStrach, nastavZonu, hororZvuk, skusZvuk, diagnostika as strachStav } from './strach.js';
 import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne } from './ohen.js';
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
@@ -524,6 +525,9 @@ function aktualizuj(dt) {
   g.sledujSlnkom(stred);
   const zem = vyskaTerenu(stred.x, stred.z);
   aktualizujZvuk(cas, { silaVetra: vietor.sila, rychlost: vKanoe ? kanoe.rychlost() : 0, pobrezie: THREE.MathUtils.clamp(1 - Math.abs(zem + 1) / 5, 0, 1), podVodou });
+  // strach: zvuky a efekty obrazu (zona sa neskor napoji na hororovaZona(x, z) z ostrova)
+  const ob = aktualizujStrach(dt, { hracPoz: stred, kamera, hrac, noc: uNoc.value, zona: 0 });
+  g.nastavStrachObrazu(ob.strach, ob.pulz);
   hud(dt, stred);
 }
 
@@ -550,6 +554,10 @@ window.hra = {
   },
   posunCas(s) { cas += s; },
   ulohy: stavUloh, hlasUlohy, majaky,
+  // ladenie strachu: hra.strach(0.8), hra.zona(1), hra.hororZvuk('sepot') (zvuk az po kliknuti do hry)
+  strach(x) { if (x !== undefined) nastavStrach(x); return strachStav(); },
+  pridajStrach, zona: nastavZonu, strachStav,
+  hororZvuk: (druh, pozicia, sila) => (pozicia || sila !== undefined ? hororZvuk(druh, pozicia, sila) : skusZvuk(druh)),
   // teleport na rucne navrhnuty ostrov (id zo src/ostrovy/index.js), na suche miesto pri brehu; dx,dz = presny lokalny bod
   naOstrov(id, dx, dz) {
     const o = MENOVANE_OSTROVY.find(o => o.id === id);

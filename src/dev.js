@@ -13,6 +13,7 @@ import { NEPRIATELIA } from './obsah/nepriatelia.js';
 import { spawnPriHracovi } from './nepriatelia.js';
 import { majaky } from './majak.js';
 import { VYBAVA } from './obsah/vystroj.js';
+import { stavStrachu, nastavStrach, pridajStrach, nastavZonu, skusZvuk, DRUHY_ZVUKOV, diagnostika } from './strach.js';
 
 export const dev = {
   zapnuty: false,
@@ -24,6 +25,7 @@ export const dev = {
 };
 
 let ctx, panel, info, snimky = 0, casFps = 0, fps = 0;
+const NAZVY_ZVUKOV = { sepot: 'Šepot', kroky: 'Kroky v piesku', konar: 'Konár', klopanie: 'Klopanie', srdce: 'Srdce', vykrik: 'Výkrik', dych: 'Dych', dron: 'Dron (9 s)', svitanie: 'Svitanie' };
 
 const html = () => `
 <style>
@@ -47,7 +49,7 @@ const html = () => `
   <button class="zap" id="dev-zap" title="Dev režim (F2)">🛠 DEV</button>
   <span class="ot" hidden><span class="info" id="dev-info"></span></span>
   <span class="ot" hidden id="dev-tabs">
-    <button class="tab" data-t="pohyb">Pohyb</button><button class="tab" data-t="teleport">Teleport</button><button class="tab" data-t="predmety">Predmety</button><button class="tab" data-t="lode">Lode</button><button class="tab" data-t="svet">Svet</button>
+    <button class="tab" data-t="pohyb">Pohyb</button><button class="tab" data-t="teleport">Teleport</button><button class="tab" data-t="predmety">Predmety</button><button class="tab" data-t="lode">Lode</button><button class="tab" data-t="svet">Svet</button><button class="tab" data-t="strach">Strach</button>
   </span>
   <button class="ot" hidden data-a="hraj" title="Vrátiť myš do hry (klik do scény)">▶ Hrať</button>
 </div>
@@ -66,6 +68,12 @@ const html = () => `
   <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
     <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
   <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="armor">Všetok armor</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
+</div>
+<div class="obsah" data-t="strach" hidden>
+  <div class="skup"><b>Strach</b><input type="range" min="0" max="100" value="0" id="dev-strach"> <span id="dev-strach-v">0.00</span><button data-a="lak">Ľak +0.3</button></div>
+  <div class="skup"><label><input type="checkbox" id="dev-zona"> Hororová zóna</label><label><input type="checkbox" id="dev-noc"> Ber ako noc (aj cez deň)</label><label><input type="checkbox" id="dev-udalosti" checked> Náhodné zvuky v tichu</label></div>
+  <div class="skup"><b>Zvuky</b>${DRUHY_ZVUKOV.map(d => `<button data-zvuk="${d}">${NAZVY_ZVUKOV[d] || d}</button>`).join('')}</div>
+  <div class="skup"><span class="info" id="dev-strach-info"></span></div>
 </div>
 <div class="obsah" data-t="svet" hidden data-dev-nepr>
   <div class="skup"><b>Nepriateľ</b>${Object.entries(NEPRIATELIA).map(([k, v]) => `<button data-nepr="${k}">${v.meno}</button>`).join('')}</div>
@@ -140,6 +148,10 @@ export function initDev(c) {
     if (t.dataset.p) dev[t.dataset.p] = t.checked;
     if (t.dataset.r) { dev[t.dataset.r] = +t.value; panel.querySelector('#dev-rl').textContent = t.value; }
     if (t.dataset.a === 'rubanie') dev.silaUderu = t.checked ? 100 : 1;
+    if (t.id === 'dev-strach') nastavStrach(t.value / 100);
+    if (t.id === 'dev-zona') nastavZonu(t.checked ? 1 : 0);
+    if (t.id === 'dev-noc') stavStrachu.vynutNoc = t.checked;
+    if (t.id === 'dev-udalosti') stavStrachu.udalosti = t.checked;
   });
   panel.addEventListener('click', e => {
     const t = e.target.closest('button');
@@ -147,6 +159,8 @@ export function initDev(c) {
     if (t.dataset.t) return otvorTab(t.dataset.t);
     if (t.dataset.a === 'hraj') return zamkni();
     const { hrac, kanoe } = ctx;
+    if (t.dataset.zvuk) return skusZvuk(t.dataset.zvuk);
+    if (t.dataset.a === 'lak') return pridajStrach(0.3);
     if (t.dataset.nepr) ctx.oznam(spawnPriHracovi(t.dataset.nepr, ctx.hrac.poz) ? `Spawn: ${NEPRIATELIA[t.dataset.nepr].meno}` : 'Nie je kde spawnovať');
     if (t.dataset.lod) ctx.spawnLod(t.dataset.lod);
     if (t.dataset.vyl) { for (const x in kanoe.vyl) kanoe.vylepsi(x, t.dataset.vyl === '1' ? VYL_MAX : 0); ctx.oznam(t.dataset.vyl === '1' ? 'Vylepšenia na maximum' : 'Vylepšenia vynulované'); }
@@ -204,6 +218,11 @@ export function aktualizujDev(dt, g) {
     const r = g.renderer.info.render;
     info.textContent = `${fps.toFixed(0)} FPS · ${r.calls} kr · ${(r.triangles / 1000).toFixed(0)}kΔ
 ${p.x.toFixed(0)}, ${p.y.toFixed(1)}, ${p.z.toFixed(0)} · bunka ${Math.floor(p.x / BUNKA)},${Math.floor(p.z / BUNKA)} · ${nasobokHustoty}×`;
+    if (aktTab === 'strach') {
+      const s = diagnostika();
+      panel.querySelector('#dev-strach-v').textContent = s.strach.toFixed(2);
+      panel.querySelector('#dev-strach-info').textContent = `zóna ${s.zona.toFixed(2)} · ticho ${s.ticho.toFixed(2)} · hlasy ${s.hlasy} · uzly ${s.uzly} · zvuk ${s.zvukBezi ? 'beží' : 'vypnutý (klikni do hry)'}`;
+    }
   }
   if (dev.nekonecnyDych) ctx.hrac.dych = 1;
   if (!dev.lietanie || ctx.jeVKanoe()) return false;
