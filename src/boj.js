@@ -2,6 +2,7 @@
 // "satisfying" efekty (hitstop, iskry, plavajuce cisla, stopa mece). Animaciu klbov robi hrac.js podla UTOKY.
 import * as THREE from 'three';
 import { zoznamNepriatelov, udriNepriatela } from './nepriatelia.js';
+import { udriBledych } from './bledi.js';
 import { zvuky } from './zvuk.js';
 import { poskodenieNepriatela } from './nastroje.js';
 import { vytvorCastice } from './castice.js';
@@ -76,7 +77,8 @@ function cislo(x, y, z, text, silne) {
 export function zasahni(hrac, info, nast, silaDev = 1) {
   const n = nast?.nastroj || {}, voda = n.vodaBonus && hrac.poz.y < 0.3 ? n.vodaBonus : 1;
   const dmg = poskodenieNepriatela(nast?.nastroj ? nast : null) * silaDev * info.mult * voda;
-  const hity = udriNepriatela(hrac.poz.x, hrac.poz.z, info.fx, info.fz, dmg, { ...info, dosah: (info.dosah ?? 2.3) + (n.dosah || 0), horenie: n.horenie || 0 });
+  const o = { ...info, dosah: (info.dosah ?? 2.3) + (n.dosah || 0), horenie: n.horenie || 0 };
+  const hity = [...udriNepriatela(hrac.poz.x, hrac.poz.z, info.fx, info.fz, dmg, o), ...udriBledych(hrac.poz.x, hrac.poz.z, info.fx, info.fz, dmg, o)];   // + Bledi (bledi.js)
   if (!hity.length) return 0;
   const silne = info.silny || info.mult > 1;
   for (const e of hity) {

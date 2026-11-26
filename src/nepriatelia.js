@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { NEPRIATELIA } from './obsah/nepriatelia.js';
 import { vyskaTerenu, ostrovPri, pasmo, polozPredmet } from './svet.js';
+import { hororovaZona } from './ostrovy/ticha_zatoka.js';
 import { zran, stav as stavPreziti } from './preziti.js';
 import { vytvorCastice } from './castice.js';
 import { zvuky } from './zvuk.js';
@@ -258,7 +259,7 @@ export function aktualizujNepriatelov(dt, cas, hrac, { pesi = true, noc = false 
     if (o && h > VODA + 0.1) {
       const vhodne = Object.keys(NEPRIATELIA).filter(k => {
         const f = NEPRIATELIA[k];
-        return !f.boss && p >= f.pasmo && (!f.noc || noc) && (f.biom ? o.biom === f.biom && h > 0.8 : h < 2.2)
+        return !f.boss && p >= f.pasmo && (!f.noc || (noc && hororovaZona(x, z) < 0.05)) /* Ticha zatoka: ziadne nocne kraby, tam su Bledi */ && (f.biom ? o.biom === f.biom && h > 0.8 : h < 2.2)
           && nepr.filter(e => e.id === k && !e.mrtvy).length < f.max;
       });
       if (vhodne.length) spawnNepriatela(vhodne[Math.floor(Math.random() * vhodne.length)], x, z);
