@@ -5,7 +5,7 @@ import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
 import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA, MENOVANE_OSTROVY } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv, uNoc } from './ocean.js';
-import { initHororovaZona, aktualizujOdliv, aktualizujHororovuZonu, naznakTicha } from './horor_zona.js';
+import { initHororovaZona, aktualizujOdliv, aktualizujHororovuZonu, naznakTicha, hororovaZona, stavZony } from './horor_zona.js';
 import { vytvorHraca } from './hrac.js';
 import { vytvorKanoe, vietor, aktualizujVietor, DRUHY, maxPasmo, kolizieLodi, odtlacOdLode, naLokalne, zLokalnych, maxTrup, priPotopeni } from './kanoe.js';
 import { vytvorKameru } from './kamera.js';
@@ -551,7 +551,8 @@ function aktualizuj(dt) {
   const zem = vyskaTerenu(stred.x, stred.z);
   aktualizujZvuk(cas, { silaVetra: vietor.sila, rychlost: vKanoe ? kanoe.rychlost() : 0, pobrezie: THREE.MathUtils.clamp(1 - Math.abs(zem + 1) / 5, 0, 1), podVodou });
   // strach: zvuky a efekty obrazu (zona sa neskor napoji na hororovaZona(x, z) z ostrova)
-  const ob = aktualizujStrach(dt, { hracPoz: stred, kamera, hrac, noc: uNoc.value, zona: 0 });
+  const svetlo = (horiVRuke() ? 0.4 : 0) + (najblizsiOhen(stred.x, stred.z) ? 0.3 : 0);
+  const ob = aktualizujStrach(dt, { hracPoz: stred, kamera, hrac, noc: uNoc.value, zona: hororovaZona(stred.x, stred.z), jaskyna: stavZony.jaskyna, svetlo });
   g.nastavStrachObrazu(ob.strach, ob.pulz);
   hud(dt, stred);
 }

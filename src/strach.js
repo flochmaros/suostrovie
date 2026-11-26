@@ -24,6 +24,7 @@ export const stavStrachu = {
   zonaCiel: 0,        // nastavZonu
   vynutNoc: false,    // dev: spravaj sa ako v noci aj cez den
   ticho: 0,           // zona * noc
+  nocny: 0,           // strach z tmy v zone (plynule, pridava sa k zakladu)
   udalosti: true,     // nahodne zvuky v zone
 };
 
@@ -91,6 +92,7 @@ export function skusZvuk(druh) {
 
 // ---------- nahodne "udalosti ticha" ----------
 let doUdalosti = 8, poslednaUdalost = '';
+let ciasVZone = 0, prvyZvuk = false;   // ako dlho si v tichu zony (noc) a ci uz zaznel prvy zvuk
 function udalostTicha(s) {
   // vahy podla strachu: pri malom strachu vzdialene zvuky, pri velkom blizke
   const vahy = { konar: 1.2 - 0.5 * s, klopanie: 1 - 0.7 * s, kroky: 0.25 + 1.1 * s, sepot: 0.15 + 1.2 * s };
@@ -108,11 +110,17 @@ const obraz = { strach: 0, pulz: 0 };
 
 // volat kazdy snimok. hracPoz = pozicia hraca, kamera = THREE kamera, hrac = (volitelne) postava pre dychanie,
 // noc = 0..1, zona = 0..1 (volitelne; plati vacsia z nej a nastavZonu). Vrati { strach, pulz } pre grafiku.
-export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0 } = {}) {
+// jaskyna = 0..1 (vnutri jaskyne), svetlo = 0..1 (fakla v ruke, blizky ohen) tlmi nocny strach
+export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0, jaskyna = 0, svetlo = 0 } = {}) {
   const s = stavStrachu;
   // strach: rychlo narastie, pomaly opada
   s.sok = Math.max(0, s.sok - dt * 0.04);
-  const ciel = medzi(s.zaklad + s.sok);
+  const tmaK = s.vynutNoc ? 1 : medzi(noc);
+  // nocny strach sam rastie v zone po tme (v jaskyni viac), svetlo ho tlmi
+  const nocnyCiel = (s.zona * tmaK * 0.4 + s.zona * medzi(jaskyna) * 0.3 * tmaK) * (1 - medzi(svetlo));
+  s.nocny += (nocnyCiel - s.nocny) * Math.min(1, dt / 4);
+  if (nocnyCiel === 0 && s.nocny < 0.004) s.nocny = 0;
+  const ciel = medzi(s.zaklad + s.sok + s.nocny);
   s.strach += (ciel - s.strach) * Math.min(1, dt / (ciel > s.strach ? 0.7 : 3.5));
   if (ciel === 0 && s.strach < 0.004) s.strach = 0;
   const cielZony = Math.max(s.zonaCiel, medzi(zona));
@@ -142,9 +150,13 @@ export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0 
   if (A) nastavPosluchaca(A.ctx);
 
   // nahodne zvuky v tichu
+  // prvych ~90 s v noci na ostrove je ticho s jednym zvukom (po 60 s), potom hustejsie
+  if (s.ticho > 0.6) ciasVZone += dt;
+  if (s.zona < 0.05) { ciasVZone = 0; prvyZvuk = false; }
   if (s.ticho > 0.6 && s.udalosti) {
     doUdalosti -= dt;
-    if (doUdalosti <= 0) { udalostTicha(k); doUdalosti = mix(26, 9, k) * nah(0.7, 1.4); }
+    if (ciasVZone >= 60 && !prvyZvuk) { udalostTicha(k); prvyZvuk = true; doUdalosti = mix(26, 9, k) * nah(0.7, 1.4); }
+    else if (ciasVZone >= 90 && doUdalosti <= 0) { udalostTicha(k); doUdalosti = mix(26, 9, k) * nah(0.7, 1.4); }
   } else doUdalosti = Math.max(doUdalosti, nah(6, 11));
 
   // tlkot srdca: cim vacsi strach, tym rychlejsie a hlasnejsie
@@ -178,6 +190,12 @@ export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0 
   else if (dron) dron.nastav(0);
 
   return obraz;
+}
+
+// Bledy (src/bledi.js) volaju toto. druh: 'vykuknutie' (sok + sepot), 'utok' (vykrik + velky sok)
+export function udalostBledeho(druh, pozicia = null) {
+  if (druh === 'utok') { pridajStrach(0.6); hororZvuk('vykrik', pozicia, 1); }
+  else if (druh === 'vykuknutie') { pridajStrach(0.3); hororZvuk('sepot', pozicia, 0.9); }
 }
 
 // na ladenie: hra.strachStav()
