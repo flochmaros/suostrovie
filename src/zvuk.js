@@ -185,6 +185,12 @@ export const zvuky = {
     if (silny) { ton(60, 0.3, 0.35, 35); burst(0.25, 'lowpass', 300, 0.3); }
   },
   napriah: () => ton(160, 0.4, 0.12, 330),
+  // legendarne zbrane: razova vlna (dunenie), ohen (sycanie + praskot), voda (splach), svist vypadu, nabitie
+  vlna: (sila = 1) => { burst(0.9 * sila, 'lowpass', 220, 0.55 * sila); ton(70, 0.6 * sila, 0.4 * sila, 28); burst(0.3, 'bandpass', 1400, 0.12 * sila, 0.6); },
+  ohen: (sila = 1) => { burst(0.5 * sila, 'highpass', 1800, 0.12 * sila); burst(0.35, 'lowpass', 500, 0.25 * sila); for (let i = 0; i < 4; i++) setTimeout(() => burst(0.03, 'bandpass', 3000 + Math.random() * 2000, 0.08, 3), i * 60 + Math.random() * 40); },
+  vodaUder: (sila = 1) => { burst(0.6 * sila, 'lowpass', 1100, 0.35 * sila); burst(0.4, 'bandpass', 2600, 0.1 * sila, 0.6); ton(120, 0.3, 0.15 * sila, 60); },
+  svist: () => { burst(0.28, 'bandpass', 2200, 0.2, 0.5); ton(900, 0.22, 0.05, 300); },
+  nabite: () => { ton(440, 0.25, 0.08, 880); setTimeout(() => ton(880, 0.3, 0.06, 1320), 80); },
   utokNepr: () => { burst(0.12, 'bandpass', 700, 0.3, 1.5); ton(260, 0.12, 0.2, 120); },
   smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },

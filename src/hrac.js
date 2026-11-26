@@ -10,7 +10,7 @@ import { odtlacOdStien, vyskaPodlahy } from './stavba.js';
 import { vyskaStrechy, odtlacOdJaskyne } from './horor_zona.js';
 import { odtlacOdMajaka } from './majak.js';
 import { drzNaPalube, naLokalne } from './kanoe.js';
-import { UTOKY, KOMBO_OKNO } from './boj.js';
+import { UTOKY, KOMBO_OKNO, typZbrane } from './boj.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
@@ -26,7 +26,7 @@ export function vytvorHraca(scena) {
 
   // boj: nab = ako dlho drzis tlacidlo (nabijanie), utokT = cas v utoku, utokDef = definicia z boj.js
   let nab = -1, utokT = -1, utokDef = null, buf = false, koniecCas = -9, kombo = 0, smerU = null, trefene = false, lastYaw = 0;
-  let faza = 0, cas = 0, zdvih = -1, vRuke = null, poslednySin = 0, bolVoVode = false;
+  let faza = 0, cas = 0, zdvih = -1, vRuke = null, poslednySin = 0, bolVoVode = false, dalsiHit = 0, otocka = 0, salto = 0;
 
   const h = {
     model, J,
@@ -34,8 +34,8 @@ export function vytvorHraca(scena) {
     vy: 0, naZemi: false, plava: false, potapa: false, dych: 1, smer: 0,
     priUdere: null, priKroku: null, priSplachu: null,      // udalosti pre zvuky a efekty
 
-    zbran: 'pest', nabite: false, stopaAktivna: false,
-    autoCiel: null, priMachu: null,
+    zbran: 'pest', nabite: false, stopaAktivna: false, utok: null, nabijanie: 0,
+    autoCiel: null, priMachu: null, priEfekte: null,
     get ruka() { return vRuke; },
     // klik: zacne nabijanie (utok sa odpali pri pusteni tlacidla); pocas seku sa klik ulozi do fronty (kombo)
     uder() {
@@ -47,7 +47,7 @@ export function vytvorHraca(scena) {
     zdvihni() { zdvih = 0; },
     // predmet v pravej ruke (model z registra predmetov alebo nic)
     drz(predmet) {
-      h.zbran = predmet?.nastroj ? (predmet.nastroj.typ === 'mec' ? 'mec' : predmet.nastroj.typ === 'noz' ? 'noz' : predmet.nastroj.typ === 'klepeto' ? 'klepeto' : 'sekera') : 'pest';
+      h.zbran = typZbrane(predmet);
       if (vRuke) J.drziak.remove(vRuke);
       vRuke = null;
       h.nesieFaklu = !!predmet?.horenie;
@@ -67,7 +67,7 @@ export function vytvorHraca(scena) {
       const s = Math.sin(faza), c = Math.cos(faza);
       // cielove uhly (kladne x = koncatina dopredu; koleno zaporne = ohnutie)
       const t = { sL: 0, sP: 0, kL: -0.05, kP: -0.05, rL: 0.05, rP: 0.05, rLz: -0.1, rPz: 0.1, lL: 0.15, lP: 0.15,
-        chx: 0, chy: 0, hx: 0, hy: 0, tx: 0, ty: 0.95 };
+        chx: 0, chy: 0, hx: 0, hy: 0, tx: 0, ty: 0.95, zx: 0 };
       if (stav === 'chodza') {
         const A = 0.5 + beh * 0.35;
         t.sL = s * A; t.sP = -s * A;
@@ -109,48 +109,64 @@ export function vytvorHraca(scena) {
         t.rP = 0.72 + (stav === 'chodza' ? s * 0.07 : Math.sin(cas * 1.6) * 0.015); t.lP = 0.96; t.rPz = 0.55;
       }
       // ---- boj: nabijanie (drzanie tlacidla) a utoky podla zbrane (definicie v boj.js) ----
-      if (stav === 'plavanie' || stav === 'potapanie' || stav === 'sedi') { nab = -1; utokT = -1; buf = false; }
+      if (stav === 'plavanie' || stav === 'potapanie' || stav === 'sedi') { nab = -1; utokT = -1; buf = false; h.utok = null; otocka = 0; salto = 0; h.nabijanie = 0; }
       const zacniUtok = silny => {
         const typ = h.zbran, T = UTOKY[typ];
         let def;
         if (silny) def = T.silny;
         else { kombo = typ === 'mec' && cas - koniecCas < KOMBO_OKNO ? (kombo + 1) % T.kombo.length : 0; def = T.kombo[kombo]; }
-        utokDef = { ...def, typ, silny }; utokT = 0; trefene = false; buf = false; h.nabite = false;
-        smerU = h.autoCiel?.(lastYaw, def.dosah) ?? null;
+        utokDef = { ...def, typ, silny }; utokT = 0; trefene = false; buf = false; h.nabite = false; dalsiHit = 0; h.utok = utokDef;
+        smerU = h.autoCiel?.(lastYaw, def.hity[def.hity.length - 1].dosah + (def.dash ? 2 : 0)) ?? null;
       };
       const pozaUtoku = (pose, vahaT) => { for (const k in pose) t[k] = pose[k]; };
       let rychlo = false;
       h.stopaAktivna = false;
       if (nab >= 0) {
         nab += dt;
-        h.nabite = nab >= 0.6;
-        if (!klavesy.has('Mys0')) { zacniUtok(nab >= 0.6); nab = -1; }
+        h.nabite = nab >= 0.6; h.nabijanie = Math.min(nab / 0.6, 1);
+        if (!klavesy.has('Mys0')) { zacniUtok(nab >= 0.6); nab = -1; h.nabijanie = 0; }
         else {
-          pozaUtoku(UTOKY[h.zbran].silny.wind);
+          const T = UTOKY[h.zbran];
+          pozaUtoku(T.nab ?? T.silny.kf[0][1]);
           if (h.nabite) { t.chx += Math.sin(cas * 60) * 0.04; t.rP += Math.sin(cas * 45) * 0.06; t.ty -= 0.05; }   // naplno nabity = trasie sa
         }
       }
       if (utokT >= 0) {
         utokT += dt;
-        const D = utokDef, T = utokT, udier = T >= D.hit - 0.07;
-        pozaUtoku(udier ? D.strike : D.wind);
+        const D = utokDef, T = utokT, sm = smerU ?? lastYaw, fx = -Math.sin(sm), fz = -Math.cos(sm);
+        // klucova poza: posledna, ktorej cas uz nastal (kratko pred casom sa uz klby rozbehnu)
+        let kf = D.kf[0][1];
+        for (const [kt, p] of D.kf) if (T >= kt - 0.04) kf = p;
+        pozaUtoku(kf);
         rychlo = true;
-        if (udier && T < D.hit + 0.12) h.stopaAktivna = !!D.trail;
-        if (udier && !D.machnute) { D.machnute = true; h.priMachu?.(D); }
-        if (T >= D.hit && !trefene) {
-          trefene = true;
-          const sm = smerU ?? lastYaw;
-          h.priUdere?.({ ...D, fx: -Math.sin(sm), fz: -Math.cos(sm) });
+        if (D.trail && T >= D.trail[0] && T < D.trail[1]) h.stopaAktivna = true;
+        if (!D.machnute && T >= D.hity[0].t - 0.07) { D.machnute = true; h.priMachu?.(D); }
+        // skok a prudky pad zo vzduchu (uder o zem)
+        if (D.skok && !D.skocil && T >= D.skok[0]) { D.skocil = true; if (h.naZemi && !h.plava) { h.vy = D.skok[1]; h.naZemi = false; } }
+        if (D.pad && !D.padol && T >= D.pad[0]) { D.padol = true; if (!h.naZemi) h.vy = D.pad[1]; }
+        // zasahy (moze ich byt viac v jednom utoku)
+        while (dalsiHit < D.hity.length && T >= D.hity[dalsiHit].t) {
+          const H = D.hity[dalsiHit];
+          const info = { ...D, ...H, efekt: H.efekt, fx, fz, dalsi: dalsiHit > 0, x: h.poz.x, y: h.poz.y, z: h.poz.z };
+          h.priEfekte?.(info);
+          h.priUdere?.(info);
+          dalsiHit++;
         }
-        if (D.lunge && udier && T < D.hit + 0.1 && h.naZemi && !h.plava) {          // krok vpred pri seku
-          const sm = smerU ?? lastYaw, nx = h.poz.x - Math.sin(sm) * D.lunge * dt, nz = h.poz.z - Math.cos(sm) * D.lunge * dt;
-          if (vyskaTerenu(nx, nz) > 0.35) { h.poz.x = nx; h.poz.z = nz; }
+        // vypad: posun dopredu (m/s) v okne [od, do]; stary 'lunge' len na zemi
+        if (D.dash && T >= D.dash[0] && T < D.dash[1] && !h.plava && (!D.dash[3] || h.naZemi)) {
+          const nx = h.poz.x + fx * D.dash[2] * dt, nz = h.poz.z + fz * D.dash[2] * dt;
+          if (vyskaTerenu(nx, nz) > 0.35 || !h.naZemi) { h.poz.x = nx; h.poz.z = nz; }
         }
+        // otocka celeho tela a salto (uhly sa pricitaju k smeru postavy / sklonu tela)
+        const ease = (od, d) => { const k = THREE.MathUtils.clamp((T - od) / (d - od), 0, 1); return k * k * (3 - 2 * k); };
+        otocka = D.spin ? ease(D.spin[0], D.spin[1]) * D.spin[2] * Math.PI * 2 : 0;
+        salto = D.flip ? ease(D.flip[0], D.flip[1]) * D.flip[2] * Math.PI * 2 : 0;
         if (T >= D.dlzka) {
-          utokT = -1; koniecCas = cas;
+          utokT = -1; koniecCas = cas; h.utok = null; otocka = 0; salto = 0;
           if (buf) zacniUtok(false);
         }
       }
+      if (h.poza) { pozaUtoku(h.poza); rychlo = true; }              // ladenie: pevna poza z konzoly (hra.hrac.poza = {...})
       if (zdvih >= 0) {
         zdvih += dt;
         const k = Math.sin(Math.min(zdvih / 0.6, 1) * Math.PI);
@@ -159,15 +175,19 @@ export function vytvorHraca(scena) {
         if (zdvih > 0.6) zdvih = -1;
       }
       const L = rychlo ? 40 : 16;
-      J.sL.rotation.x = tlm(J.sL.rotation.x, t.sL, 16, dt); J.sP.rotation.x = tlm(J.sP.rotation.x, t.sP, 16, dt);
-      J.kL.rotation.x = tlm(J.kL.rotation.x, t.kL, 16, dt); J.kP.rotation.x = tlm(J.kP.rotation.x, t.kP, 16, dt);
-      J.rL.rotation.x = tlm(J.rL.rotation.x, t.rL, 16, dt); J.rP.rotation.x = tlm(J.rP.rotation.x, t.rP, L, dt);
-      J.rL.rotation.z = tlm(J.rL.rotation.z, t.rLz, 16, dt); J.rP.rotation.z = tlm(J.rP.rotation.z, t.rPz, L, dt);
-      J.lL.rotation.x = tlm(J.lL.rotation.x, t.lL, 16, dt); J.lP.rotation.x = tlm(J.lP.rotation.x, t.lP, L, dt);
+      const N = rychlo ? 26 : 16;                                       // nohy a lava ruka pri utoku rychlejsie
+      J.sL.rotation.x = tlm(J.sL.rotation.x, t.sL, N, dt); J.sP.rotation.x = tlm(J.sP.rotation.x, t.sP, N, dt);
+      J.kL.rotation.x = tlm(J.kL.rotation.x, t.kL, N, dt); J.kP.rotation.x = tlm(J.kP.rotation.x, t.kP, N, dt);
+      J.rL.rotation.x = tlm(J.rL.rotation.x, t.rL, N, dt); J.rP.rotation.x = tlm(J.rP.rotation.x, t.rP, L, dt);
+      J.rL.rotation.z = tlm(J.rL.rotation.z, t.rLz, N, dt); J.rP.rotation.z = tlm(J.rP.rotation.z, t.rPz, L, dt);
+      J.lL.rotation.x = tlm(J.lL.rotation.x, t.lL, N, dt); J.lP.rotation.x = tlm(J.lP.rotation.x, t.lP, L, dt);
       J.chrbat.rotation.x = tlm(J.chrbat.rotation.x, t.chx, L, dt); J.chrbat.rotation.y = tlm(J.chrbat.rotation.y, t.chy, L, dt);
       J.hlava.rotation.x = tlm(J.hlava.rotation.x, t.hx, 8, dt); J.hlava.rotation.y = tlm(J.hlava.rotation.y, t.hy, 4, dt);
-      J.telo.rotation.x = tlm(J.telo.rotation.x, t.tx, 6, dt);
-      J.telo.position.y = tlm(J.telo.position.y, t.ty, 12, dt);
+      J.telo.rotation.x = tlm(J.telo.rotation.x, t.tx, rychlo ? 14 : 6, dt);
+      J.drziak.rotation.x = tlm(J.drziak.rotation.x, -(t.zx ?? 0), rychlo ? 30 : 10, dt);  // zapastie (zx > 0 = hrot dopredu)
+      if (salto) J.telo.rotation.x = t.tx - salto % (Math.PI * 2);          // salto (po dokonceni plynulo naspat bez odtocenia)
+      if (otocka) model.rotation.y += otocka;
+      J.telo.position.y = tlm(J.telo.position.y, t.ty, rychlo ? 20 : 12, dt);
       // kraul: ruky sa tocia dokola (bez tlmenia, inak by preskakovali)
       if (stav === 'plavanie' && v > 0.6) { J.rL.rotation.x = faza % 6.283; J.rP.rotation.x = (faza + Math.PI) % 6.283; J.rL.rotation.z = -0.25; J.rP.rotation.z = 0.25; }
     },

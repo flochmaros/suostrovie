@@ -182,7 +182,7 @@ function vystupDoVody() {                             // skok z lode do vody (na
 const FARBA_TRIESOK = { drevo: 0x8a6240, kamen: 0x9a978f, list: 0x4f8a35 };
 hrac.priUdere = info => {
   const fx = info.fx, fz = info.fz;
-  const diel = najdiDiel(hrac.poz.x, hrac.poz.z, fx, fz);             // stavba ma prednost (je blizko pred hracom)
+  const diel = !info.dalsi && najdiDiel(hrac.poz.x, hrac.poz.z, fx, fz);   // stavba ma prednost (je blizko pred hracom); viac zasahov v 1 utoku = len prvy
   if (diel) {
     zvuky.uder('drevo'); kam.zatras(0.02);
     const vynos = uderDiel(diel);
@@ -191,9 +191,10 @@ hrac.priUdere = info => {
   }
   const nast0 = vybranyPredmet();                  // najprv nepriatel (kuzel pred hracom, vid boj.js)
   if (zasahni(hrac, info, nast0, dev.silaUderu)) {
-    if (nast0?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nast0.ikona} ${nast0.meno} sa zlomil(a)!`);
+    if (!info.dalsi && nast0?.nastroj && !dev.bezOpotrebenia && opotrebuj(vybranyIndex())) oznam(`${nast0.ikona} ${nast0.meno} sa zlomil(a)!`);
     return;
   }
+  if (info.dalsi || info.aoe) return;                                 // stromy a kamene len prvym zasahom pred sebou
   const u = najdiCiel(uzlyPri(hrac.poz.x, hrac.poz.z), hrac.poz.x, hrac.poz.z, fx, fz);
   if (!u) return;
   const zdroj = ZDROJE[u.typ], material = zdroj.material;
