@@ -4,22 +4,21 @@
     {
       "name": "hra",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["server.py"],
+      "runtimeArgs": [
+        "server.py"
+      ],
       "port": 8125
     },
     {
       "name": "hra-8129",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["server.py"],
-      "env": { "PORT": "8129" },
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "PORT": "8129"
+      },
       "port": 8129
-    },
-    {
-      "name": "hra-8133",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["server.py"],
-      "env": { "PORT": "8133" },
-      "port": 8133
     }
   ]
 }

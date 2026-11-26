@@ -196,6 +196,9 @@ export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0,
 export function udalostBledeho(druh, pozicia = null) {
   if (druh === 'utok') { pridajStrach(0.6); hororZvuk('vykrik', pozicia, 1); }
   else if (druh === 'vykuknutie') { pridajStrach(0.3); hororZvuk('sepot', pozicia, 0.9); }
+  else if (druh === 'plizenie') { pridajStrach(0.1); hororZvuk('kroky', pozicia, 0.7); }
+  else if (druh === 'zmiznutie') hororZvuk('konar', pozicia, 0.6);
+  else if (druh === 'cuvanie') hororZvuk('dych', pozicia, 0.6);
 }
 
 // na ladenie: hra.strachStav()

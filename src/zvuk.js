@@ -44,6 +44,7 @@ let dazdG = null, nocG = null, ohenG = null;
 // Dazd, ohen, hromy a efekty sa netlmia.
 let bAmbient = null, tlmenie = 0;
 export function tlmProstredie(k) {
+  if (!Number.isFinite(k)) k = 0;
   k = Math.max(0, Math.min(1, k));
   if (Math.abs(k - tlmenie) < 0.005 && !(k === 0 && tlmenie !== 0)) return;
   tlmenie = k;
