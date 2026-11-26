@@ -23,12 +23,13 @@ import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykr
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti, vypustNaklad } from './more.js';
 import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor, nastavPocasie, nastavFazu, menoFazy, fazaMesiaca, tmaNoci, sekundDoHodiny } from './pocasie.js';
 import { initNastavenia } from './nastavenia.js';
+import { initBledi, aktualizujBledych, stavBledych, bledi as zoznamBledych, nastavenia as bledyNast, bledySem, vykukniSem } from './bledi.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
 import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne, zapalFaklou } from './ohen.js';
 import { initFakla, aktualizujFaklu, skusZapalit, zapichni, najblizsiaFakla, zoberFaklu, horiVRuke, horiaceFakle, minHorenie, ulozFakle, nacitajFakle } from './fakla.js';
-import { aktualizujStrach, nastavStrach, pridajStrach, nastavZonu, hororZvuk, skusZvuk, diagnostika as strachStav } from './strach.js';
+import { aktualizujStrach, nastavStrach, pridajStrach, nastavZonu, hororZvuk, skusZvuk, stavStrachu, diagnostika as strachStav } from './strach.js';
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
 import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
 import { PREDMETY } from './obsah/predmety.js';
@@ -57,6 +58,7 @@ let kanoe = null;
 const novaLod = (druh, x, z) => { const l = vytvorKanoe(scena, x, z, { pena, zvuky }, druh); lode.push(l); return l; };
 initZivocichy(scena);
 initNepriatelia(scena);
+initBledi(scena, g.renderer, kamera);
 initMajaky(scena, { oznam: t => oznam(t), nastavPostel: p => { postel = p; } });   // majaky, strazca, flase so spravami (src/majak.js)
 nepUdalosti.priZabiti = (id, def) => { hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); if (def.boss) setTimeout(() => oznam('🏆 Z trofejí strážcu sa dá vyrobiť niečo výnimočné…'), 600); };
 udalosti.priSplachu = (x, y, z, s) => {
@@ -528,6 +530,7 @@ function aktualizuj(dt) {
   aktualizujUzly(dt, cas);
   aktualizujZivocichy(dt, cas, hrac.poz, kanoe.poz, vKanoe);
   { const h = hodinaHry(); aktualizujNepriatelov(dt, cas, hrac, { pesi: !vKanoe && !naPalube, noc: h >= 19.5 || h < 5.5 }); }
+  { const h = hodinaHry(); aktualizujBledych(dt, { hrac, kamera, cas, pesi: !vKanoe && !naPalube, noc: h >= 20 || h < 5 || stavStrachu.vynutNoc }); }
   aktualizujMore(dt, cas, hrac.poz, podVodou, kanoe.poz, vKanoe);
   const ohne = aktualizujOhne(dt, cas, hrac.poz, vietor);
   hrac.model.updateWorldMatrix(true, false);
@@ -569,6 +572,7 @@ snimok();
 // ---------- ladenie z konzoly: hra.sim(sekundy, ['KeyW'], ['Mys0']) odohra cas bez cakania na snimky ----------
 window.hra = {
   g, hrac, kamera, objavene, oznam, get kanoe() { return kanoe; }, lode, kam, scena, zobrate, sloty, stavPreziti,
+  hodina: hodinaHry, bledi: () => stavBledych(), bledyZoz: zoznamBledych, bledyAI: v => (bledyNast.ai = v ?? !bledyNast.ai), bledySem: () => bledySem(hrac)?.id, vykuk: () => vykukniSem(hrac)?.id ?? 'nie je strom',
   nepriatelia: zoznamNepriatelov, spawn: druh => spawnPriHracovi(druh, hrac.poz),
   get vKanoe() { return vKanoe; },
   sim(sekundy, drz = [], stlac1 = []) {

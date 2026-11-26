@@ -71,6 +71,7 @@ const html = () => `
 </div>
 <div class="obsah" data-t="strach" hidden>
   <div class="skup"><b>Strach</b><input type="range" min="0" max="100" value="0" id="dev-strach"> <span id="dev-strach-v">0.00</span><button data-a="lak">Ľak +0.3</button></div>
+  <div class="skup"><b>Bledí</b><button data-a="bledy">Bledý sem</button><button data-a="vykuk">Vykukne spoza stromu</button><button data-a="bledyai">Prepni AI Bledých</button></div>
   <div class="skup"><label><input type="checkbox" id="dev-zona"> Hororová zóna</label><label><input type="checkbox" id="dev-noc"> Ber ako noc (aj cez deň)</label><label><input type="checkbox" id="dev-udalosti" checked> Náhodné zvuky v tichu</label></div>
   <div class="skup"><b>Zvuky</b>${DRUHY_ZVUKOV.map(d => `<button data-zvuk="${d}">${NAZVY_ZVUKOV[d] || d}</button>`).join('')}</div>
   <div class="skup"><span class="info" id="dev-strach-info"></span></div>
@@ -166,6 +167,9 @@ export function initDev(c) {
     const { hrac, kanoe } = ctx;
     if (t.dataset.zvuk) return skusZvuk(t.dataset.zvuk);
     if (t.dataset.a === 'lak') return pridajStrach(0.3);
+    if (t.dataset.a === 'bledy') return ctx.oznam(window.hra.bledySem() ? 'Bledý pri tebe (noc + oheň ho odoženie)' : 'Nie je kde');
+    if (t.dataset.a === 'vykuk') return ctx.oznam('Vykuknutie: ' + window.hra.vykuk());
+    if (t.dataset.a === 'bledyai') return ctx.oznam('AI Bledých: ' + (window.hra.bledyAI() ? 'zapnutá' : 'vypnutá'));
     if (t.dataset.nepr) ctx.oznam(spawnPriHracovi(t.dataset.nepr, ctx.hrac.poz) ? `Spawn: ${NEPRIATELIA[t.dataset.nepr].meno}` : 'Nie je kde spawnovať');
     if (t.dataset.mes) ctx.oznam(`Mesiac: ${ctx.mesiac(+t.dataset.mes)}`);
     if (t.dataset.hod) { ctx.skokNaHodinu(+t.dataset.hod); ctx.oznam(`Skok na ${t.textContent}`); }
