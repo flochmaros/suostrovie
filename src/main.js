@@ -264,7 +264,7 @@ udalostiPreziti.priZobudeni = () => {
   zamkni();
 };
 initHororovaZona(scena, oznam);
-initDev({ hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
+initDev({ platno, hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
   mesiac: i => { nastavFazu(i, cas); return menoFazy(); }, pocasie: nastavPocasie, start: start.hrac, uloz, kluc: KLUC });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
 $('start').addEventListener('click', () => { initZvuk(); zamkni(); });

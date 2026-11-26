@@ -27,6 +27,7 @@ function varuj(text) {
 // dt v sekundach; akcie: { beh, plava, vKanoe, padluje, teplo (nasobok smadu, 1 = normal, ~1.5 na slnku), priOhni (pri horiacom taboraku) }
 export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = false, padluje = false, teplo = 1, priOhni = false } = {}) {
   if (stav.mrtvy) return;
+  if (cheat.nesmrtelny) { stav.hlad = stav.smad = stav.zdravie = 100; return; }
   dt = Math.min(dt, 0.25);
   let akt = 1;
   if (plava) akt = 1.8; else if (padluje) akt = 1.5; else if (beh) akt = 1.6; else if (vKanoe) akt = 1.1;
@@ -55,6 +56,7 @@ export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = fal
 
 // tiche poskodenie (bez blesku) pre hlad/smad
 function zranTichy(n, pricina) {
+  if (cheat.nesmrtelny) return;
   stav.zdravie = clamp(stav.zdravie - n);
   if (stav.zdravie <= 0) umri(pricina);
 }
@@ -69,8 +71,9 @@ function umri(pricina) {
 // poskodenie od okolia (zralok, pad...). pricina: text/kod
 // vystroj (src/vystroj.js): prilba = -25 % poskodenia, plast = lava nepali, cizmy = +25 % v mociari (mociar nastavuje vystroj.js), amulet = dych (hrac.js)
 export const vystroj = { obrana: 0, plast: false, cizmy: false, amulet: false, mociar: false };   // obrana 0-1 = sucet kusov brnenia (src/vystroj.js)
+export const cheat = { nesmrtelny: false };   // dev panel: ziadne poskodenie, hlad ani smad
 export function zran(n, pricina = 'zranenie') {
-  if (stav.mrtvy || n <= 0) return;
+  if (stav.mrtvy || n <= 0 || cheat.nesmrtelny) return;
   if (vystroj.plast && pricina === 'lava') return;    // ohnivzdorny plast
   n *= 1 - vystroj.obrana;                              // nasadene brnenie
   stav.zdravie = clamp(stav.zdravie - n);

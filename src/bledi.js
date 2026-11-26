@@ -321,7 +321,7 @@ export function udriBledych(x, z, fx, fz, dmg, o = {}) {
 
 // ---------- dev / konzola ----------
 export function bledySem(hrac) {                      // najblizsi neaktivny (alebo prvy) Bledy 14 m pred hraca, ide pozorovat
-  const b = bledi.find(v => !v.g.visible && v.typ === 'bledy') ?? bledi.find(v => v.typ === 'bledy') ?? bledi[0];
+  const b = bledi.find(v => !v.g.visible && v.typ !== 'matka') ?? bledi.find(v => v.typ !== 'matka') ?? bledi[0];
   if (!b) return null;
   const a = Math.atan2(pohlad.x, pohlad.z);
   for (const d of [14, 11, 17, 8]) {
@@ -338,3 +338,38 @@ export function vykukniSem(hrac) {                    // dev: Bledy vykukne spoz
   return b.strom ? b : null;
 }
 export const stavBledych = () => bledi.map(b => ({ id: b.id, stav: b.stav, viditelny: b.g.visible, hp: Math.round(b.hp), x: Math.round(b.x), z: Math.round(b.z), cd: Math.round(b.cd), odvaha: +b.odvaha.toFixed(2) }));
+// dev panel: hromadne prikazy pre Bledych (akcia: vsetci | matka | utok | schovaj | zabi | lieci)
+export function bledyPrikaz(akcia, hrac) {
+  const vid = bledi.filter(b => b.g.visible && b.stav !== 'mrtvy');
+  if (akcia === 'vsetci') {     // vsetci (okrem matky) do polkruhu pred hraca
+    const ini = bledi.filter(b => b.typ !== 'matka' && (!b.g.visible || b.stav === 'mrtvy'));
+    ini.forEach((b, i) => {
+      if (b.stav === 'mrtvy') { b.g.rotation.x = 0; b.hp = b.def.hp; b.g.visible = false; }
+      bledySem(hrac);
+      const a = Math.atan2(pohlad.x, pohlad.z) + (i - (ini.length - 1) / 2) * 0.45;
+      for (const d of [13, 10, 16]) { const x = hrac.poz.x + Math.sin(a) * d, z = hrac.poz.z + Math.cos(a) * d; if (sucho(x, z)) { b.x = x; b.z = z; break; } }
+    });
+    return ini.length;
+  }
+  if (akcia === 'matka') {
+    const m = bledi.find(b => b.typ === 'matka'); if (!m) return 0;
+    const a = Math.atan2(pohlad.x, pohlad.z);
+    for (const d of [14, 10, 18, 7]) { const x = hrac.poz.x + Math.sin(a) * d, z = hrac.poz.z + Math.cos(a) * d; if (sucho(x, z)) { m.x = x; m.z = z; break; } }
+    m.g.visible = true; m.g.rotation.x = 0; m.hp = Math.max(m.hp, m.def.hp * 0.5); m.stav = 'pozoruje'; m.pozT = 0; m.videny = 0; m.cd = 0; m.ciel = null; m.hd = a + Math.PI; m.domov_ = false; m.strom = null;
+    return 1;
+  }
+  if (akcia === 'utok') {       // najblizsi viditelny Bledy hned zautoci
+    const b = vid.sort((p, q) => dist(p, hrac.poz) - dist(q, hrac.poz))[0]; if (!b) return 0;
+    b.stav = 'utok'; b.t = 3.2; b.u = 0; b.trafil = false; b.cd = 0; b.strom = null;
+    return 1;
+  }
+  if (akcia === 'schovaj') { for (const b of vid) schovaj(b, 60); return vid.length; }
+  if (akcia === 'zabi') { for (const b of vid) { b.hp = 0; b.stav = 'mrtvy'; b.u = 0; b.poza = 'mrtvy'; } return vid.length; }
+  if (akcia === 'lieci') { for (const b of bledi) b.hp = b.def.hp; return bledi.length; }
+  return 0;
+}
+// pocty podla stavu, napr. "pozoruje 2 · skryty 4"
+export function bledyPrehlad() {
+  const c = {}; for (const b of bledi) { const s = b.g.visible ? b.stav : 'skryty'; c[s] = (c[s] || 0) + 1; }
+  return Object.entries(c).map(([k, v]) => `${k} ${v}`).join(' · ') + (nastavenia.ai ? '' : ' · AI vypnutá');
+}
