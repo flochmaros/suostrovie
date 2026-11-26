@@ -63,4 +63,4 @@ export const OSTROVY = [
 // maximalne ext (m) pre kazdy ostrov - aby sa neprekryvali (subor ostrova musi mat ext <= tomuto)
 export const MAX_EXT = { domov: 240, sumivy_haj: 250, zahrada: 310, hlinisko: 220, strazna_skala: 190, perlovy_atol: 290,
   ohniva_hora: 390, sirne_pramene: 250, krokodili_mociar: 420, dzungla_predkov: 400,
-  ticha_zatoka: 195 };
+  ticha_zatoka: 300 };

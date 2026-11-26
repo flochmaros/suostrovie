@@ -46,3 +46,14 @@ kde stojí prvý maják a kde stroskotala jeho loď. Každý ostrov teda **exist
 - Poloha ostrova je v `src/ostrovy/index.js` (zoznam `OSTROVY`). Rámec je v `svet.js`.
 - Náhľad ostrova bez hry: `http://localhost:8125/nastroje/ostrov.html?id=<id>` (mapa zhora).
 - V hre: konzola `hra.naOstrov('<id>')` = teleport.
+
+## Tichá zátoka – život Bledých (vlna 2)
+Ostrov je ~2,5× väčší (6,3 ha, `ext` 300): cez deň cozy pláž a lagúna, vnútrozemie = **hustý tmavý les** na vyvýšenej plošine (vysoké stromy, popadané kmene, papradie, huby).
+- **Prečo vyzerá cozy:** je to návnada. Chatka s prestretým stolom a hojdacia sieť lákajú stroskotancov na pláž; odtiaľ vedú dlhé stopy k jaskyni.
+- **Kde spia (cez deň):** hlavné hniezdo je jaskyňa pod útesom (matka v komore, dvaja obyčajní v chodbe); vchod je cez deň pod vodou. Ďalší dvaja majú **lesné hniezda** (veniec z konárov a kostí pod popadaným stromom) – `L.HNIEZDA`.
+- **Kde jedia:** **obetisko** – tmavá jama v lese s kamenným kruhom, hromadou kostí a lebkami na koloch (`L.OBETISKO`).
+- **Kadiaľ chodia:** vyšliapané chodníky s dlhými úzkymi stopami: jaskyňa → pod útesom na východ → obetisko → východná a severná pláž, plus lagúna → les (`CESTY`).
+- **Pozorovatelia:** skalný prst nad pláží (`VYHLIADKY[0]`) a krivý strom nad východným chodníkom (`VYHLIADKY[1]`) – stoja a sledujú, kto pristál.
+- **Zásoby a korisť:** rozbité kanoe stroskotancov s debnami na severovýchodnej pláži, klobúky a topánky v komore.
+- **Počet:** 7 Bledých – 4 obyčajní (`jaskyna1`, `jaskyna2`, `les1`, `les2`), 2 pozorovatelia (`skala`, `strom`), 1 matka (`matka`). Dáta: `tichaZatoka.bledi` (svetové x,z: `domov`, `ukryt`, `trasa`) a `tichaZatoka.lesneUkryty` (22 miest za stromami pri chodníkoch).
+- **Cesta k jaskyni v noci:** svietiace huby popri stopách a vo vchode, kostené totemy s lebkami po stranách vchodu; v lese hubky popri chodníku z jaskyne.

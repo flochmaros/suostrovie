@@ -1,10 +1,11 @@
 // Spravanie hororoveho ostrova (Ticha zatoka) pocas hry:
 //   - miestny priliv: cez den je pri ostrove voda takmer nehybna a zakryva vchod do jaskyne, v noci klesne o ~1.9 m
 //   - jaskyna: strecha sa da prejst zvrchu, vnutri drzia hraca steny, kamera neprejde skalou, vnutri je tma
-//   - nocna atmosfera: nizka hmla pri zemi, hustejsia a tmavsia hmla, tmavsie farby
+//   - nocna atmosfera: plazivá hmla len v lese pri zemi (nie plosna sedá stena), les je tmavsi a hustejsi, plaz a voda ostavaju citatelne
 import * as THREE from 'three';
 import { tichaZatoka, hororovaZona, vyskaBezJaskyne, STRED } from './ostrovy/ticha_zatoka.js';
 import * as J from './ostrovy/ticha_zatoka_jaskyna.js';
+import { lesnost } from './ostrovy/ticha_zatoka_les.js';
 import { miestnyPriliv, priliv, uNoc } from './ocean.js';
 import { vyskaTerenu } from './svet.js';
 import { smooth } from './ostrovy/pomoc.js';
@@ -23,7 +24,7 @@ export const vchodOtvoreny = t => priliv(t) < BRANA;
 
 // volat na zaciatku snimku: nastavi priliv podla toho, ako blizko je hrac k ostrovu
 export function aktualizujOdliv(x, z, hodina) {
-  const k = smooth(330, 170, Math.hypot(x - OX, z - OZ));
+  const k = smooth(420, 250, Math.hypot(x - OX - 35, z - OZ - 15));
   miestnyPriliv.zona = k;
   miestnyPriliv.pokles = ODLIV * k * silaOdlivu(hodina);
 }
@@ -62,7 +63,7 @@ export function vzdialenostKJaskyni(ciel, smer, max) {
 }
 
 // ---------- atmosfera ----------
-const N_HMLA = 150;
+const N_HMLA = 110;
 let hmla = null, svetlo = null, oci = null, casHry = 0, uvitane = false;
 const kotvy = [];
 export const stavZony = { noc: 0, jaskyna: 0 };
@@ -86,14 +87,15 @@ export function initHororovaZona(scena, oznam) {
   hmla = new THREE.Group(); hmla.visible = false;
   // chumace hmly: nahodne po ostrove a lagune (pevne miesta, jemne sa prevaluju)
   const r = (i, k) => { const s = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };
-  for (let i = 0; i < N_HMLA; i++) {
-    const a = r(i, 1) * 6.283, d = Math.sqrt(r(i, 2)) * 105;
-    const x = OX - 12 + Math.cos(a) * d, z = OZ - 12 + Math.sin(a) * d * 0.85;
+  // len v lese (kde je lesnost > 0.5), nizke ploche pasy pri zemi; po lagune a plazi hmla nie je
+  for (let i = 0, pokus = 0; i < N_HMLA && pokus < 4000; pokus++) {
+    const lx = -110 + r(pokus, 1) * 310, lz = -90 + r(pokus, 2) * 240, h = h0(lx, lz);
+    if (h < 2.3 || lesnost(lx, lz, h) < 0.5) continue;
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x7d8b96, transparent: true, opacity: 0, depthWrite: false }));
-    const w = 9 + r(i, 3) * 13;
-    s.scale.set(w, w * 0.34, 1);
-    kotvy.push({ s, x, z, zem: null, f: r(i, 4) * 6.28, a: 0.55 + r(i, 5) * 0.45 });
-    hmla.add(s);
+    const w = 7 + r(i, 3) * 9;
+    s.scale.set(w, w * 0.2, 1);
+    kotvy.push({ s, x: OX + lx, z: OZ + lz, zem: null, f: r(i, 4) * 6.28, a: 0.5 + r(i, 5) * 0.5 });
+    hmla.add(s); i++;
   }
   scena.add(hmla);
   // jedine svetlo jaskyne: slaby studeny svit v komore (je v scene stale, aby sa shadery neprekompilovavali)
@@ -117,9 +119,11 @@ export function aktualizujHororovuZonu(cas, { scena, kamera, g, stred, podVodou 
   stavZony.noc = noc; stavZony.jaskyna = jaskyna;
 
   if (noc > 0.001 && !podVodou) {
-    scena.fog.color.lerp(NOCNA, noc * 0.75);
-    scena.fog.near = THREE.MathUtils.lerp(scena.fog.near, 7, noc);
-    scena.fog.far = THREE.MathUtils.lerp(scena.fog.far, 125, noc);
+    // pri plazi a vode len jemne stmavenie (cesta k jaskyni je citatelna); v hustom lese blizsia a tmavsia hmla
+    const les = lesnost(stred.x - OX, stred.z - OZ, stred.y);
+    scena.fog.color.lerp(NOCNA, noc * (0.3 + 0.4 * les));
+    scena.fog.near = THREE.MathUtils.lerp(scena.fog.near, THREE.MathUtils.lerp(30, 6, les), noc);
+    scena.fog.far = THREE.MathUtils.lerp(scena.fog.far, THREE.MathUtils.lerp(300, 85, les), noc);
     g.hemi.intensity *= 1 - 0.38 * noc;
     g.slnko.intensity *= 1 - 0.3 * noc;
     g.renderer.toneMappingExposure *= 1 - 0.14 * noc;
@@ -149,11 +153,11 @@ export function aktualizujHororovuZonu(cas, { scena, kamera, g, stred, podVodou 
     for (const k of kotvy) {
       if (k.zem === null) { if (nove-- <= 0) continue; k.zem = vyskaTerenu(k.x, k.z); }
       const x = k.x + Math.sin(cas * 0.07 + k.f) * 4, z = k.z + Math.cos(cas * 0.05 + k.f * 1.7) * 4;
-      const y = Math.max(k.zem, hladina) + 0.95 + Math.sin(cas * 0.23 + k.f) * 0.18;
+      const y = Math.max(k.zem, hladina) + 0.35 + Math.sin(cas * 0.23 + k.f) * 0.08;
       k.s.position.set(x, y, z);
       // tesne pred kamerou sa chumac strati (inak by zakryl obraz); v utese nad zemou hmla nie je
       const blizkoKamery = smooth(3, 11, k.s.position.distanceTo(kamera.position));
-      k.s.material.opacity = noc * 0.6 * k.a * blizkoKamery * smooth(7, 3, k.zem) * (1 - jaskyna);
+      k.s.material.opacity = noc * 0.3 * k.a * blizkoKamery * (1 - jaskyna);
       k.s.material.color.copy(farbaChumaca);
     }
   }
