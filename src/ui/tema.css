@@ -1,0 +1,23 @@
+/* Spolocna tema UI "ostrovny dennik": tmave drevo, pergamen, atrament, zlate a tyrkysove akcenty.
+   Kazda cast UI ma vlastny subor (vyroba.css, mapa.css, pauza.css, varenie.css) – nove styly patria tam, nie do index.html. */
+:root {
+  --drevo: #2e2116;          /* tmave drevo – pozadie panelov */
+  --drevo-svetle: #4a3524;   /* ramy, hlavicky */
+  --drevo-okraj: #6b4c31;    /* okraje, lana */
+  --pergamen: #ecdcb8;       /* svetly papier (mapa, karty receptov) */
+  --pergamen-tmavy: #cfb98c;
+  --atrament: #3a2716;       /* text na pergamene */
+  --text-svetly: #f6ead2;    /* text na dreve */
+  --zlata: #e2b04a;          /* akcent: vybrane, nove, dokonale */
+  --tyrkys: #3fb8a8;         /* akcent: more, odomknute, OK */
+  --cervena: #c8553d;        /* chyba / chyba surovina / spalene */
+  --tien: 0 10px 34px rgba(0,0,0,.45);
+  --font-nadpis: 'Caveat Brush', 'Nunito', cursive;   /* rucne pisane nadpisy */
+  --font-text: 'Nunito', system-ui, sans-serif;
+}
+.tema-panel { background: linear-gradient(180deg, var(--drevo-svetle), var(--drevo)); color: var(--text-svetly);
+  border: 2px solid var(--drevo-okraj); border-radius: 12px; box-shadow: var(--tien), inset 0 1px 0 rgba(255,255,255,.08); font-family: var(--font-text); }
+.tema-papier { background: var(--pergamen); color: var(--atrament); border-radius: 8px; box-shadow: inset 0 0 30px rgba(120,80,30,.35); }
+.tema-nadpis { font-family: var(--font-nadpis); color: var(--zlata); letter-spacing: .5px; }
+.tema-tlacidlo { background: var(--zlata); color: var(--atrament); border: 0; border-radius: 22px; padding: 9px 20px; font: 800 16px var(--font-text); cursor: pointer; transition: transform .12s, filter .12s; }
+.tema-tlacidlo:hover { transform: translateY(-1px); filter: brightness(1.08); }
