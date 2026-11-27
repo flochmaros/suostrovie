@@ -19,6 +19,50 @@
         "PORT": "8129"
       },
       "port": 8129
+    },
+    {
+      "name": "hra-vyroba",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "PORT": "8131"
+      },
+      "port": 8131
+    },
+    {
+      "name": "hra-mapa",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "PORT": "8132"
+      },
+      "port": 8132
+    },
+    {
+      "name": "hra-pauza",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "PORT": "8133"
+      },
+      "port": 8133
+    },
+    {
+      "name": "hra-varenie",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "PORT": "8134"
+      },
+      "port": 8134
     }
   ]
 }
