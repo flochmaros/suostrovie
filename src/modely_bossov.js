@@ -133,6 +133,35 @@ export function modelKrokodil() {
 
 // ================= KRAKEN (sedi vo vode pri brehu) =================
 export function modelKraken() {
+  const mob = mobGLB('kraken');                              // model z Blenderu (nastroje/blender/moby_kraken.py)
+  if (mob) {
+    const trup = mob.uzol('trup'), celust = mob.uzol('celust'), oko = mob.mat('oko'), biolum = mob.mat('biolum');
+    const chap = [];
+    for (let k = 0; k < 8; k++) {
+      const root = mob.uzol('chapadlo_' + k);
+      root.rotation.order = 'YXZ';                           // najprv natocit do smeru, potom zdvihat (vsetky chapadla hore)
+      root.rotation.y = (k / 8) * Math.PI * 2 + 0.2;
+      chap.push({ root, cl: [0, 1, 2, 3, 4, 5].map(i => mob.uzol('chapadlo_' + k + '_' + i)), f: k * 0.9 });
+    }
+    function anim(e, dt, cas, wk, sk, pohyb) {
+      trup.position.y = 0.9 + Math.sin(cas * 1.1) * 0.12 + (e.typ === 'dupot' ? wk * 0.6 - sk * 0.4 : 0);
+      trup.rotation.x = Math.sin(cas * 0.7) * 0.06;
+      const dup = e.typ === 'dupot', mel = e.typ === 'klepeto';
+      chap.forEach(({ root, cl, f }, k) => {
+        const predne = k === 0 || k === 7 || k === 1;
+        const vpredu = Math.max(0, Math.cos((k / 8) * Math.PI * 2 + 0.2));   // predne lezia nizsie, aby bolo vidno tvar
+        root.rotation.x = -0.35 + 0.42 * vpredu - (dup ? wk * 1.1 - sk * 1.5 : 0) - (mel && predne ? wk * 1.6 - sk * 2.2 : 0);
+        cl.forEach((c, i) => {
+          c.rotation.x = Math.sin(cas * 1.6 + f + i * 0.7) * 0.22 + 0.12 + (dup ? sk * 0.15 : 0) - (i > 3 ? 0.35 : 0);   // spicky sa dvihaju z vody
+          c.rotation.y = Math.sin(cas * 1.1 + f * 1.3 + i * 0.5) * 0.18;
+        });
+      });
+      celust.rotation.x = Math.max(wk, sk) * 0.6 + Math.max(0, Math.sin(cas * 1.7)) * 0.08;   // zobak sa otvara
+      oko.emissiveIntensity = 1.6 + wk * 3 + (e.faza2 ? 1.2 + Math.sin(cas * 9) * 0.6 : 0);
+      biolum.emissiveIntensity = 1.2 + Math.sin(cas * 2.2) * 0.5 + wk * 4 + (e.faza2 ? 1.5 : 0);
+    }
+    return { g: mob.g, tela: [mob.mat('kuza'), mob.mat('svetla')], trup, nohy: [], anim };
+  }
   const g = new THREE.Group();
   const kuza = M(0x6a2a4a, { roughness: 0.45, metalness: 0.05 }), svetla = M(0xc06080, { roughness: 0.5 });
   const prisavka = M(0xe8b8c0), oko = M(0x0a0a0a, { emissive: 0xffc030, emissiveIntensity: 2.4 }), zrenica = M(0x000000);
@@ -176,6 +205,8 @@ export function modelKraken() {
 
 // chapadlo, ktore sa vynori zo zeme/vody v mieste uderu (vrh krakena); vrati { g, cl }
 export function chapadloZoZeme() {
+  const mob = mobGLB('chapadlo');
+  if (mob) return { g: mob.g, cl: [0, 1, 2, 3, 4, 5, 6].map(i => mob.uzol('zem_' + i)) };
   const g = new THREE.Group(), kuza = M(0x6a2a4a, { roughness: 0.45 }), pr = M(0xe8b8c0), cl = [];
   let rodic = g;
   for (let i = 0; i < 7; i++) {
@@ -188,6 +219,24 @@ export function chapadloZoZeme() {
 
 // ================= KAMENNY GOLEM =================
 export function modelGolem() {
+  const mob = mobGLB('golem');                               // model z Blenderu (nastroje/blender/moby_golem.py)
+  if (mob) {
+    const trup = mob.uzol('trup'), hlava = mob.uzol('hlava'), runa = mob.mat('runa');
+    const ruky = [mob.uzol('ruka_P'), mob.uzol('ruka_L')];
+    const nohy = [['noha_P', -1], ['noha_L', 1]].map(([m, s]) => ({ n: mob.uzol(m), s, i: 1 }));
+    function anim(e, dt, cas, wk, sk, pohyb) {
+      const t = e.typ, buch = t === 'klepeto' || t === 'dupot';
+      const rx = buch ? -wk * 2.8 + sk * 3.2 : Math.sin(e.ph) * 0.3 * pohyb, rz = 0.15 + (buch ? wk * 0.2 : 0);
+      const hod = -wk * 2.9 + sk * 2.6;
+      ruky[0].rotation.set(t === 'vrh' ? hod : rx, 0, -rz);
+      ruky[1].rotation.set(t === 'vrh' ? hod : buch ? rx : -rx, 0, rz);
+      trup.rotation.x = buch ? -wk * 0.25 + sk * 0.45 : t === 'vrh' ? -wk * 0.3 + sk * 0.4 : 0.04;
+      trup.position.y = 1.15 + Math.abs(Math.sin(e.ph)) * 0.05 * pohyb;
+      hlava.rotation.y = Math.sin(cas * 0.4) * 0.2;
+      runa.emissiveIntensity = 1.3 + wk * 4 + (e.faza2 ? 1.5 + Math.sin(cas * 10) : Math.sin(cas * 2) * 0.35);
+    }
+    return { g: mob.g, tela: [mob.mat('kam'), mob.mat('kam2')], trup, nohy, anim };
+  }
   const g = new THREE.Group();
   const kam = M(0x7d7a72, { roughness: 0.95 }), kam2 = M(0x5e5b55, { roughness: 0.95 }), mach = M(0x4f6e3a);
   const runa = M(0x10303a, { emissive: 0x40e8ff, emissiveIntensity: 2.6, roughness: 0.3 });
