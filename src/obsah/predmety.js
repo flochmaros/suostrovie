@@ -82,6 +82,11 @@ predmet('fakla', { meno: 'Fakľa', ikonaSklon: -0.75, ikona: ik('wood-stick', '#
   popis: 'Svieti v ruke (3 minúty horenia, odložená nehorí). F ju zapichne do zeme. Vo vode a silnom daždi zhasne.',
   model: modelFakla() });
 
+// ---- nacrt: vzacny zvitok, po zobrati sa hned precita a nauci recept (recepty_odomknute.js) ----
+predmet('nacrt', { meno: 'Starý náčrt', ikona: ik('spiral-shell', '#e8d6a8'), kopa: 10, popis: 'Zvitok s nákresom. Naučí ťa vzácny recept.',
+  model: [mergeGeometries([new THREE.CylinderGeometry(0.07, 0.07, 0.34, 10).rotateZ(Math.PI / 2).translate(0, 0.075, 0),
+    new THREE.CylinderGeometry(0.075, 0.075, 0.05, 10).rotateZ(Math.PI / 2).translate(0, 0.075, 0)]), mat(0xe8d6a8)] });
+
 // ---- tabor ----
 // polozit: 'taborak' = klavesa F polozi predmet pred postavu (spracuva main.js + ohen.js)
 predmet('taborak', { meno: 'Táborák', ikona: ik('campfire', '#ef7a2f'), kopa: 5, polozit: 'taborak', popis: 'Kruh kameňov s drevom. Polož (F), prikladaj drevo (E), pečie jedlo a hreje.',

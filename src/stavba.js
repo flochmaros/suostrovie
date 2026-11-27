@@ -44,7 +44,7 @@ const info = typ => ZAKLAD[typ] ?? STAVBY[typ] ?? SPECIALNE[typ];
 const jeStena = typ => info(typ)?.prichyt === 'stena';
 
 // recepty pre nove stavby (menu B ich ukaze samo; vysledok sa nevyraba, stavba sa polozi priamo)
-for (const [id, s] of Object.entries(STAVBY)) recept({ id, stavba: id, skupina: s.skupina, meno: s.meno, ikona: s.ikona, popis: s.popis, suroviny: s.suroviny });
+for (const [id, s] of Object.entries(STAVBY)) recept({ id, stavba: id, skupina: s.skupina, meno: s.meno, ikona: s.ikona, popis: s.popis, suroviny: s.suroviny, kluc: s.kluc });
 for (const r of RECEPTY) if (SPECIALNE[r.id]) r.stavba = r.id;
 
 function vytvorModel(d) {

@@ -194,6 +194,8 @@ export const zvuky = {
   utokNepr: () => { burst(0.12, 'bandpass', 700, 0.3, 1.5); ton(260, 0.12, 0.2, 120); },
   smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
+  recept: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => ton(f, 0.35, 0.07), i * 90)),
+  drzanie: k => { ton(260 + 360 * k, 0.07, 0.04, 300 + 400 * k); burst(0.05, 'bandpass', 900 + 900 * k, 0.07, 2); },   // tukanie pri vyrobe (k = 0..1)
 };
 
 // ---------- fakla: sycive horenie (hukot plamena) + praskanie; sila 0..1 (vola fakla.js kazdy snimok) ----------

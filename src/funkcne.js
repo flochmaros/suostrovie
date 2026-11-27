@@ -88,7 +88,7 @@ function dymZ(d) {
 }
 
 // ---------- interakcia (E) ----------
-const FUNKCNE = new Set(['truhlica', 'zberac_vody', 'susiak', 'kamenna_pec', 'hamaka']);
+const FUNKCNE = new Set(['truhlica', 'zberac_vody', 'susiak', 'kamenna_pec', 'hamaka', 'ponk', 'kamenna_dielna']);
 export function najdiFunkcnu(x, z, fx, fz) {
   let naj = null, najD = 2.4;
   for (const d of diely) {
@@ -106,6 +106,7 @@ export function najdiFunkcnu(x, z, fx, fz) {
 export function obsluha(d, h) {
   const st = d.st, v = h.vybrany;
   const mmss = s => `${Math.floor(s / 60)}:${String(Math.ceil(s % 60)).padStart(2, '0')}`;
+  if (d.typ === 'ponk' || d.typ === 'kamenna_dielna') return { text: `<kbd>E</kbd> vyrábať (${d.typ === 'ponk' ? 'ponk' : 'kamenná dielňa'})`, akcia: () => h.otvorVyrobu() };
   if (d.typ === 'truhlica') {
     const plne = st.sk.filter(Boolean).length;
     return { text: `<kbd>E</kbd> otvoriť truhlicu (${plne}/${st.sk.length})`, akcia: () => h.otvorSklad(st.sk, 'Truhlica') };

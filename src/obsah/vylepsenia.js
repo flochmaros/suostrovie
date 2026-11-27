@@ -14,23 +14,23 @@ const R = d => recept({ ...d, lodenica: true });   // lodenica: true = recept sa
 // ---------- nove lode ----------
 const LODE = [
   { druh: 'kanoe', ikona: ik('wood-canoe', '#b07a45'), suroviny: [['drevo', 12], ['vlakno', 8], ['list', 4]], popis: 'Základné kanoe (6 políčok skladu)' },
-  { druh: 'pretekove', ikona: ik('canoe', '#d0643a'), suroviny: [['drevo', 20], ['bambus', 14], ['vlakno', 14], ['list', 10], ['musla', 6]], popis: 'rýchle, 4 políčka' },
-  { druh: 'barza', ikona: ik('raft', '#a87340'), suroviny: [['drevo', 40], ['bambus', 10], ['vlakno', 20], ['list', 8], ['kamen', 6]], popis: 'pomalá, 36 políčok' },
-  { druh: 'katamaran', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 60], ['bambus', 30], ['vlakno', 40], ['list', 30], ['kamen', 12], ['musla', 12]], popis: 'veľká a rýchla, 40 políčok' },
+  { druh: 'pretekove', nacrt: 'pretekove', ikona: ik('canoe', '#d0643a'), suroviny: [['drevo', 20], ['bambus', 14], ['vlakno', 14], ['list', 10], ['musla', 6]], popis: 'rýchle, 4 políčka' },
+  { druh: 'barza', nacrt: 'barza', ikona: ik('raft', '#a87340'), suroviny: [['drevo', 40], ['bambus', 10], ['vlakno', 20], ['list', 8], ['kamen', 6]], popis: 'pomalá, 36 políčok' },
+  { druh: 'katamaran', nacrt: 'katamaran', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 60], ['bambus', 30], ['vlakno', 40], ['list', 30], ['kamen', 12], ['musla', 12]], popis: 'veľká a rýchla, 40 políčok' },
 ];
 for (const l of LODE) R({
-  id: `lod_${l.druh}`, skupina: 'Postaviť loď', meno: `${DRUHY[l.druh].nazov} – ${l.popis}`, ikona: l.ikona, suroviny: l.suroviny,
+  id: `lod_${l.druh}`, skupina: 'Postaviť loď', meno: `${DRUHY[l.druh].nazov} – ${l.popis}`, ikona: l.ikona, suroviny: l.suroviny, nacrt: l.nacrt,
   akcia: () => ctx.postav(l.druh),
 });
 
 // ---------- vylepsenia kanoe (urovne s plachtou a plavakom) ----------
 const UROVNE = [
   { z: 1, na: 2, meno: 'Kanoe – plachta', ikona: ik('sail', '#efe6cf'), suroviny: [['drevo', 10], ['vlakno', 6], ['list', 8]] },
-  { z: 2, na: 3, meno: 'Kanoe – väčší trup a plavák (utesnený hlinou)', ikona: ik('wood-canoe', '#b07a45'), suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['hlina', 6]] },
-  { z: 3, na: 4, meno: 'Kanoe – dvojtrupová plachetnica', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 40], ['bambus', 20], ['vlakno', 25], ['list', 20], ['kamen', 6], ['zivica', 8]] },
+  { z: 2, na: 3, kluc: 'hlina', meno: 'Kanoe – väčší trup a plavák (utesnený hlinou)', ikona: ik('wood-canoe', '#b07a45'), suroviny: [['drevo', 20], ['bambus', 10], ['vlakno', 12], ['list', 10], ['hlina', 6]] },
+  { z: 3, na: 4, nacrt: 'plavak', meno: 'Kanoe – dvojtrupová plachetnica', ikona: ik('sailboat', '#efe6cf'), suroviny: [['drevo', 40], ['bambus', 20], ['vlakno', 25], ['list', 20], ['kamen', 6], ['zivica', 8]] },
 ];
 for (const u of UROVNE) R({
-  id: `kanoe_ur${u.na}`, skupina: 'Vylepšiť najbližšiu loď', meno: u.meno, ikona: u.ikona, suroviny: u.suroviny,
+  id: `kanoe_ur${u.na}`, skupina: 'Vylepšiť najbližšiu loď', meno: u.meno, ikona: u.ikona, suroviny: u.suroviny, kluc: u.kluc, nacrt: u.nacrt,
   podmienka: () => { const l = ctx.lod(); return l?.druh === 'kanoe' && l.uroven === u.z; },
   akcia: () => ctx.lod().nastavUroven(u.na),
 });

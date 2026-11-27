@@ -128,7 +128,7 @@ const ryby = (xs, yHore, dlzka) => {
 // ---------- definicie ----------
 export const STAVBY = {
   stena_okno: {
-    meno: 'Stena s oknom', ikona: ik('window', '#a87340'), skupina: 'Stavba',
+    meno: 'Stena s oknom', ikona: ik('window', '#a87340'), skupina: 'Stavba', kluc: 'drevo',
     suroviny: [['drevo', 4], ['vlakno', 1]],
     popis: 'Zrubová stena s oknom a bambusovými mrežami.',
     prichyt: 'stena', polomer: 0.5,
@@ -141,7 +141,7 @@ export const STAVBY = {
   },
 
   stena_dvere: {
-    meno: 'Stena s dverami', ikona: ik('wooden-door', '#a87340'), skupina: 'Stavba',
+    meno: 'Stena s dverami', ikona: ik('wooden-door', '#a87340'), skupina: 'Stavba', kluc: 'drevo',
     suroviny: [['drevo', 4], ['vlakno', 1]],
     popis: 'Zrubová stena s otvorom na dvere. Prejdeš cez ňu.',
     prichyt: 'stena', polomer: 0,
@@ -154,7 +154,7 @@ export const STAVBY = {
   },
 
   plot: {
-    meno: 'Bambusový plot', ikona: ik('stakes-fence', '#a5c75a'), skupina: 'Stavba',
+    meno: 'Bambusový plot', ikona: ik('stakes-fence', '#a5c75a'), skupina: 'Stavba', kluc: 'bambus',
     suroviny: [['bambus', 3], ['vlakno', 1]],
     popis: 'Dvojmetrový plot z bambusu zviazaný lanom.',
     prichyt: 'volne', polomer: 0.5,
@@ -169,7 +169,7 @@ export const STAVBY = {
   },
 
   lavica: {
-    meno: 'Lavica', ikona: ik('lavica', '#a87340'), skupina: 'Nábytok',
+    meno: 'Lavica', ikona: ik('lavica', '#a87340'), skupina: 'Nábytok', kluc: 'drevo',
     suroviny: [['drevo', 3], ['vlakno', 1]],
     popis: 'Pevná drevená lavica pre dvoch.',
     prichyt: 'volne', polomer: 0.6,
@@ -183,7 +183,7 @@ export const STAVBY = {
   },
 
   stol: {
-    meno: 'Stôl', ikona: ik('table', '#a87340'), skupina: 'Nábytok',
+    meno: 'Stôl', ikona: ik('table', '#a87340'), skupina: 'Nábytok', kluc: 'drevo',
     suroviny: [['drevo', 5], ['vlakno', 1]],
     popis: 'Jedálenský stôl z dosiek.',
     prichyt: 'volne', polomer: 0.7,
@@ -195,7 +195,7 @@ export const STAVBY = {
   },
 
   stolicka: {
-    meno: 'Stolička', ikona: ik('bar-stool', '#a87340'), skupina: 'Nábytok',
+    meno: 'Stolička', ikona: ik('bar-stool', '#a87340'), skupina: 'Nábytok', kluc: 'drevo',
     suroviny: [['drevo', 3], ['vlakno', 1]],
     popis: 'Jednoduchá stolička s opierkou. Predok je smerom od teba.',
     prichyt: 'volne', polomer: 0.3,
@@ -208,7 +208,7 @@ export const STAVBY = {
   },
 
   hamaka: {
-    meno: 'Hamaka', ikona: ik('hamaka', '#c9a06a'), skupina: 'Nábytok',
+    meno: 'Hamaka', ikona: ik('hamaka', '#c9a06a'), skupina: 'Nábytok', kluc: 'list',
     suroviny: [['drevo', 2], ['vlakno', 6], ['list', 3]],
     popis: 'Hojdacia sieť medzi dvoma kolmi.',
     prichyt: 'volne', polomer: 0.5,
@@ -226,7 +226,7 @@ export const STAVBY = {
   },
 
   truhlica: {
-    meno: 'Truhlica', ikona: ik('chest', '#9a6a3a'), skupina: 'Nábytok',
+    meno: 'Truhlica', ikona: ik('chest', '#9a6a3a'), skupina: 'Nábytok', kluc: 'drevo',
     suroviny: [['drevo', 6], ['vlakno', 2]],
     popis: 'Drevená truhlica s oblým vekom a kovaním.',
     prichyt: 'volne', polomer: 0.5,
@@ -238,7 +238,7 @@ export const STAVBY = {
   },
 
   police: {
-    meno: 'Polica', ikona: ik('police', '#a87340'), skupina: 'Nábytok',
+    meno: 'Polica', ikona: ik('police', '#a87340'), skupina: 'Nábytok', kluc: 'drevo',
     suroviny: [['drevo', 6], ['vlakno', 2]],
     popis: 'Regál s nádobami. Zadná strana je k stene.',
     prichyt: 'volne', polomer: 0.6,
@@ -259,8 +259,42 @@ export const STAVBY = {
     ]),
   },
 
+  // ---------- pracovne stanice (recepty so stanica: ... sa daju vyrabat len v ich blizkosti) ----------
+  ponk: {
+    meno: 'Ponk', ikona: ik('claw-hammer', '#c9a06a'), skupina: 'Tábor', kluc: 'drevo',
+    suroviny: [['drevo', 6], ['kamen', 3], ['vlakno', 2]],
+    popis: 'Pracovný stôl s náradím. Pri ňom vyrobíš lepšie nástroje a brnenie.',
+    prichyt: 'volne', polomer: 0.7,
+    model: zloz([
+      [DREVO, [...[-0.2, 0, 0.2].map(z => B(1.5, 0.1, 0.2, 0, 0.86, z)), B(1.3, 0.05, 0.5, 0, 0.28, 0),
+        B(0.3, 0.04, 0.06, 0.35, 0.93, -0.08, 0, 0.5, 0), B(1.5, 0.2, 0.05, 0, 1.01, 0.31)]],
+      [KMEN, [-0.65, 0.65].flatMap(x => [-0.22, 0.22].map(z => B(0.13, 0.82, 0.13, x, 0.41, z)))],
+      [KAMEN, [B(0.2, 0.12, 0.12, 0.52, 0.97, -0.08, 0, 0.5, 0), B(0.22, 0.16, 0.2, -0.45, 0.99, -0.05, 0, 0.3, 0)]],
+      [KOV, [B(0.34, 0.02, 0.1, 0.05, 0.93, 0.14, 0, -0.3, 0), B(0.12, 0.14, 0.14, -0.72, 0.9, -0.3)]],
+      [LANO, [C(0.12, 0.12, 0.07, 9, 0.25, 0.34, 0.02), ...[-0.65, 0.65].map(x => B(0.15, 0.06, 0.6, x, 0.74, 0))]],
+    ]),
+  },
+
+  kamenna_dielna: {
+    meno: 'Kamenná dielňa', ikona: ik('fireplace', '#8f7ab8'), skupina: 'Tábor', kluc: 'obsidian',
+    suroviny: [['kamen', 14], ['drevo', 6], ['vlakno', 4]],
+    popis: 'Kamenný stôl s brúsom a nákovou. Len tu sa dá opracovať obsidián.',
+    prichyt: 'volne', polomer: 0.9,
+    model: zloz([
+      [KAMEN, [
+        ...kamene(-0.65, -0.3, -0.65, 0.3, 4, 0.1, 0.2, 0.3), ...kamene(0.65, -0.3, 0.65, 0.3, 4, 0.1, 0.2, 0.3),
+        B(1.8, 0.18, 0.9, 0, 0.89, 0),
+        C(0.28, 0.28, 0.12, 12, 0.55, 1.28, 0.05, PI / 2),
+      ]],
+      [KMEN, [B(0.08, 0.36, 0.08, 0.55, 1.15, 0.18), B(0.08, 0.36, 0.08, 0.55, 1.15, -0.08), B(0.34, 0.04, 0.04, 0.78, 1.28, 0.05),
+        C(0.2, 0.24, 0.5, 8, -1.15, 0.25, 0.1)]],
+      [KOV, [B(0.3, 0.1, 0.18, -1.15, 0.55, 0.1), B(0.46, 0.12, 0.2, -1.15, 0.66, 0.1), C(0.02, 0.02, 0.4, 5, 0.55, 1.28, 0.05, PI / 2)]],
+      [SAZE, [new THREE.ConeGeometry(0.07, 0.24, 4).rotateZ(1.3).translate(-0.35, 1.03, -0.12), new THREE.ConeGeometry(0.05, 0.18, 4).rotateZ(1.7).rotateY(0.8).translate(-0.15, 1.02, 0.16)]],
+    ]),
+  },
+
   pochoden: {
-    meno: 'Tiki pochodeň', ikona: ik('primitive-torch', '#ef7a2f'), skupina: 'Tábor', svetlo: true,
+    meno: 'Tiki pochodeň', ikona: ik('primitive-torch', '#ef7a2f'), skupina: 'Tábor', kluc: 'palica', svetlo: true,
     suroviny: [['palica', 2], ['vlakno', 1], ['list', 1]],
     popis: 'Pochodeň zapichnutá v zemi. Svieti v noci.',
     prichyt: 'volne', polomer: 0.15,
@@ -274,7 +308,7 @@ export const STAVBY = {
   },
 
   zberac_vody: {
-    meno: 'Zberač vody', ikona: ik('full-wood-bucket', '#a87340', ['water-drop', '#4aa8ea', .46, 290, 290]), skupina: 'Tábor',
+    meno: 'Zberač vody', ikona: ik('full-wood-bucket', '#a87340', ['water-drop', '#4aa8ea', .46, 290, 290]), skupina: 'Tábor', kluc: 'kokos',
     suroviny: [['bambus', 3], ['list', 6], ['vlakno', 2], ['kokos', 1]],
     popis: 'Lievik z listov zachytáva dažďovú vodu do nádoby.',
     prichyt: 'volne', polomer: 0.7,
@@ -289,7 +323,7 @@ export const STAVBY = {
   },
 
   susiak: {
-    meno: 'Sušiak na ryby', ikona: ik('fish-smoking', '#b08850'), skupina: 'Tábor',
+    meno: 'Sušiak na ryby', ikona: ik('fish-smoking', '#b08850'), skupina: 'Tábor', kluc: 'palica',
     suroviny: [['palica', 5], ['vlakno', 3]],
     popis: 'Rám, na ktorom sa sušia ryby.',
     prichyt: 'volne', polomer: 0.5,
@@ -307,7 +341,7 @@ export const STAVBY = {
   },
 
   kamenna_pec: {
-    meno: 'Kamenná pec', ikona: ik('fireplace', '#a19d95'), skupina: 'Tábor',
+    meno: 'Kamenná pec', ikona: ik('fireplace', '#a19d95'), skupina: 'Tábor', kluc: 'hlina',
     suroviny: [['kamen', 10], ['hlina', 6], ['drevo', 2]],
     popis: 'Ohnisko z kameňov s komínom.',
     prichyt: 'volne', polomer: 0.9,
@@ -330,7 +364,7 @@ export const STAVBY = {
   },
 
   molo: {
-    meno: 'Drevené mólo', ikona: ik('wooden-pier', '#a87340'), skupina: 'Prístav',
+    meno: 'Drevené mólo', ikona: ik('wooden-pier', '#a87340'), skupina: 'Prístav', kluc: 'drevo',
     suroviny: [['drevo', 12], ['palica', 6], ['vlakno', 4]],
     popis: 'Mólo 2×4 m na nohách. Stavia sa pri brehu na plytčine.',
     prichyt: 'voda', polomer: 0,
@@ -351,7 +385,7 @@ export const STAVBY = {
   },
 
   lampa: {
-    meno: 'Bambusová lampa', ikona: ik('asian-lantern', '#f0a848'), skupina: 'Tábor', svetlo: true,
+    meno: 'Bambusová lampa', ikona: ik('asian-lantern', '#f0a848'), skupina: 'Tábor', kluc: 'bambus', svetlo: true,
     suroviny: [['bambus', 3], ['list', 2], ['vlakno', 1]],
     popis: 'Lampión na bambusovom stojane. Jemne svieti.',
     prichyt: 'volne', polomer: 0.2,
@@ -369,7 +403,7 @@ export const STAVBY = {
   },
 
   totem: {
-    meno: 'Totem', ikona: ik('totem', '#9a7048'), skupina: 'Tábor',
+    meno: 'Totem', ikona: ik('totem', '#9a7048'), skupina: 'Tábor', kluc: 'musla',
     suroviny: [['drevo', 6], ['kamen', 2], ['musla', 2]],
     popis: 'Vyrezávaný totem so strážcami ostrova.',
     prichyt: 'volne', polomer: 0.4,
@@ -395,7 +429,7 @@ export const STAVBY = {
   },
 
   lehatko: {
-    meno: 'Lehátko', ikona: ik('lehatko', '#c9a06a'), skupina: 'Nábytok',
+    meno: 'Lehátko', ikona: ik('lehatko', '#c9a06a'), skupina: 'Nábytok', kluc: 'list',
     suroviny: [['drevo', 3], ['palica', 2], ['list', 3]],
     popis: 'Plážové lehátko. Hlavou k zadnej strane.',
     prichyt: 'volne', polomer: 0.7,
@@ -411,7 +445,7 @@ export const STAVBY = {
   },
 
   vlajka: {
-    meno: 'Vlajka', ikona: ik('flying-flag', '#d9453a'), skupina: 'Tábor',
+    meno: 'Vlajka', ikona: ik('flying-flag', '#d9453a'), skupina: 'Tábor', kluc: 'bambus',
     suroviny: [['bambus', 2], ['list', 2], ['vlakno', 1]],
     popis: 'Vlajka na bambusovom žrdi - označí tvoj tábor.',
     prichyt: 'volne', polomer: 0.15,

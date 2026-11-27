@@ -765,7 +765,7 @@ const AKCIE = {
   ustrica: () => (Math.random() < 0.3 ? [['ustrica', 1], ['perla', 1]] : [['ustrica', 1]]),
   riasa: () => [['riasa', Math.random() < 0.5 ? 2 : 1]],
   truhla: () => {
-    const v = [['zlata_minca', 4 + Math.floor(Math.random() * 8)]];
+    const v = [['zlata_minca', 4 + Math.floor(Math.random() * 8)], ['nacrt', 1]];   // nacrt = vzacny recept
     if (Math.random() < 0.5) v.push(['stary_kompas', 1]);
     if (Math.random() < 0.6) v.push(['perla', 1 + Math.floor(Math.random() * 2)]);
     if (Math.random() < 0.7) v.push(['utrzok_mapy', 1]);       // utrzok mapy (obsah/mapy.js)

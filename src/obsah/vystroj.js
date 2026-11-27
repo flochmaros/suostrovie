@@ -27,6 +27,8 @@ const SADY = [
     [[['lavova_supina', 1], ['jasterie_supiny', 2], ['vlakno', 1]], [['lavova_supina', 3], ['jasterie_supiny', 4], ['vlakno', 3]], [['lavova_supina', 2], ['jasterie_supiny', 3], ['vlakno', 2]], [['lavova_supina', 1], ['jasterie_supiny', 2], ['vlakno', 1]]], 'lavova_supina'],
 ];
 const SLOTY_SADY = ['hlava', 'telo', 'nohy', 'cizmy'];
+// odomykanie a stanica podla sady (vid recepty_odomknute.js); sady z trofeji chrani podmienka
+const ODOMKNUTIE = { list: { kluc: 'list' }, bambus: { kluc: 'bambus', stanica: 'ponk' }, lastura: { nacrt: 'lastura', stanica: 'ponk' }, krab: { stanica: 'ponk' }, supina: { stanica: 'ponk' } };
 export const SADA_PODLA_TIERU = {};   // tier -> [id x4] (pre bonus celej sady)
 
 // recept z trofeje je viditelny, ked hrac trofej niekedy mal (pamata si localStorage)
@@ -40,10 +42,10 @@ for (const [tier, , celkom, kusy, recepty, trofej] of SADY) {
     const farba = '#' + TIERY[tier].f.toString(16).padStart(6, '0');
     predmet(id, { meno, kopa: 1, vybava: true, ikona: ik('spiral-shell', farba), model: modelKusu(slot, tier),
       popis: `${SLOTY[i][1]}: znižuje prijaté poškodenie o ${(obrana * 100).toFixed(obrana * 100 % 1 ? 1 : 0)} %. Celá sada +${BONUS_SADY * 100} %. Nasadíš ju v batohu (Tab) – ťahaj na postavu alebo pravý klik.` });
-    recept_(id, recepty[i], trofej);
+    recept_(id, recepty[i], trofej, ODOMKNUTIE[tier]);
   });
 }
-function recept_(id, suroviny, trofej) { recept({ id, skupina: 'Výstroj', vysledok: [id, 1], suroviny, podmienka: trofej ? malTrofej(trofej) : undefined }); }
+function recept_(id, suroviny, trofej, navyse) { recept({ id, skupina: 'Výstroj', vysledok: [id, 1], suroviny, podmienka: trofej ? malTrofej(trofej) : undefined, ...navyse }); }
 
 // specialne kusy z trofeji strazcov (predmety su v obsah/nepriatelia.js, recepty v obsah/recepty.js)
 const SPEC = [
