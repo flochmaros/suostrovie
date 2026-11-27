@@ -3,6 +3,7 @@
 //   wk = 0..1 napriahnutie (telegraf), sk = 1 pocas utoku, e.typ = 'klepeto' | 'dupot' | 'vrh' | 'vypad'.
 // Modely su v "prirodzenej" velkosti ~1-2 m, zvacsi ich def.scale (obsah/nepriatelia.js). Predok smeruje na +Z.
 import * as THREE from 'three';
+import { mobGLB, NOHY4 } from './moby_glb.js';   // modely z Blenderu (modely/moby/*.glb), chybajuci -> model z kodu nizsie
 
 const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, ...o });
 const sh = k => { k.castShadow = true; return k; };

@@ -8,6 +8,7 @@ import { zran, stav as stavPreziti } from './preziti.js';
 import { vytvorCastice } from './castice.js';
 import { zvuky } from './zvuk.js';
 import { modelKrab as modelKrabDetail } from './modely_nepriatelov.js';
+import { mobGLB, NOHY4 } from './moby_glb.js';
 import { modelLavovyObr, modelKrokodil, modelKraken, modelGolem, chapadloZoZeme, strelaModel } from './modely_bossov.js';
 
 export const udalosti = { priZabiti: null, priFaze: null };       // priZabiti(id, def); priFaze(e, def) = boss zbesnel (50 % zivotov)
@@ -24,6 +25,9 @@ const pivot = (x, y, z, ...deti) => { const p = new THREE.Group(); p.position.se
 // ---------- modely (predok smeruje na +Z) ----------
 const modelKrab = () => modelKrabDetail(false);       // model je v modely_nepriatelov.js
 function modelJaster() {
+  const mob = mobGLB('lavovy_jaster');                // model z Blenderu (nastroje/blender/moby_lavovy_jaster.py)
+  if (mob) return { g: mob.g, tela: [mob.mat('telo'), mob.mat('brucho')], trup: mob.uzol('trup'), hlava: mob.uzol('hlava'),
+    chvost: mob.uzol('chvost'), koniec: mob.uzol('koniec'), pruh: mob.mat('pruh'), nohy: NOHY4.map(([m, s, i]) => ({ n: mob.uzol(m), s, i })) };
   const g = new THREE.Group(), telo = mM(0x4a2820), brucho = mM(0x6b3a2a), oko = mM(0x111111, { emissive: 0xffaa22, emissiveIntensity: 2 });
   const pruh = mM(0x2a1008, { emissive: 0xff5a10, emissiveIntensity: 2.2, roughness: 0.4 });   // ziariace pruhy (bloom)
   const trup = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.9, 4, 10).rotateX(Math.PI / 2).scale(1, 0.75, 1), telo);
