@@ -77,8 +77,9 @@ function docasne() {
 
 export function initBledi(scena, renderer, kamera) {
   skupina = new THREE.Group(); skupina.name = 'bledi'; scena.add(skupina);
+  let cislo = 0;                                    // vzhlad podla poradia v zozname: rovnaky Bledy vyzera vzdy rovnako
   for (const d of (tichaZatoka.bledi ?? docasne())) {
-    const def = TYPY[d.typ] || TYPY.bledy, m = modelBledeho(d.typ === 'matka' ? 'matka' : 'bledy');
+    const def = TYPY[d.typ] || TYPY.bledy, m = modelBledeho(d.typ === 'matka' ? 'matka' : 'bledy_' + (cislo++ % 6 + 1));
     m.g.visible = false; skupina.add(m.g);
     bledi.push({ id: d.id, typ: d.typ || 'bledy', def, m, g: m.g, x: d.domov.x, z: d.domov.z, hd: rnd(0, 6.28), hp: def.hp,
       domov: d.domov, trasa: d.trasa?.length ? d.trasa : [d.domov], bod: 0, ukryt: d.ukryt,

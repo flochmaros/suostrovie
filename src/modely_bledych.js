@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mobGLB } from './moby_glb.js';
+import { uNoc } from './ocean.js';
 
 const koza = (c, e) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.82, emissive: e, emissiveIntensity: 0.55 });
 const MAT = {
@@ -51,14 +52,28 @@ function postavNohu(strana, M) {
   return { stehno, koleno };
 }
 
-// typ: 'bledy' | 'matka' (Matka z jaskyne: tmavsia, s kostenym vencom rohov)
+// Varianty z Blenderu maju farby aj tiene vo vrcholoch: nimi sa nasobi aj slaba vlastna ziara (inak by bola v tme plocha silueta).
+// Ziari len v noci (uNoc), cez den by kozu zosvetlila a sfarbila domodra.
+const tienovanaZiara = s => {
+  s.uniforms.uNoc = uNoc;
+  s.fragmentShader = 'uniform float uNoc;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>',
+    '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb * 3.0 * mix(0.04, 1.0, smoothstep(0.35, 0.95, uNoc));');
+};
+
+// typ: 'bledy' | 'bledy_1'..'bledy_6' (varianty z Blenderu) | 'matka' (Matka z jaskyne: tmavsia, s kostenym vencom rohov)
+const VYSKY = { bledy_1: 1, bledy_2: 1.04, bledy_3: 0.95, bledy_4: 0.98, bledy_5: 1.06, bledy_6: 1.02, matka: 1.28 };   // rozne vysoki
 export function modelBledeho(typ = 'bledy') {
-  const sc = typ === 'matka' ? 1.28 : 1;
-  const mob = mobGLB(typ === 'matka' ? 'matka' : 'bledy');   // model z Blenderu (nastroje/blender/moby_bledy.py), kostra rovnaka ako nizsie
+  const sc = VYSKY[typ] ?? 1;
+  // model z Blenderu (nastroje/blender/moby_bledy.py), kostra rovnaka ako nizsie; ked variant chyba, spolocny stary bledy.glb
+  const mob = mobGLB(typ) || (typ !== 'matka' ? mobGLB('bledy') : null);
   if (mob) {
     const u = mob.uzol, prsty = s => [0, 1, 2, 3, 4].map(i => ({ a: u(`prst_${s}${i}`), b: u(`prst_${s}${i}b`) }));
     mob.g.scale.setScalar(sc);
-    mob.g.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    mob.g.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      if (o.material.vertexColors && ['koza', 'maska'].includes(o.material.name)) o.material.onBeforeCompile = tienovanaZiara;
+    });
     return { g: mob.g, telo: u('telo'), chrbat: u('chrbat'), krk: u('krk'), hlava: u('hlava'),
       sL: u('stehno_L'), sP: u('stehno_P'), kL: u('koleno_L'), kP: u('koleno_P'), rL: u('rameno_L'), rP: u('rameno_P'),
       lL: u('laket_L'), lP: u('laket_P'), zL: u('zap_L'), zP: u('zap_P'), prstyL: prsty('L'), prstyP: prsty('P'),
