@@ -3,6 +3,7 @@
 // Geometrie su zdielane medzi instanciami; materialy tela (tela) su vlastne, aby blikali nezavisle.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mobGLB } from './moby_glb.js';   // model z Blenderu (nastroje/blender/moby_krab.py); ked chyba, krab z kodu nizsie
 
 const UP = new THREE.Vector3(0, 1, 0), FORWARD = new THREE.Vector3(0, 0, 1);
 const H = { top: 0.17, bot: 0.08, X: 0.38, Z: 0.29 };                  // rozmery panciera
@@ -11,6 +12,8 @@ const FARBY = {
   boss: { vrch: 0x7c1d16, brucho: 0xe08a52, bodka: 0xb24a2a, ostn: 0xf0d4a8, oko: 0xff8a2a, kl: 0x8a2a1e, svetle: 0xe0763e },
 };
 const cache = {};
+const GEO_BUBLINA = new THREE.SphereGeometry(0.02, 8, 6);
+const MAT_BUBLINA = new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.55, depthWrite: false });
 
 // ---- panciier: deformovana gula (siroky vpredu, vrubkovany okraj, ploche brucho) + ostne, bradavky, boss ozdoby v jednej geometrii s vertex farbami ----
 function topY(x, z) { const q = 1 - (x / H.X) ** 2 - (z / H.Z) ** 2; return q > 0 ? H.top * Math.sqrt(q) : 0; }
@@ -90,16 +93,111 @@ function priprav(boss) {
     rameno: cyl(0.032, 0.04, 0.2, 'z'), predl: cyl(0.04, 0.034, 0.18, 'z'), dlan: new THREE.SphereGeometry(1, 14, 10),
     prst: hrot(0.05, 0.24, 'z'), zub: new THREE.ConeGeometry(0.014, 0.05, 5),
     stopka: new THREE.CylinderGeometry(0.014, 0.02, 0.14, 6), oko: new THREE.SphereGeometry(0.05, 12, 10), lesk: new THREE.SphereGeometry(0.014, 6, 5),
-    celust: new THREE.ConeGeometry(0.018, 0.08, 5).rotateX(Math.PI / 2), bubl: new THREE.SphereGeometry(0.02, 8, 6),
+    celust: new THREE.ConeGeometry(0.018, 0.08, 5).rotateX(Math.PI / 2),
     mOko: new THREE.MeshPhysicalMaterial({ color: F.oko, roughness: 0.12, metalness: 0, clearcoat: 1, emissive: F.oko, emissiveIntensity: 0.35 }),
     mZrenica: new THREE.MeshPhysicalMaterial({ color: 0x050505, roughness: 0.05, clearcoat: 1 }),
     mLesk: new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    mBubl: new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.55, depthWrite: false }),
     mZub: new THREE.MeshStandardMaterial({ color: F.ostn, roughness: 0.5 }),
   };
 }
 
+// ---- model z Blenderu: farby podla druhu kraba. Vertex farby panciera v .glb su len maska (R vrch, G bodka/ryha, B spicka ostna). ----
+const geoPanciera = {};
+function zafarbiPancier(geo, boss) {
+  return geoPanciera[geo.uuid + boss] ||= (() => {
+    const F = boss ? FARBY.boss : FARBY.noc, m = geo.attributes.color, n = m.count, a = new Float32Array(n * 3), p = geo.attributes.position;
+    const vrch = new THREE.Color(F.vrch).multiplyScalar(0.72), brucho = new THREE.Color(F.brucho), bodka = new THREE.Color(F.bodka).lerp(new THREE.Color(F.ostn), 0.3), ostn = new THREE.Color(F.ostn), c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const g = m.getY(i) * 2 - 1;
+      c.copy(brucho).lerp(vrch, m.getX(i));
+      if (g > 0) c.lerp(bodka, g); else c.multiplyScalar(1 + g * 0.7);              // bodky / tmave ryhy
+      c.multiplyScalar(1 - 0.35 * Math.max(0, (p.getY(i) - 0.07) / 0.11));          // tmavsi stred chrbta
+      c.lerp(ostn, m.getZ(i));
+      if (boss && p.getY(i) > 0.05) c.multiplyScalar(1 - 0.22 * Math.max(0, 1 - Math.abs(p.getX(i)) / 0.09));   // tmavsi hreben
+      c.toArray(a, i * 3);
+    }
+    const nova = geo.clone();
+    nova.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return nova;
+  })();
+}
+
+function krabZBlenderu(boss) {
+  const mob = mobGLB('krab');
+  if (!mob) return null;
+  const F = boss ? FARBY.boss : FARBY.noc, u = mob.uzol, hrub = boss ? 1.25 : 1;
+  // ozdoby bossa (mach, barnakle, ostne) su v modeli navyse - nocnemu krabovi ich zmazeme
+  if (!boss) for (const m of ['boss', 'boss_P', 'boss_L']) u(m).removeFromParent();
+  const shell = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.52, metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.4 });   // menej leskly, nech vidno kresbu
+  const mats = {};
+  mob.g.traverse(o => {
+    if (!o.isMesh) return;
+    if (o.material.name === 'pancier') { o.material = shell; o.geometry = zafarbiPancier(o.geometry, boss); }
+    else mats[o.material.name] = o.material;
+  });
+  const farbi = (m, hex) => mats[m]?.color.setHex(hex);
+  farbi('telo', F.kl); farbi('svetle', F.svetle); farbi('zub', F.ostn); farbi('hrot', boss ? 0x2a0e0a : 0x1e1840);
+  farbi('oko', F.oko); mats.oko?.emissive.setHex(F.oko); if (mats.oko) mats.oko.emissiveIntensity = boss ? 0.6 : 0.5;
+
+  const trup = u('trup'), strany = [['P', -1], ['L', 1]];
+  const oci = strany.map(([m, s]) => { const o = u('stopka_' + m); o.rotation.set(0.25, 0, -s * 0.3); return o; });
+  const celuste = strany.map(([m]) => { const c = u('celust_' + m); c.rotation.x = 0.35; return c; });
+  // klepeta: lave (+x) je vacsie; velkost nastavuje hra (v Blenderi su obe rovnake)
+  const klieste = [], prsty = [];
+  for (const [m, s] of strany) {
+    const K = s > 0 ? 1.3 * hrub : 0.85 * hrub, lakt = u('lakt_' + m);
+    lakt.scale.setScalar(Math.min(K, 1.15)); u('klepeto_' + m).scale.setScalar(K * (s > 0 ? 0.86 : 0.95));   // velke klepeto nesmie zakryt tvar
+    klieste.push(u('ram_' + m)); prsty.push({ hp: u('prst_' + m), s, lakt });
+  }
+  const nohy = [];
+  for (const [m, s] of strany) for (let i = 0; i < 4; i++) {
+    const hip = u('bedro_' + m + i);
+    nohy.push({ hip, kno: u('koleno_' + m + i), ank: u('clenok_' + m + i), s, i });
+    if (boss) hip.traverse(o => { if (o.isMesh) o.scale.set(1, 1.25, 1.25); });   // boss ma hrubsie nohy
+  }
+  // bubliny pri ustach (priehladne, hybe nimi animacia)
+  const bubliny = [0, 1, 2].map(() => { const b = new THREE.Mesh(GEO_BUBLINA, MAT_BUBLINA); trup.add(b); return b; });
+  return { g: mob.g, tela: [shell, mats.telo, mats.svetle], trup, klieste, nohy: [],
+    animKrab: animaciaKraba({ trup, nohy, klieste, prsty, oci, celuste, bubliny }) };
+}
+
+// spolocna animacia pre model z Blenderu aj z kodu (rovnake pivoty)
+function animaciaKraba({ trup, nohy: nohyK, klieste, prsty, oci, celuste, bubliny }) {
+  return function animKrab(e, dt, cas, wk, sk, dupK, pohyb) {
+      const ph = e.ph;
+      for (const { hip, kno, ank, s, i } of nohyK) {
+        const p = ph + (((i + (s > 0 ? 1 : 0)) % 2) ? Math.PI : 0) + i * 0.4;
+        const zdv = Math.max(0, Math.cos(p)) * pohyb;                                    // nadvihnutie nohy pocas kroku
+        const splay = (1.5 - i) * 0.3 + Math.sin(p) * 0.32 * pohyb;                      // krok dopredu/dozadu
+        hip.rotation.set(0, -s * splay, s * (0.62 + zdv * 0.35 + wk * 0.1));
+        kno.rotation.z = -s * (1.62 - zdv * 0.4);
+        ank.rotation.z = -s * (0.32 + zdv * 0.2);
+      }
+      for (let k = 0; k < 2; k++) {
+        const s = k ? 1 : -1, big = k === 1, r = klieste[k], { hp, lakt } = prsty[k];
+        r.rotation.x = -wk * (dupK ? 1.9 : (big ? 1.25 : 1.0)) + sk * (dupK ? 1.4 : 0.65) + Math.sin(cas * 1.1 + k) * 0.04 * (1 - wk);
+        r.rotation.y = s * (0.4 - wk * 0.45) * 0.8;
+        lakt.rotation.y = -s * (0.85 - wk * 0.5);
+        const idle = (0.25 + 0.4 * (0.5 + 0.5 * Math.sin(cas * (big ? 1.3 : 1.9) + k * 2))) * (1 - wk) * (1 - sk);
+        hp.rotation.x = -(idle + wk * 0.75) + sk * 0.12;                                 // otvorene pri napriahu, zaklapnutie pri utoku
+      }
+      const dych = Math.sin(cas * 2.2 + ph * 0.1);
+      trup.scale.set(1 + dych * 0.012, 1 + dych * 0.035, 1 + dych * 0.012);
+      oci[0].rotation.z = 0.3 + Math.sin(cas * 1.7) * 0.06; oci[1].rotation.z = -0.3 + Math.sin(cas * 1.4 + 1) * 0.06;
+      oci[0].rotation.x = oci[1].rotation.x = 0.25 - wk * 0.2;
+      for (let i = 0; i < 2; i++) celuste[i].rotation.y = (i ? 1 : -1) * (0.08 + (0.5 + 0.5 * Math.sin(cas * (8 + wk * 6) + i * 1.3)) * (0.22 + wk * 0.3));
+      const tichy = wk === 0 && sk === 0;
+      for (let i = 0; i < 3; i++) {
+        const u = (cas * 0.5 + i / 3) % 1, v = tichy ? Math.sin(Math.PI * u) : 0;
+        bubliny[i].position.set(Math.sin(i * 2.1 + u * 4) * 0.05, -0.03 + u * 0.2, 0.34 + u * 0.06);
+        bubliny[i].scale.setScalar(Math.max(v * (0.6 + 0.6 * ((i * 7) % 3) / 2), 0.0001));
+      }
+  };
+}
+
 export function modelKrab(boss = false) {
+  const zBlenderu = krabZBlenderu(boss);
+  if (zBlenderu) return zBlenderu;
   const G = cache[boss ? 'boss' : 'noc'] ||= priprav(boss), F = boss ? FARBY.boss : FARBY.noc;
   const shell = new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.38, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.35, flatShading: false });
   const telo = new THREE.MeshStandardMaterial({ color: F.kl, roughness: 0.5 }), svetle = new THREE.MeshStandardMaterial({ color: F.svetle, roughness: 0.45 });
@@ -124,7 +222,7 @@ export function modelKrab(boss = false) {
     const c = new THREE.Group(); c.position.set(s * 0.045, -0.04, 0.3); c.add(mesh(G.celust, G.mZub, 0, 0, 0.04)); c.rotation.x = 0.35; trup.add(c); celuste.push(c);
   }
   const bubliny = [];
-  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(G.bubl, G.mBubl); b.position.set(0, 0, 0.35); trup.add(b); bubliny.push(b); }
+  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(GEO_BUBLINA, MAT_BUBLINA); b.position.set(0, 0, 0.35); trup.add(b); bubliny.push(b); }
 
   // klepeta: [mensie vlavo, vacsie vpravo]; rameno -> predlaktie -> dlan + pevny prst + pohyblivy prst
   const klieste = [], prsty = [];
@@ -156,35 +254,6 @@ export function modelKrab(boss = false) {
     nohyK.push({ hip, kno, ank, s, i });
   }
 
-  function animKrab(e, dt, cas, wk, sk, dupK, pohyb) {
-    const ph = e.ph;
-    for (const { hip, kno, ank, s, i } of nohyK) {
-      const p = ph + (((i + (s > 0 ? 1 : 0)) % 2) ? Math.PI : 0) + i * 0.4;
-      const zdv = Math.max(0, Math.cos(p)) * pohyb;                                    // nadvihnutie nohy pocas kroku
-      const splay = (1.5 - i) * 0.3 + Math.sin(p) * 0.32 * pohyb;                      // krok dopredu/dozadu
-      hip.rotation.set(0, -s * splay, s * (0.62 + zdv * 0.35 + wk * 0.1));
-      kno.rotation.z = -s * (1.62 - zdv * 0.4);
-      ank.rotation.z = -s * (0.32 + zdv * 0.2);
-    }
-    for (let k = 0; k < 2; k++) {
-      const s = k ? 1 : -1, big = k === 1, r = klieste[k], { hp, lakt } = prsty[k];
-      r.rotation.x = -wk * (dupK ? 1.9 : (big ? 1.25 : 1.0)) + sk * (dupK ? 1.4 : 0.65) + Math.sin(cas * 1.1 + k) * 0.04 * (1 - wk);
-      r.rotation.y = s * (0.4 - wk * 0.45) * 0.8;
-      lakt.rotation.y = -s * (0.85 - wk * 0.5);
-      const idle = (0.25 + 0.4 * (0.5 + 0.5 * Math.sin(cas * (big ? 1.3 : 1.9) + k * 2))) * (1 - wk) * (1 - sk);
-      hp.rotation.x = -(idle + wk * 0.75) + sk * 0.12;                                 // otvorene pri napriahu, zaklapnutie pri utoku
-    }
-    const dych = Math.sin(cas * 2.2 + ph * 0.1);
-    trup.scale.set(1 + dych * 0.012, 1 + dych * 0.035, 1 + dych * 0.012);
-    oci[0].rotation.z = 0.3 + Math.sin(cas * 1.7) * 0.06; oci[1].rotation.z = -0.3 + Math.sin(cas * 1.4 + 1) * 0.06;
-    oci[0].rotation.x = oci[1].rotation.x = 0.25 - wk * 0.2;
-    for (let i = 0; i < 2; i++) celuste[i].rotation.y = (i ? 1 : -1) * (0.08 + (0.5 + 0.5 * Math.sin(cas * (8 + wk * 6) + i * 1.3)) * (0.22 + wk * 0.3));
-    const tichy = wk === 0 && sk === 0;
-    for (let i = 0; i < 3; i++) {
-      const u = (cas * 0.5 + i / 3) % 1, v = tichy ? Math.sin(Math.PI * u) : 0;
-      bubliny[i].position.set(Math.sin(i * 2.1 + u * 4) * 0.05, -0.03 + u * 0.2, 0.34 + u * 0.06);
-      bubliny[i].scale.setScalar(Math.max(v * (0.6 + 0.6 * ((i * 7) % 3) / 2), 0.0001));
-    }
-  }
-  return { g, tela: [shell, telo, svetle], trup, nohy: [], klieste, animKrab };
+  return { g, tela: [shell, telo, svetle], trup, nohy: [], klieste,
+    animKrab: animaciaKraba({ trup, nohy: nohyK, klieste, prsty, oci, celuste, bubliny }) };
 }
