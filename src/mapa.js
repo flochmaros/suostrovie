@@ -1,4 +1,6 @@
-// Mapa: minimapa (kruh vlavo dole) + velka mapa cez celu obrazovku (klavesa N).
+// Mapa: minimapa (kruh vlavo dole) + velka mapa cez celu obrazovku (klavesa N). Styly: src/ui/mapa.css.
+// Namorna mapa: sepiovy teren s atramentovym pobrezim, nepreskumane casti kryje pergamen (hmla, hmla.js).
+// V dev rezime (F2) klik na velku mapu teleportuje hraca a hmlu sa da vypnut.
 // Teren sa kresli do malych platien po dlazdiciach (1 dlazdica = 1 bunka sveta 520 m) a uklada sa do cache.
 // Dlazdice sa generuju postupne (casovy limit na snimok), aby hra nezasekavala.
 // Suradnice: sever = -z (hore), vychod = +x (vpravo) -> na mape px = x, py = z.
@@ -6,6 +8,8 @@ import { majaky } from './majak.js';
 import { vyskaTerenu, ostrovVBunke, ostrovPri, BUNKA, PASMA, polomerPasma, MENOVANE_OSTROVY } from './svet.js';
 import * as THREE from 'three';
 import { znacky, TYPY, navi, ciel, kresliZnacku, menoOstrova, jePomenovany, pomenujOstrov, upravZnacku, dialogOtvoreny } from './znacky.js';
+import { HB, poleHmly, nieceOdkryte, jeOdkryte, jeNavstiveny, verzia } from './hmla.js';
+import { dev, teleport } from './dev.js';
 import { ik } from './ikony.js';
 
 const RES = 96;                 // pixelov na dlazdicu (5.4 m na pixel)
@@ -14,45 +18,7 @@ const LIMIT_MS = 3;             // kolko ms za snimok mozeme minut na generovani
 const MINI_PX = 180, MINI_R = 350;   // velkost minimapy a polomer zobrazeneho okolia v metroch
 const KLAVESA = 'KeyN';
 
-// ---------- CSS + DOM ----------
-const styl = document.createElement('style');
-styl.textContent = `
-#minimapa { position: absolute; left: 18px; bottom: 34px; width: ${MINI_PX}px; height: ${MINI_PX}px; }
-#minimapa canvas { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 3px 14px #0008, 0 0 0 3px rgba(240,226,190,.85), 0 0 0 5px rgba(60,40,20,.55); }
-#minimapa .sever { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 50%;
-  background: #f1e3bd; color: #7a2b1a; font: 800 12px/20px Nunito, system-ui, sans-serif; text-align: center; text-shadow: none; box-shadow: 0 1px 4px #0006; }
-#minimapa .sipka { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -9px 0 0 -6px; border-left: 6px solid transparent; border-right: 6px solid transparent;
-  border-bottom: 16px solid #fff; filter: drop-shadow(0 0 2px #000a); transform-origin: 6px 10px; }
-#minimapa .popis { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 7px; text-align: center; font-size: 12px; line-height: 1.3; white-space: nowrap; }
-#minimapa .popis b { font-size: 13px; }
-#minimapa .klaves { position: absolute; right: -4px; bottom: 2px; font-size: 11px; opacity: .8; }
-#mapa-okno { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(12,22,30,.55); pointer-events: auto; user-select: none; }
-#mapa-ram { position: absolute; inset: 3.5vh 3.5vw; border-radius: 6px; overflow: hidden; background: #d9c79c;
-  box-shadow: 0 10px 50px #000a, inset 0 0 0 4px #6b4a26, inset 0 0 0 7px #e8d6a8, inset 0 0 0 9px #6b4a26; padding: 9px; box-sizing: border-box; }
-#mapa-ram canvas { width: 100%; height: 100%; display: block; cursor: grab; border-radius: 2px; }
-#mapa-ram canvas.tahanie { cursor: grabbing; }
-#mapa-ram .vineta { position: absolute; inset: 9px; pointer-events: none; box-shadow: inset 0 0 90px rgba(90,60,20,.55); }
-#mapa-titul { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); padding: 4px 26px; border-radius: 4px; background: #efe0b8;
-  color: #4a3218; font: italic 700 22px Georgia, serif; letter-spacing: 2px; box-shadow: 0 2px 8px #0005; }
-#mapa-legenda { position: absolute; left: 22px; bottom: 22px; padding: 10px 14px; border-radius: 6px; background: rgba(239,224,184,.92); color: #3f2b14;
-  font: 13px/1.6 Georgia, serif; box-shadow: 0 2px 8px #0005; }
-#mapa-legenda i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; border: 1.5px solid #3f2b14; }
-#mapa-menu { display: none; position: absolute; z-index: 5; min-width: 190px; padding: 5px; border-radius: 6px; background: #efe0b8; color: #3f2b14;
-  font: 14px Georgia, serif; box-shadow: 0 4px 18px #000a, 0 0 0 2px #6b4a26; }
-#mapa-menu div { padding: 7px 12px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
-#mapa-menu div:hover { background: rgba(181,100,31,.28); }
-#mapa-menu .hlava { cursor: default; font-weight: 700; font-style: italic; opacity: .8; padding: 4px 12px 6px; border-bottom: 1px solid rgba(63,43,20,.3); margin-bottom: 3px; }
-#mapa-menu .hlava:hover { background: none; }
-#navi-svet { display: none; position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -50%); text-align: center; color: #fff; text-shadow: 0 1px 4px #000, 0 0 8px #000a;
-  font: 700 13px/1.25 Nunito, system-ui, sans-serif; }
-#navi-svet svg { width: 34px; height: 34px; display: block; margin: 0 auto 1px; filter: drop-shadow(0 2px 4px #000a); }
-#navi-svet small { display: block; font-size: 12px; opacity: .9; font-weight: 600; }
-#minimapa .navi { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 44px; text-align: center; font-size: 12px; white-space: nowrap; color: #ffe9a8; text-shadow: 0 1px 3px #000; }
-#mapa-info { position: absolute; right: 22px; bottom: 22px; padding: 8px 14px; border-radius: 6px; background: rgba(239,224,184,.92); color: #3f2b14;
-  font: 13px/1.5 Georgia, serif; text-align: right; box-shadow: 0 2px 8px #0005; }
-`;
-document.head.appendChild(styl);
-
+// ---------- DOM ----------
 const mini = document.createElement('div');
 mini.id = 'minimapa';
 mini.innerHTML = `<canvas width="${MINI_PX * 2}" height="${MINI_PX * 2}"></canvas><div class="sipka"></div><div class="sever">S</div>`
@@ -66,9 +32,9 @@ document.body.appendChild(naviSvet);
 const mapaMenu = document.createElement('div');
 mapaMenu.id = 'mapa-menu';
 
-// farby pasiem: [podfarbenie (priehladne), ciara]
-const PAS_FARBY = [['rgba(40,220,210,.10)', '#30d5c8'], ['rgba(255,110,40,.16)', '#ff7a3c'], ['rgba(90,140,50,.20)', '#8fbf4a'],
-  ['rgba(90,110,135,.22)', '#8fa6c0'], ['rgba(150,120,190,.22)', '#c2a8e8']];
+// farby pasiem: [podfarbenie (priehladne), ciara] - tlmene atramenty
+const PAS_FARBY = [['rgba(47,127,120,.04)', '#2f7f78'], ['rgba(168,82,42,.09)', '#a8522a'], ['rgba(93,110,48,.10)', '#5d6e30'],
+  ['rgba(71,89,110,.12)', '#47596e'], ['rgba(109,85,133,.12)', '#6d5585']];
 const N_UHLOV = 120;
 // obrys hranice pasma i (polygon v suradniciach platna); X, Z prevadzaju metre na pixely
 function obrysPasma(c, i, X, Z, spat) {
@@ -88,20 +54,20 @@ function kresliPasma(c, w, h, X, Z, popisy, m) {
     c.fillStyle = PAS_FARBY[i - 1][0]; c.fill('evenodd');
   }
   c.save();
-  c.setLineDash(popisy ? [14, 9] : [7, 5]); c.lineWidth = popisy ? 2.5 : 1.8;
+  c.setLineDash(popisy ? [14, 9] : [7, 5]); c.lineWidth = popisy ? 2 : 1.5; c.globalAlpha = 0.75;
   for (let i = 1; i <= 4; i++) {
     c.beginPath(); obrysPasma(c, i, X, Z, false);
     c.strokeStyle = PAS_FARBY[i][1]; c.stroke();
   }
   c.restore();
   if (!popisy) return;
-  c.font = 'italic 700 14px Georgia, serif'; c.textAlign = 'center';
+  c.font = '17px "Caveat Brush", cursive'; c.textAlign = 'center';
   for (let i = 1; i <= 4; i++) {
     for (const a of [-2.35, -0.8, 0.8, 2.35]) {            // 4 uhly: popis sa ukaze tam, kde je hranica v pohlade
       const r = polomerPasma(i, a), sx = X(BUNKA / 2 + Math.cos(a) * r), sy = Z(BUNKA / 2 + Math.sin(a) * r);
       if (sx < 80 || sx > w - 80 || sy < 20 || sy > h - 20) continue;
       const t = `${i}→${i + 1} · ${PASMA[i + 1].meno}`;
-      c.lineWidth = 4; c.strokeStyle = 'rgba(20,14,6,.8)'; c.strokeText(t, sx, sy - 6);
+      c.lineWidth = 4; c.strokeStyle = 'rgba(240,226,190,.9)'; c.strokeText(t, sx, sy - 6);
       c.fillStyle = PAS_FARBY[i][1]; c.fillText(t, sx, sy - 6);
     }
   }
@@ -110,15 +76,22 @@ function kresliPasma(c, w, h, X, Z, popisy, m) {
 const okno = document.createElement('div');
 okno.id = 'mapa-okno';
 okno.innerHTML = `<div id="mapa-ram"><canvas></canvas><div class="vineta"></div></div>
-  <div id="mapa-titul">Mapa súostrovia</div>
-  <div id="mapa-legenda"><div><i style="background:#fff"></i>Ty (šípka = smer)</div><div><i style="background:#ffb020"></i>Aktívna loď</div>
-    <div><i style="background:#c0392b"></i>Ostatné lode</div>
-    <hr style="border:0;border-top:1px solid rgba(255,255,255,.25);margin:6px 0">${PASMA.slice(1).map((p, i) => `<div><i style="background:${PAS_FARBY[i][1]}"></i>${i + 1} · ${p.meno}<br><small style="opacity:.7">loď: ${p.lod}</small></div>`).join('')}</div>
-  <div id="mapa-info"></div>`;
+  <div id="mapa-titul" class="tema-nadpis">Mapa súostrovia</div>
+  <div id="mapa-legenda" class="tema-papier"><div><i style="background:#fff8e6"></i>Ty (šípka = smer)</div><div><i style="background:#e2a02a"></i>Aktívna loď</div>
+    <div><i style="background:#a8392a"></i>Ostatné lode</div>
+    <hr>${PASMA.slice(1).map((p, i) => `<div><i style="background:${PAS_FARBY[i][1]}"></i>${i + 1} · ${p.meno}<br><small>loď: ${p.lod}</small></div>`).join('')}</div>
+  <div id="mapa-info" class="tema-papier"></div>
+  <div id="mapa-dev" class="tema-panel"><b>Dev: klik = teleport</b><label><input type="checkbox" checked> Hmla na mape</label></div>
+  <div id="mapa-tip" class="tema-panel"></div>`;
 okno.appendChild(mapaMenu);
 document.body.appendChild(okno);
 const mapaPlatno = okno.querySelector('canvas'), mapaCtx = mapaPlatno.getContext('2d');
 const mapaInfo = okno.querySelector('#mapa-info');
+const devBox = okno.querySelector('#mapa-dev'), devHmla = devBox.querySelector('input'), tip = okno.querySelector('#mapa-tip');
+try { devHmla.checked = localStorage.getItem('devMapaHmla') !== '0'; } catch (e) { /* nic */ }
+devHmla.onchange = () => { try { localStorage.setItem('devMapaHmla', devHmla.checked ? '1' : '0'); } catch (e) { /* nic */ } devHmla.blur(); };
+const hmlaVidno = () => !dev.zapnuty || devHmla.checked;       // vypnut sa da len v dev rezime
+document.fonts?.load('22px "Caveat Brush"');                  // aby ho mal k dispozicii aj canvas
 
 // ---------- farby terenu ----------
 const hex = c => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
@@ -131,20 +104,25 @@ const BIOM_FARBY = {
   bambusovy: [0x79a83a, 0x5c8c2e, 0xe6d4a0, 1.4], savana: [0xb2ad5c, 0x8fa23f, 0xe6cf98, 1.0], plytcina: [0x7ab548, 0x5f9a37, 0xf0dcaa, 1.5],
   ovocny: [0x7cb842, 0x5ea330, 0xead7a2, 1.4], ostrovcek: [0x7ab548, 0x5f9a37, 0xf0dcaa, 1.3],
 };
-const PLYTKA = hex(0x6fe0d2), STREDNA = hex(0x2296b8), HLBOKA = hex(0x0c3a63), PENA = hex(0xe8fbf6), SKALA = hex(0x8d877c);
-const OCEAN_CSS = '#1b5f87';
+const PLYTKA = hex(0xcbd0ad), STREDNA = hex(0x9db3a0), HLBOKA = hex(0x7a958c), SKALA = hex(0x9a8468);
+const PAPIER = hex(0xd9c291), ATRAMENT = hex(0x46290f);
+const OCEAN_CSS = '#7a958c';
 
 function farba(h, b) {
   if (h < 0) {                                         // more: cim hlbsie, tym tmavsie
     const d = -h;
-    let c = d < 9 ? mix(PLYTKA, STREDNA, sstep(0, 9, d)) : mix(STREDNA, HLBOKA, sstep(9, 34, d));
-    if (d < 0.5) c = mix(PENA, c, d / 0.5);          // pena pri brehu
-    return c;
+    return d < 9 ? mix(PLYTKA, STREDNA, sstep(0, 9, d)) : mix(STREDNA, HLBOKA, sstep(9, 30, d));
   }
-  if (h < b.plaz) return b.piesok;
-  const c = mix(b.tr1, b.tr2, sstep(b.plaz, 16, h));
-  return h > 22 ? mix(c, SKALA, sstep(22, 40, h)) : c;
+  let c;
+  if (h < b.plaz) c = b.piesok;
+  else {
+    c = mix(b.tr1, b.tr2, sstep(b.plaz, 16, h));
+    if (h > 22) c = mix(c, SKALA, sstep(22, 40, h));
+  }
+  return mix(c, PAPIER, 0.42);                         // vyblednute farby starej mapy
 }
+// atramentova ciara na vrstevnici "uroven": vzdialenost bodu od ciary v pixeloch = rozdiel vysky / spad na pixel
+const ciara = (h, uroven, spad, hrubka) => Math.min(1, Math.max(0, hrubka - Math.abs(h - uroven) / Math.max(spad, 0.05)));
 
 // ---------- dlazdice (cache) ----------
 const dlazdice = new Map();     // "bx,bz" -> { platno, vysky, riadok, hotova, o }
@@ -167,15 +145,19 @@ function dokonciDlazdicu(d) {
   p.width = p.height = RES;
   const c = p.getContext('2d'), img = c.createImageData(RES, RES), v = d.vysky, W = RES + 1, mpp = BUNKA / RES;
   for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) {
-    const h = v[j * W + i];
+    const h = v[j * W + i], dx = v[j * W + i + 1] - h, dz = v[(j + 1) * W + i] - h, spad = Math.hypot(dx, dz);
     let [r, g, b] = farba(h, d.b);
     if (h > 0) {                                       // tienovanie svahov (svetlo zo severozapadu)
-      const dx = v[j * W + i + 1] - h, dz = v[(j + 1) * W + i] - h;
-      const s = Math.max(0.55, Math.min(1.35, 1 - (dx + dz) / mpp * 0.55));
+      const s = Math.max(0.68, Math.min(1.2, 1 - (dx + dz) / mpp * 0.42));
       r *= s; g *= s; b *= s;
     }
-    const k = (j * RES + i) * 4;
-    img.data[k] = r; img.data[k + 1] = g; img.data[k + 2] = b; img.data[k + 3] = 255;
+    // pobrezie = hruba ciara; v mori jemne "vlnky" okolo brehu; na susi vrstevnice kazdych 7 m
+    let a = ciara(h, 0, spad, 1.45) * 0.92;
+    if (h < -0.3) a = Math.max(a, ciara(h, -2.6, spad, 0.9) * 0.34, ciara(h, -7, spad, 0.8) * 0.18);
+    else if (h > 4) a = Math.max(a, ciara(h, Math.max(1, Math.round(h / 7)) * 7, spad, 0.8) * 0.28);
+    const k = (j * RES + i) * 4, zrno = ((i * 37 + j * 91 + d.bx * 13 + d.bz * 7) % 11 - 5) * 0.9;
+    img.data[k] = r + (ATRAMENT[0] - r) * a + zrno; img.data[k + 1] = g + (ATRAMENT[1] - g) * a + zrno;
+    img.data[k + 2] = b + (ATRAMENT[2] - b) * a + zrno; img.data[k + 3] = 255;
   }
   c.putImageData(img, 0, 0);
   d.platno = p; d.vysky = null; d.hotova = true;
@@ -231,6 +213,7 @@ function vyziadaj(x0, z0, x1, z1, cx, cz) {
   const zoz = [];
   for (let bz = Math.floor(z0 / BUNKA); bz <= Math.floor(z1 / BUNKA); bz++)
     for (let bx = Math.floor(x0 / BUNKA); bx <= Math.floor(x1 / BUNKA); bx++) {
+      if (hmlaVidno() && !nieceOdkryte(bx * BUNKA, bz * BUNKA, (bx + 1) * BUNKA, (bz + 1) * BUNKA)) continue;
       const d = dlazdica(bx, bz);
       if (!d.hotova) zoz.push([d, Math.hypot((bx + 0.5) * BUNKA - cx, (bz + 0.5) * BUNKA - cz)]);
     }
@@ -253,6 +236,91 @@ function kresliTeren(ctx, w, h, cx, cz, m) {
       ctx.drawImage(d.platno, Math.floor((bx * BUNKA - x0) * m), Math.floor((bz * BUNKA - z0) * m), Math.ceil(s) + 1, Math.ceil(s) + 1);
     }
   return chyba;
+}
+
+// ---------- hmla (pergamen cez nepreskumane casti) ----------
+// vzorka pergamenu: skvrny, vlnky ako na starej mape a sikme srafovanie; dlazdi sa bez svov
+const VZ = 256;
+const vzorka = (() => {
+  const p = document.createElement('canvas'); p.width = p.height = VZ;
+  const c = p.getContext('2d');
+  let s = 12345;
+  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  c.fillStyle = '#dcc695'; c.fillRect(0, 0, VZ, VZ);
+  // vsetko sa kresli aj o dlazdicu vedla, aby na hranach nevznikli svy
+  const dookola = (x, y, fn) => { for (const dx of [-VZ, 0, VZ]) for (const dy of [-VZ, 0, VZ]) fn(x + dx, y + dy); };
+  for (let i = 0; i < 70; i++) {                       // skvrny po starom papieri
+    const x = r() * VZ, y = r() * VZ, R = 10 + r() * 40, tm = r() < 0.55;
+    dookola(x, y, (px, py) => {
+      const g = c.createRadialGradient(px, py, 0, px, py, R);
+      g.addColorStop(0, tm ? 'rgba(140,100,45,.10)' : 'rgba(255,244,210,.14)'); g.addColorStop(1, 'rgba(160,120,60,0)');
+      c.fillStyle = g; c.fillRect(px - R, py - R, R * 2, R * 2);
+    });
+  }
+  for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(90,60,25,${0.05 + r() * 0.12})`; c.fillRect(r() * VZ, r() * VZ, 1.3, 1.3); }
+  c.strokeStyle = 'rgba(105,72,32,.27)'; c.lineWidth = 1.2; c.lineCap = 'round';
+  for (const [x, y] of [[26, 30], [150, 62], [84, 128], [214, 150], [40, 206], [160, 226]]) {   // dvojite vlnky
+    dookola(x, y, (px, py) => {
+      for (const [ox, oy] of [[0, 0], [7, 7]]) {
+        c.beginPath(); c.moveTo(px + ox, py + oy);
+        c.quadraticCurveTo(px + ox + 5, py + oy - 5, px + ox + 10, py + oy); c.quadraticCurveTo(px + ox + 15, py + oy - 5, px + ox + 20, py + oy);
+        c.stroke();
+      }
+    });
+  }
+  c.strokeStyle = 'rgba(105,72,32,.11)'; c.lineWidth = 1;
+  for (const [x, y] of [[104, 22], [220, 96], [24, 112], [128, 180]]) dookola(x, y, (px, py) => {   // srafovanie
+    for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(px + k * 6, py + 18); c.lineTo(px + k * 6 + 12, py); c.stroke(); }
+  });
+  return p;
+})();
+
+const pamatMini = {}, pamatVelka = {};
+const OKRAJ = 10;                                    // o kolko buniek je maska vacsia nez pohlad
+// maska: 1 pixel = 1 bunka hmly (16 m), alfa = hmla; rozmazana a mierne rozstrapkana, po zvacseni ma makky okraj
+function maskaHmly(pam, i0, j0, i1, j1) {
+  if (pam.platno && pam.verzia === verzia && i0 >= pam.i0 && j0 >= pam.j0 && i1 <= pam.i0 + pam.W && j1 <= pam.j0 + pam.H) return pam;
+  pam.i0 = i0 - OKRAJ; pam.j0 = j0 - OKRAJ; pam.W = i1 - i0 + 2 * OKRAJ; pam.H = j1 - j0 + 2 * OKRAJ; pam.verzia = verzia;
+  const { W, H } = pam;
+  let a = poleHmly(pam.i0, pam.j0, W, H), t = new Float32Array(W * H);
+  for (let pas = 0; pas < 2; pas++) for (const krok of [1, W]) {       // rozmazanie vodorovne a zvislo
+    for (let k = 0; k < W * H; k++) {
+      const x = k % W, kraj = krok === 1 ? x < 2 || x >= W - 2 : k < 2 * W || k >= W * H - 2 * W;
+      t[k] = kraj ? a[k] : (a[k - 2 * krok] + a[k - krok] + a[k] + a[k + krok] + a[k + 2 * krok]) / 5;
+    }
+    [a, t] = [t, a];
+  }
+  pam.platno ||= document.createElement('canvas');
+  pam.platno.width = W; pam.platno.height = H;
+  const c = pam.platno.getContext('2d'), img = c.createImageData(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const k = y * W + x, v = a[k], gx = x + pam.i0, gy = y + pam.j0;
+    const sum = Math.sin(gx * 12.9898 + gy * 78.233) * 43758.5453, nah = sum - Math.floor(sum) - 0.5;
+    img.data[k * 4 + 3] = 255 * Math.min(1, Math.max(0, (v - 0.5) * 1.25 + 0.5 + nah * 2.2 * v * (1 - v)));
+  }
+  c.putImageData(img, 0, 0);
+  return pam;
+}
+
+function kresliHmlu(ctx, w, h, cx, cz, m, pam) {
+  if (!hmlaVidno()) return;
+  const x0 = cx - w / 2 / m, z0 = cz - h / 2 / m;
+  const k = maskaHmly(pam, Math.floor(x0 / HB), Math.floor(z0 / HB), Math.ceil((x0 + w / m) / HB), Math.ceil((z0 + h / m) / HB));
+  const mier = ctx.getTransform().a || 1;
+  const v = pam.vrstva ||= document.createElement('canvas');
+  if (v.width !== Math.round(w * mier) || v.height !== Math.round(h * mier)) { v.width = Math.round(w * mier); v.height = Math.round(h * mier); }
+  const c = v.getContext('2d');
+  c.setTransform(mier, 0, 0, mier, 0, 0);
+  c.globalCompositeOperation = 'source-over';
+  // vzorka je pripevnena k svetu (pri posune mapy sa hybe s nou)
+  const vzor = pam.vzor ||= c.createPattern(vzorka, 'repeat');
+  const ox = -((x0 * m % VZ) + VZ) % VZ, oz = -((z0 * m % VZ) + VZ) % VZ;
+  vzor.setTransform(new DOMMatrix([1, 0, 0, 1, ox, oz]));
+  c.fillStyle = vzor; c.fillRect(0, 0, w, h);
+  c.globalCompositeOperation = 'destination-in';       // pergamen ostane len tam, kde je v maske hmla
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(k.platno, (k.i0 * HB - x0) * m, (k.j0 * HB - z0) * m, k.W * HB * m, k.H * HB * m);
+  ctx.drawImage(v, 0, 0, w, h);
 }
 
 // ---------- pomocne ----------
@@ -304,6 +372,7 @@ function kresliMinimapu(hra) {
   const c = miniCtx, W = miniPlatno.width, m = W / (2 * MINI_R), p = hra.hrac.poz;
   const chyba = kresliTeren(c, W, W, p.x, p.z, m);
   fronta = chyba.sort((a, b) => a[1] - b[1]).map(a => a[0]);
+  kresliHmlu(c, W, W, p.x, p.z, m, pamatMini);
   const r = W / 2;
   kresliPasma(c, W, W, x => (x - p.x) * m + r, z => (z - p.z) * m + r, false, m);
   for (const mj of majaky) if (mj.objaveny) { const dx = (mj.x - p.x) * m, dy = (mj.z - p.z) * m; if (Math.hypot(dx, dy) < r - 12) kresliMajak(c, r + dx, r + dy, mj.lit, 8); }
@@ -331,14 +400,17 @@ function kresliMinimapu(hra) {
   }
   // svetly okraj kruhu (vineta)
   const g = c.createRadialGradient(r, r, r * 0.72, r, r, r);
-  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,20,30,.45)');
+  g.addColorStop(0, 'rgba(90,55,15,0)'); g.addColorStop(1, 'rgba(70,42,10,.5)');
   c.fillStyle = g; c.fillRect(0, 0, W, W);
 
   // popis: najblizsi ostrov + suradnice
+  // meno ma ostrov az po vstupe nan; o ostrove schovanom v hmle sa neprezradi nic
   const n = najblizsiOstrov(p.x, p.z);
-  let t = '';
-  if (n) { const mn = menoOstrova(n.o); t = ostrovPri(p.x, p.z, 1.15) === n.o ? `<b>${mn}</b>` : `<b>${mn}</b> · ${Math.round(n.d)} m ${strana(n.o.x - p.x, n.o.z - p.z)}`; }
-  else t = 'Otvorené more';
+  let t = 'Otvorené more';
+  if (n && (jeNavstiveny(n.o) || jeOdkryte(n.o.x, n.o.z))) {
+    const mn = jeNavstiveny(n.o) ? menoOstrova(n.o) : 'Neznámy ostrov';
+    t = ostrovPri(p.x, p.z, 1.15) === n.o ? `<b>${mn}</b>` : `<b>${mn}</b> · ${Math.round(n.d)} m ${strana(n.o.x - p.x, n.o.z - p.z)}`;
+  }
   miniPopis.innerHTML = `${t}<br><span style="opacity:.75">${Math.round(p.x)}, ${Math.round(p.z)}</span>`;
   miniNavi.textContent = cl ? `▶ ${cl.n} · ${vzdialenost(Math.hypot(cl.x - p.x, cl.z - p.z))} ${strana(cl.x - p.x, cl.z - p.z)}` : '';
 }
@@ -381,7 +453,8 @@ function otvor(hra) {
   mapaInfo.innerHTML = POMOC;
 }
 function zatvor(znovaZamkni) {
-  otvorena = false; tahanie = null; zatvorMenu();
+  otvorena = false; tahanie = null; kurzor = null; zatvorMenu();
+  tip.style.display = 'none';
   okno.style.display = 'none';
   if (znovaZamkni) window.hra?.g?.renderer?.domElement?.requestPointerLock?.()?.catch?.(() => {});
 }
@@ -398,44 +471,53 @@ function kresliMapu(hra) {
   fronta = chyba.sort((a, b) => a[1] - b[1]).map(a => a[0]);
   const X = x => (x - pohlad.x) * m + w / 2, Z = z => (z - pohlad.z) * m + h / 2;
 
-  // sepiovy nadych starej mapy
-  c.fillStyle = 'rgba(200,160,90,.13)'; c.fillRect(0, 0, w, h);
+  kresliHmlu(c, w, h, pohlad.x, pohlad.z, m, pamatVelka);
   kresliPasma(c, w, h, X, Z, true, m);
   // mriezka po bunkach
-  c.strokeStyle = 'rgba(70,45,20,.22)'; c.lineWidth = 1;
+  c.strokeStyle = 'rgba(70,45,20,.16)'; c.lineWidth = 1;
   c.beginPath();
   const x0 = pohlad.x - w / 2 / m, z0 = pohlad.z - h / 2 / m;
   for (let bx = Math.ceil(x0 / BUNKA); bx * BUNKA < x0 + w / m; bx++) { const sx = Math.round(X(bx * BUNKA)) + 0.5; c.moveTo(sx, 0); c.lineTo(sx, h); }
   for (let bz = Math.ceil(z0 / BUNKA); bz * BUNKA < z0 + h / m; bz++) { const sy = Math.round(Z(bz * BUNKA)) + 0.5; c.moveTo(0, sy); c.lineTo(w, sy); }
   c.stroke();
+  // kurzove luce namornej mapy (zo stredu startovej bunky)
+  c.strokeStyle = 'rgba(120,60,25,.13)';
+  c.beginPath();
+  for (let i = 0; i < 16; i++) { const u = i / 16 * Math.PI * 2; c.moveTo(X(BUNKA / 2), Z(BUNKA / 2)); c.lineTo(X(BUNKA / 2 + Math.cos(u) * 9000), Z(BUNKA / 2 + Math.sin(u) * 9000)); }
+  c.stroke();
 
-  // mena ostrovov
+  // mena ostrovov: len tych, na ktore hrac vstupil (v dev rezime bez hmly aj ostatne, vyblednute)
   if (m > 0.16) {
-    c.textAlign = 'center';
-    c.font = `italic 700 ${Math.round(Math.min(18, 10 + m * 10))}px Georgia, serif`;
-    for (let bz = Math.floor(z0 / BUNKA); bz * BUNKA < z0 + h / m; bz++)
-      for (let bx = Math.floor(x0 / BUNKA); bx * BUNKA < x0 + w / m; bx++) {
+    c.textAlign = 'center'; c.lineJoin = 'round';
+    c.font = `${Math.round(Math.min(28, 17 + m * 13))}px "Caveat Brush", cursive`;
+    const ostrovy = new Set(MENOVANE_OSTROVY);
+    for (let bz = Math.floor(z0 / BUNKA) - 1; bz * BUNKA < z0 + h / m + BUNKA; bz++)
+      for (let bx = Math.floor(x0 / BUNKA) - 1; bx * BUNKA < x0 + w / m + BUNKA; bx++) {
         const o = ostrovVBunke(bx, bz);
-        if (!o) continue;
-        const pom = jePomenovany(o);
-        if (!pom && !(hra.objavene?.has(bx + ',' + bz))) continue;     // neobjaveny ostrov nema meno
-        const sx = X(o.x), sy = Z(o.z) - o.R * m - 6, t = pom ? menoOstrova(o) : 'Nepomenovaný ostrov';
-        c.globalAlpha = pom ? 1 : 0.6;
-        c.lineWidth = 3; c.strokeStyle = 'rgba(240,228,196,.85)'; c.strokeText(t, sx, sy);
-        c.fillStyle = pom ? '#3f2b14' : '#6a5a40'; c.fillText(t, sx, sy);
-        c.globalAlpha = 1;
+        if (o) ostrovy.add(o);
       }
+    for (const o of ostrovy) {
+      const bol = jeNavstiveny(o);
+      if (!bol && hmlaVidno()) continue;
+      const sx = X(o.x), sy = Z(o.z) - o.R * m - 6;
+      if (sx < -150 || sx > w + 150 || sy < -20 || sy > h + 40) continue;
+      const t = menoOstrova(o);
+      c.globalAlpha = bol ? 1 : 0.55;
+      c.lineWidth = 4; c.strokeStyle = 'rgba(240,226,190,.9)'; c.strokeText(t, sx, sy);
+      c.fillStyle = bol && jePomenovany(o) ? '#3a2716' : '#6a5436'; c.fillText(t, sx, sy);
+      c.globalAlpha = 1;
+    }
   }
 
   for (const mj of majaky) if (mj.objaveny) kresliMajak(c, X(mj.x), Z(mj.z), mj.lit, 15);
   // navigacia: prerusovana ciara od hraca k cielu
   const pp = hra.hrac.poz, cl = ciel();
   if (cl) {
-    c.save(); c.setLineDash([10, 8]); c.lineWidth = 3; c.strokeStyle = 'rgba(255,240,170,.95)'; c.shadowColor = '#000'; c.shadowBlur = 4;
+    c.save(); c.setLineDash([10, 8]); c.lineWidth = 3; c.strokeStyle = 'rgba(140,40,20,.85)';
     c.beginPath(); c.moveTo(X(pp.x), Z(pp.z)); c.lineTo(X(cl.x), Z(cl.z)); c.stroke(); c.restore();
   }
   // znacky hraca (nazov pod nimi)
-  c.font = '700 13px Georgia, serif'; c.textAlign = 'center';
+  c.font = '18px "Caveat Brush", cursive'; c.textAlign = 'center';
   for (const z of znacky) {
     const sx = X(z.x), sy = Z(z.z);
     if (sx < -30 || sx > w + 30 || sy < -30 || sy > h + 30) continue;
@@ -448,41 +530,79 @@ function kresliMapu(hra) {
   // lode a hrac
   for (const l of hra.lode) {
     if (l === hra.kanoe && hra.vKanoe) continue;
-    sipka(c, X(l.poz.x), Z(l.poz.y), uholObr(l.smer), l === hra.kanoe ? 11 : 9, l === hra.kanoe ? '#ffb020' : '#c0392b');
+    sipka(c, X(l.poz.x), Z(l.poz.y), uholObr(l.smer), l === hra.kanoe ? 11 : 9, l === hra.kanoe ? '#e2a02a' : '#a8392a');
   }
   const p = hra.hrac.poz;
-  c.beginPath(); c.arc(X(p.x), Z(p.z), 15, 0, Math.PI * 2); c.fillStyle = 'rgba(255,255,255,.25)'; c.fill();
-  sipka(c, X(p.x), Z(p.z), uholObr(smerHraca(hra)), 12, '#fff');
+  c.beginPath(); c.arc(X(p.x), Z(p.z), 15, 0, Math.PI * 2); c.fillStyle = 'rgba(255,248,230,.4)'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = 'rgba(70,40,10,.6)'; c.stroke();
+  sipka(c, X(p.x), Z(p.z), uholObr(smerHraca(hra)), 12, '#fff8e6', '#3a2716');
+  if (dev.zapnuty && kurzor && !tahanie) zameriavac(c, kurzor.x, kurzor.y);
 
   // veterna ruzica (pravy horny roh)
-  ruzica(c, w - 70, 72, 42);
+  ruzica(c, w - 92, 100, 58);
+  devBox.style.display = dev.zapnuty ? 'flex' : 'none';
+  if (!dev.zapnuty) tip.style.display = 'none';
+  mapaPlatno.classList.toggle('dev', dev.zapnuty);
   // mierka (dolu v strede)
   const dlzky = [50, 100, 200, 500, 1000, 2000, 5000];
   const dm = dlzky.find(d => d * m > 90) || 5000, sw = dm * m, bx0 = w / 2 - sw / 2, by = h - 26;
   c.fillStyle = 'rgba(239,224,184,.9)'; c.fillRect(bx0 - 10, by - 18, sw + 20, 30);
   c.fillStyle = '#3f2b14'; c.fillRect(bx0, by, sw, 4);
   c.fillStyle = '#efe0b8'; c.fillRect(bx0 + sw / 4, by + 1, sw / 4, 2); c.fillRect(bx0 + sw * 3 / 4, by + 1, sw / 4, 2);
-  c.font = '12px Georgia, serif'; c.textAlign = 'center'; c.fillStyle = '#3f2b14';
+  c.font = '15px "Caveat Brush", cursive'; c.textAlign = 'center'; c.fillStyle = '#3f2b14';
   c.fillText(dm >= 1000 ? dm / 1000 + ' km' : dm + ' m', w / 2, by - 5);
 }
 
 function ruzica(c, x, y, r) {
   c.save(); c.translate(x, y);
-  c.beginPath(); c.arc(0, 0, r * 0.78, 0, Math.PI * 2);
-  c.fillStyle = 'rgba(239,224,184,.75)'; c.fill(); c.strokeStyle = '#6b4a26'; c.lineWidth = 1.5; c.stroke();
-  for (let i = 0; i < 8; i++) {
-    const dl = i % 2 ? r * 0.5 : r * 0.92;
-    c.rotate(Math.PI / 4);
-    c.beginPath(); c.moveTo(0, -dl); c.lineTo(r * 0.12, 0); c.lineTo(0, 0); c.closePath(); c.fillStyle = '#3f2b14'; c.fill();
-    c.beginPath(); c.moveTo(0, -dl); c.lineTo(-r * 0.12, 0); c.lineTo(0, 0); c.closePath(); c.fillStyle = '#c9a86a'; c.fill();
+  c.fillStyle = 'rgba(236,220,184,.82)';
+  c.beginPath(); c.arc(0, 0, r * 0.82, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#4a2f14';
+  for (const [q, hr] of [[0.82, 1.6], [0.72, 0.8], [0.3, 0.8]]) { c.lineWidth = hr; c.beginPath(); c.arc(0, 0, r * q, 0, Math.PI * 2); c.stroke(); }
+  c.beginPath();                                       // dieliky po obvode
+  for (let i = 0; i < 64; i++) { const u = i / 64 * Math.PI * 2, q = i % 4 ? 0.77 : 0.82; c.moveTo(Math.cos(u) * r * 0.72, Math.sin(u) * r * 0.72); c.lineTo(Math.cos(u) * r * q, Math.sin(u) * r * q); }
+  c.stroke();
+  const hrot = (uhol, dl, sirka, tmava, svetla) => {
+    c.save(); c.rotate(uhol); c.lineWidth = 0.8;
+    for (const [bok, f] of [[1, tmava], [-1, svetla]]) { c.beginPath(); c.moveTo(0, -dl); c.lineTo(bok * sirka, -sirka); c.lineTo(0, 0); c.closePath(); c.fillStyle = f; c.fill(); c.stroke(); }
+    c.restore();
+  };
+  for (let i = 0; i < 8; i++) hrot(Math.PI / 8 + i * Math.PI / 4, r * 0.55, r * 0.06, '#8a6a40', '#e4cfa0');
+  for (let i = 0; i < 4; i++) hrot(Math.PI / 4 + i * Math.PI / 2, r * 0.72, r * 0.1, '#4a2f14', '#d9bd85');
+  for (let i = 0; i < 4; i++) hrot(i * Math.PI / 2, r, r * 0.14, i ? '#4a2f14' : '#8c2f1c', i ? '#d9bd85' : '#e8a878');
+  c.beginPath(); c.arc(0, 0, r * 0.07, 0, Math.PI * 2); c.fillStyle = '#e2b04a'; c.fill(); c.stroke();
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = 'rgba(236,220,184,.95)';
+  for (const [t, dx, dy] of [['S', 0, -1], ['V', 1, 0], ['J', 0, 1], ['Z', -1, 0]]) {
+    c.font = `${t === 'S' ? 24 : 18}px "Caveat Brush", cursive`; c.fillStyle = t === 'S' ? '#8c2f1c' : '#3a2716';
+    c.strokeText(t, dx * (r + 13), dy * (r + 13)); c.fillText(t, dx * (r + 13), dy * (r + 13));
   }
-  c.font = 'bold 15px Georgia, serif'; c.textAlign = 'center'; c.fillStyle = '#7a2b1a';
-  c.fillText('S', 0, -r - 3);
   c.restore();
 }
 
+// dev: zameriavac pod kurzorom (sem sa teleportujes)
+function zameriavac(c, x, y) {
+  c.save(); c.translate(x, y);
+  for (const [hr, f] of [[4.5, 'rgba(255,246,220,.95)'], [2, '#c0341c']]) {
+    c.lineWidth = hr; c.strokeStyle = f; c.beginPath(); c.arc(0, 0, 13, 0, Math.PI * 2);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { c.moveTo(dx * 7, dy * 7); c.lineTo(dx * 22, dy * 22); }
+    c.stroke();
+  }
+  c.fillStyle = '#c0341c'; c.fillRect(-1.5, -1.5, 3, 3);
+  c.restore();
+}
+
+// dev: bublina pri kurzore - suradnice a co je pod nim
+function popisBodu(e, mx, mz) {
+  const o = ostrovPri(mx, mz, 1.3), h = vyskaTerenu(mx, mz);
+  const pod = h > 0 ? `súš, výška ${h.toFixed(1)} m` : `more, hĺbka ${(-h).toFixed(1)} m`;
+  tip.innerHTML = `<b>${Math.round(mx)}, ${Math.round(mz)}</b><br>${o ? menoOstrova(o) + ' · ' : ''}${pod}`;
+  const r = okno.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  tip.style.display = 'block';
+  tip.style.left = (x + 28 + tip.offsetWidth > r.width ? x - 28 - tip.offsetWidth : x + 28) + 'px';
+  tip.style.top = Math.min(y + 22, r.height - tip.offsetHeight - 8) + 'px';
+}
+
 // ovladanie velkej mapy mysou
-let kurzorZnacka = null, zaciatokKlika = null;
+let kurzorZnacka = null, zaciatokKlika = null, kurzor = null;   // kurzor = poloha mysi nad platnom (px)
 // bod na mape (m) pod kurzorom a znacka, ktora je pod nim
 const polohaMysi = e => {
   const r = mapaPlatno.getBoundingClientRect();
@@ -516,11 +636,12 @@ function menuNaBode(e) {
     return;
   }
   const n = najblizsiOstrov(mx, mz), polozky = [['📍 Pridať značku sem', () => upravZnacku({ x: mx, z: mz, t: 'bod', n: '' })]];
-  if (n && n.d < n.o.R * 0.4) polozky.push([`🏝 ${jePomenovany(n.o) ? 'Premenovať' : 'Pomenovať'} ostrov`, () => pomenujOstrov(n.o)]);
+  if (n && n.d < n.o.R * 0.4 && jeNavstiveny(n.o)) polozky.push([`🏝 ${jePomenovany(n.o) ? 'Premenovať' : 'Pomenovať'} ostrov`, () => pomenujOstrov(n.o)]);
   ukazMenu(e, `${Math.round(mx)}, ${Math.round(mz)}`, polozky);
 }
 mapaPlatno.addEventListener('contextmenu', e => { e.preventDefault(); menuNaBode(e); });
-mapaPlatno.addEventListener('dblclick', e => { const { mx, mz } = polohaMysi(e); if (!znackaPod(mx, mz)) { zatvorMenu(); upravZnacku({ x: mx, z: mz, t: 'bod', n: '' }); } });
+mapaPlatno.addEventListener('mouseleave', () => { kurzor = null; tip.style.display = 'none'; });
+mapaPlatno.addEventListener('dblclick', e => { if (dev.zapnuty) return; const { mx, mz } = polohaMysi(e); if (!znackaPod(mx, mz)) { zatvorMenu(); upravZnacku({ x: mx, z: mz, t: 'bod', n: '' }); } });
 mapaPlatno.addEventListener('mousedown', e => {
   zatvorMenu();
   if (e.button !== 0) return;
@@ -531,7 +652,8 @@ addEventListener('mouseup', e => {
   // lavy klik (bez tahania) na znacku = menu znacky
   if (otvorena && zaciatokKlika && e.target === mapaPlatno && Math.hypot(e.clientX - zaciatokKlika.x, e.clientY - zaciatokKlika.y) < 4) {
     const { mx, mz } = polohaMysi(e);
-    if (znackaPod(mx, mz)) menuNaBode(e);
+    if (dev.zapnuty) { teleport(mx, mz); zatvor(true); }       // dev: klik = teleport
+    else if (znackaPod(mx, mz)) menuNaBode(e);
   }
   zaciatokKlika = null; tahanie = null; mapaPlatno.classList.remove('tahanie');
 });
@@ -540,8 +662,13 @@ addEventListener('mousemove', e => {
     const { mx, mz } = polohaMysi(e);
     kurzorZnacka = znackaPod(mx, mz);
     const n = najblizsiOstrov(mx, mz);
-    mapaInfo.innerHTML = `Kurzor: ${Math.round(mx)}, ${Math.round(mz)}` + (n && n.d < 60 ? `<br><b>${menoOstrova(n.o)}</b>` : '')
+    mapaInfo.innerHTML = `Kurzor: ${Math.round(mx)}, ${Math.round(mz)}` + (n && n.d < 60 && jeNavstiveny(n.o) ? `<br><b>${menoOstrova(n.o)}</b>` : '')
       + '<br>' + POMOC;
+    if (e.target === mapaPlatno) {
+      const r = mapaPlatno.getBoundingClientRect();
+      kurzor = { x: e.clientX - r.left, y: e.clientY - r.top };
+      if (dev.zapnuty) popisBodu(e, mx, mz);
+    } else { kurzor = null; tip.style.display = 'none'; }
   }
   if (!tahanie) return;
   pohlad.x -= (e.clientX - tahanie.x) / pohlad.m; pohlad.z -= (e.clientY - tahanie.y) / pohlad.m;

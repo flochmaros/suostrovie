@@ -102,7 +102,8 @@ export function initVystroj(hrac, oznam, kam, iskry) {
   box.innerHTML = `<h2>Postava</h2><div class="pb-radek"><div class="pb-stlpec">${SLOTY.slice(0, 4).map(slotHtml).join('')}</div>`
     + `<canvas id="postava-plat"></canvas><div class="pb-stlpec">${SLOTY.slice(4).map(slotHtml).join('')}</div></div><div id="pb-obrana"></div>`;
   const batoh = document.getElementById('batoh');
-  batoh.insertBefore(box, batoh.firstChild);
+  const telo = document.getElementById('batoh-telo');
+  telo.insertBefore(box, telo.firstChild);
   const plat = box.querySelector('canvas');
 
   // HUD: znacka obrany vedla listy
@@ -202,7 +203,7 @@ export function initVystroj(hrac, oznam, kam, iskry) {
   const tikNahlad = () => {
     requestAnimationFrame(tikNahlad);
     const t = performance.now(), dt = Math.min(0.1, (t - cas) / 1000); cas = t;
-    if (batoh.style.display === 'none') return;
+    if (batoh.style.display === 'none' || !box.offsetParent) return;
     if (rend === null) zalozNahlad();
     if (!rend) return;
     if (!tahaPostavu) yaw += dt * 0.35;

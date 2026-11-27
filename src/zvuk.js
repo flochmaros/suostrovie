@@ -226,6 +226,8 @@ export const zvuky = {
   uvarene: () => { [523, 659, 784].forEach((f, i) => setTimeout(() => ton(f, 0.5, 0.08), i * 110)); },
   zhorelo: () => { burst(0.8, 'highpass', 2500, 0.1); ton(180, 0.5, 0.07, 90); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
+  recept: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => ton(f, 0.35, 0.07), i * 90)),
+  drzanie: k => { ton(260 + 360 * k, 0.07, 0.04, 300 + 400 * k); burst(0.05, 'bandpass', 900 + 900 * k, 0.07, 2); },   // tukanie pri vyrobe (k = 0..1)
 };
 
 // ---------- fakla: sycive horenie (hukot plamena) + praskanie; sila 0..1 (vola fakla.js kazdy snimok) ----------

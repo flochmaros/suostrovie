@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // vsetky planovane moby (chybajuci subor nevadi -> model z kodu)
-const MOBY = ['lavovy_jaster', 'krab', 'lavovy_obr', 'krokodil', 'kraken', 'chapadlo', 'golem', 'bledy', 'matka', 'postava'];
+const MOBY = ['lavovy_jaster', 'krab', 'lavovy_obr', 'krokodil', 'kraken', 'chapadlo', 'golem', 'bledy', 'bledy_1', 'bledy_2', 'bledy_3', 'bledy_4', 'bledy_5', 'bledy_6', 'matka', 'postava'];
 
 // mena pivotov 4 nôh: [meno, s (strana x), i (vpredu +1 / vzadu -1)] -> nohy: [{ n, s, i }] pre animaciu chodze
 // P/L = prava (-x) / lava (+x) strana moba, druhe pismeno P/Z = predna/zadna

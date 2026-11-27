@@ -574,6 +574,25 @@ function postavPredmety(o, skupina, r) {
   }
 }
 
+// utrzok mapy vo flasi: lezi na plazi asi kazdeho tretieho ostrova (vlastne nahodne cisla, aby sa nic ine neposunulo)
+function postavUtrzok(o, skupina, r) {
+  const id = `${o.bx},${o.bz},mapa`;
+  if (!PREDMETY.utrzok_mapy || o.R < 24 || r() > 0.35 || zobrate.has(id)) return;
+  for (let pokus = 0; pokus < 12; pokus++) {
+    const a = r() * 6.283;
+    for (let d = o.R * 1.4; d > 0; d -= 1.5) {          // od mora dovnutra po prvu suchu plaz
+      const x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d, h = vyskaOstrova(o, x, z);
+      if (h < 0.5) continue;
+      if (h > 1.3) break;
+      const [geo, mat] = PREDMETY.utrzok_mapy.model, m = new THREE.Mesh(geo, mat);
+      m.position.set(x, h, z); m.rotation.y = r() * 6.283; m.castShadow = true;
+      m.userData = { id, typ: 'utrzok_mapy' };
+      skupina.add(m);
+      return;
+    }
+  }
+}
+
 // pamiatky rucneho ostrova (ruiny, chatrc, vrak): modely + kolizne kruhy (ako uzly bez zberu)
 const matCache = new Map();
 const P_PAMIATKY = { ...P_ZAKLAD, THREE, matTeren,
@@ -602,6 +621,7 @@ function postavOstrov(o) {
   postavNaplaveniny(o, skupina, rng(o.seed * 6113 + 5));
   const uzly = postavVegetaciu(o, skupina, rng(o.seed * 7919 + 1), (x, z) => vyskaOstrova(o, x, z), zobrate);
   postavPredmety(o, skupina, rng(o.seed * 104729 + 3));
+  postavUtrzok(o, skupina, rng(hash(o.bx, o.bz, SEED + 71)));
   postavPamiatky(o, skupina, uzly);
   return { skupina, teren, uzly };
 }

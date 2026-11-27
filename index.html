@@ -139,18 +139,6 @@
   #smrt { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
           background: rgba(10,15,20,.82); color: #fff; font-size: 44px; font-weight: 800; z-index: 20; pointer-events: auto; }
   #smrt button { padding: 12px 30px; border: 0; border-radius: 30px; background: var(--zlta); color: #3a2a10; font: 800 20px Nunito, system-ui, sans-serif; cursor: pointer; }
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 20px; box-sizing: border-box; overflow-y: auto;
-           background: radial-gradient(ellipse at center, rgba(8,30,45,.55), rgba(6,20,32,.88)); backdrop-filter: blur(6px); color: #fff; cursor: pointer; text-align: center; }
-  #start h1 { margin: 0; font-size: clamp(40px, 7vw, 64px); font-weight: 800; letter-spacing: 3px; text-shadow: 0 4px 24px #0008; }
-  #start .hrat { margin: 18px 0 26px; padding: 13px 40px; border-radius: 30px; background: var(--zlta); color: #3a2a10; font-size: 20px; font-weight: 800; box-shadow: 0 6px 24px rgba(255,210,122,.35); transition: transform .12s, box-shadow .12s; }
-  #start:hover .hrat { transform: scale(1.04); box-shadow: 0 8px 30px rgba(255,210,122,.55); }
-  .pauza-sekcie { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 980px; cursor: default; text-align: left; }
-  .pauza-karta, #nastavenia { background: rgba(14,32,44,.72); border: 1px solid var(--okraj); border-radius: 16px; padding: 14px 20px; box-sizing: border-box; box-shadow: 0 10px 34px #0006; }
-  .pauza-karta h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--zlta); }
-  #ovladanie { width: 520px; max-width: 92vw; font-size: 13.5px; }
-  .ov-mriezka { display: grid; grid-template-columns: 62px 1fr; gap: 7px 12px; align-items: baseline; line-height: 1.7; }
-  .ov-skup { color: var(--zlta); font-weight: 800; font-size: 12px; opacity: .9; }
-  #start kbd { margin: 0 2px 0 0; font-size: 12px; }
   #menu-hl, #nacitaj { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center;
            background: linear-gradient(#f6c98a 0%, #e9a27c 22%, #3f93a8 52%, #0d4f66 80%, #06293a 100%); overflow: hidden; transition: opacity .6s; }
   .menu-vlny { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none; opacity: .5; }
@@ -205,9 +193,12 @@
   </div>
   <div id="lista" class="panel"></div>
   <div id="batoh" class="panel">
-    <div><h2>Batoh <small>ťahaj · <kbd>Shift</kbd>+klik presun · pravý klik delí stoh / nasadí výstroj</small><span id="zorad" class="zalozka" style="margin-left:auto">Zoradiť</span></h2><div id="batoh-mriezka"></div><div id="detail"></div></div>
-    <div id="sklad-box" style="display:none; border-left: 1px solid var(--okraj); padding-left: 26px"><h2 id="sklad-nazov">Sklad lode</h2><div id="sklad-mriezka"></div></div>
-    <div id="stlpec2" class="stlpec2"><h2><span id="vyroba-nazov">Výroba</span><span class="okno-zatvor"><kbd>Tab</kbd> zavrieť · <kbd>B</kbd> stavba</span></h2><div id="vyroba-tabs" class="zalozky"></div><div id="vyroba"></div></div>
+    <div id="batoh-hlava"><div id="batoh-karty"><span data-karta="batoh">Batoh</span><span data-karta="vyroba">Výroba</span><span data-karta="postava">Postava</span></div><h2 id="batoh-nadpis" class="tema-nadpis"></h2><span class="okno-zatvor"><kbd>Q</kbd><kbd>E</kbd> karty · <kbd>Tab</kbd> zavrieť · <kbd>B</kbd> stavba</span></div>
+    <div id="batoh-telo">
+      <div id="inv-box"><div class="inv-hlava"><small>ťahaj · <kbd>Shift</kbd>+klik presun · pravý klik delí stoh / nasadí výstroj</small><span id="zorad" class="zalozka">Zoradiť</span></div><div id="batoh-mriezka"></div></div>
+      <div id="sklad-box"><h2 id="sklad-nazov" class="tema-nadpis">Sklad lode</h2><div id="sklad-mriezka"></div></div>
+      <div id="kniha"><div id="vyroba-tabs"></div><div id="vyroba"></div><div id="karta-receptu" class="tema-papier"></div></div>
+    </div>
   </div>
   <div id="stavba" class="panel">
     <h2>Stavba <small>vyber stavbu, mier kam a klikni</small><span class="okno-zatvor"><kbd>B</kbd> zavrieť · <kbd>Tab</kbd> batoh</span></h2>
@@ -219,12 +210,24 @@
 <div id="zranenie"></div>
 <div id="smrt"><div>Omdlel si…</div><button id="smrt-znova">Zobudiť sa na pláži</button></div>
 <div id="duch"></div>
+<div id="tip" class="tema-papier"></div>
 <div id="start" style="display:none">
-  <h1>Súostrovie</h1>
-  <div class="hrat">▶ Klikni a hraj</div>
-  <div class="pauza-sekcie">
-    <div class="pauza-karta" id="ovladanie">
-      <h3>Ovládanie</h3>
+  <nav class="pz-menu">
+    <h1 class="tema-nadpis">Súostrovie</h1>
+    <div class="pz-pod">Vitaj na výprave</div>
+    <button class="pz-doska" id="pz-hrat">Hrať</button>
+    <button class="pz-doska" id="pz-nast">Nastavenia</button>
+    <button class="pz-doska" id="pz-uloz">Uložiť hru</button>
+    <button class="pz-doska" id="zal-menu" title="Hra sa najprv uloží">Hlavné menu</button>
+    <div class="pz-zaloha"><button id="zal-stiahni">Stiahnuť uloženie</button><button id="zal-nahraj">Nahrať uloženie</button></div>
+    <input type="file" id="zal-subor" accept=".json,application/json" hidden>
+    <div id="zal-hlaska"></div>
+  </nav>
+  <section id="nastavenia" class="tema-panel">
+    <header><h2 class="tema-nadpis">Nastavenia</h2><button id="pz-nast-zavri" title="Zavrieť (Esc)">✕</button></header>
+    <div id="pz-zalozky"></div>
+    <div id="pz-obsah"></div>
+    <div id="ovladanie">
       <div class="ov-mriezka">
         <span class="ov-skup">Pohyb</span>
         <span><kbd>WASD</kbd> chôdza · <kbd>Shift</kbd> beh · <kbd>Medzerník</kbd> skok · <kbd>C</kbd> potápanie</span>
@@ -242,8 +245,17 @@
         <span><kbd>M</kbd> zvuk · <kbd>Esc</kbd> pauza · <kbd>F2</kbd> dev režim · koliesko = zoom</span>
       </div>
     </div>
-  </div>
+  </section>
+  <aside class="pz-pravo">
+    <div class="pz-karta tema-papier">
+      <h2>Denník výpravy</h2>
+      <div id="pz-den"></div>
+      <ul id="pz-staty"></ul>
+    </div>
+    <div class="pz-tip tema-panel"><b class="tema-nadpis">Rada dňa</b><p id="pz-rada"></p></div>
+  </aside>
 </div>
+<div id="pz-klikni" style="display:none">Klikni do hry <small>Esc = späť do pauzy</small></div>
 <div id="menu-hl">
   <div class="menu-slnko"></div>
   <div class="menu-vlny"><div></div><div></div><div></div></div>

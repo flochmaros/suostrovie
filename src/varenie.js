@@ -211,6 +211,7 @@ function vykresliUcinky() {
 export function initVarenie(s) {
   sluzby = s;
   $('hrniec-okno').addEventListener('click', klik);
+  document.addEventListener('pointerlockchange', () => { if (okno && document.pointerLockElement) zavriHrniec(); });   // napr. po zavreti mapy
 }
 
 // volat kazdy snimok; ohen = najblizsi taborak do 5 m (alebo null), hrac.poz kvoli zatvoreniu okna

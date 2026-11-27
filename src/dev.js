@@ -10,6 +10,7 @@ import { nastavHustotu, nasobokHustoty } from './vegetacia.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { sloty, pridaj, pocet, vykresli } from './inventar.js';
 import { tlmUhol } from './hrac.js';
+import { odomkniVsetky } from './recepty_odomknute.js';
 import { VYL_MAX } from './kanoe.js';
 import { NEPRIATELIA } from './obsah/nepriatelia.js';
 import { spawnPriHracovi, zoznamNepriatelov, odstranNepriatela } from './nepriatelia.js';
@@ -81,7 +82,7 @@ const html = () => `
 <div class="obsah" data-t="predmety" hidden>
   <div class="skup"><b>Predmet</b><select id="dev-pred">${Object.entries(PREDMETY).map(([k, v]) => `<option value="${k}">${v.meno || k}</option>`).join('')}</select>
     <input type="number" id="dev-pocet" value="20" min="1" max="999" style="width:56px"><button data-a="daj">Daj</button></div>
-  <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="armor">Všetok armor</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
+  <div class="skup"><button data-a="nastroje">Všetky nástroje</button><button data-a="armor">Všetok armor</button><button data-a="recepty">Odomkni všetky recepty</button><button data-a="vyprazdni">Vyprázdni batoh</button></div>
 </div>
 <div class="obsah" data-t="strach" hidden>
   <div class="skup"><b>Strach</b><input type="range" min="0" max="100" value="0" id="dev-strach"> <span id="dev-strach-v">0.00</span><button data-a="lak">Ľak +0.3</button></div>
@@ -276,6 +277,7 @@ export function initDev(c) {
       let zv = 0; for (const id of Object.keys(VYBAVA)) zv += pridaj(id, 1);
       vykresli(); ctx.oznam(zv ? `Batoh je plný (nezmestilo sa ${zv}×)` : 'Pridaný všetok armor');
     }
+    if (a === 'recepty') { const n = odomkniVsetky(); vykresli(); ctx.oznam(`Odomknutých receptov: ${n}`); }
     if (a === 'vyprazdni') { sloty.fill(null); vykresli(); }
     if (a === 'cas') ctx.posunCas(60);
     if (a === 'hud') { const h = document.getElementById('hud'); h.style.display = h.style.display === 'none' ? '' : 'none'; }
@@ -286,8 +288,8 @@ export function initDev(c) {
 // ---------- pomocne akcie (tlacidla aj konzola) ----------
 const hracPoz = () => (ctx.jeVKanoe() ? { x: ctx.kanoe.poz.x, z: ctx.kanoe.poz.y } : ctx.hrac.poz);
 function predHracom(d) { const p = hracPoz(), y = ctx.kam.yaw; return [p.x - Math.sin(y) * d, p.z - Math.cos(y) * d]; }
-function teleport(x, z) {
-  if (ctx.jeVKanoe()) ctx.vystup([x, z]);
+export function teleport(x, z) {
+  if (ctx.jeVKanoe() || ctx.jeNaPalube()) ctx.vystup([x, z]);
   ctx.hrac.poz.set(x, Math.max(vyskaTerenu(x, z), 0) + 1, z); ctx.hrac.vy = 0;
   ctx.oznam(`Teleport: ${x.toFixed(0)}, ${z.toFixed(0)}`);
 }
@@ -315,6 +317,7 @@ function vypis(t) {
 const POMOC = `Príkazy:
   tp <x> <z> | tp <id ostrova> | tp start | tp kanoe | tp 50 (dopredu)
   ostrovy                 zoznam ručných ostrovov
+  recepty                 odomkni všetky recepty
   daj <id> [počet]        predmet do batoha (hľadá aj podľa mena)
   predmety [text]         nájdi id predmetu
   cas <hodina>            skok na hodinu (0 = polnoc, 12 = poludnie)
@@ -350,6 +353,7 @@ function prikaz(riadok) {
       if (!isNaN(n1)) { const [x, z] = predHracom(n1); teleport(x, z); return `${n1} m dopredu`; }
       return window.hra.naOstrov(a1);
     }
+    case 'recepty': { const n = odomkniVsetky(); vykresli(); return `Odomknutých receptov: ${n}`; }
     case 'predmety': return Object.entries(PREDMETY).filter(([k, v]) => !a1 || k.includes(a1) || (v.meno || '').toLowerCase().includes(a1.toLowerCase())).map(([k, v]) => `${k} – ${v.meno || ''}`).slice(0, 60).join('\n') || 'nič';
     case 'daj': {
       const id = a1 && najdiPredmet(a1); if (!id) return 'Neznámy predmet (skús: predmety <text>)';
