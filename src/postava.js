@@ -3,6 +3,7 @@
 // Animacie v hrac.js sa nemenia. Konvencia: postava pozera na -z, kladne rotation.x hodi visiacu koncatinu dopredu.
 // Styl: velka hlava (1.25x), velke oci, bujne kucery, sukna so vzorom, jemne svietiace teal tetovanie.
 import * as THREE from 'three';
+import { mobGLB } from './moby_glb.js';
 
 const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, ...o });
 // koza: fyzikalny material so sheen (teply kozny lesk) a jemnym vlastnym teplom - "rim" pocit
@@ -136,7 +137,30 @@ function postavHlavu() {
   return h;
 }
 
+// model z Blenderu (nastroje/blender/postava.py): pivoty maju rovnake polohy ako klby nizsie.
+// Materialy z GLB sa podla mena nahradia nasimi (sheen koze, vzor sukne, svietiace tetovanie).
+let MAT_GLB = null;
+function postavZGLB() {
+  const mob = mobGLB('postava');
+  if (!mob) return null;
+  if (!MAT_GLB) {
+    const sukna = M(0xffffff, { map: vzorSuknie(), roughness: 0.7, side: THREE.DoubleSide });
+    sukna.map.flipY = false;                                    // UV z glTF maju v = 0 hore
+    MAT_GLB = { koza: KOZA, koza_t: KOZA_T, ruz: RUZ, usta: USTA, triko: TRIKO, zlta: TRIKO_T, lem: LEM, zelen: ZELEN,
+      opasok: OPASOK, spona: SPONA, vlasy: VLASY, vlasy_s: VLASY_S, vlasy_h: VLASY_H, bielko: BIELKO, duhovka: DUHOVKA,
+      oci: OCI, obocie: OBOCIE, sandal: SANDAL, remien: REMIEN, sukna, tetovanie: TAT };
+  }
+  mob.g.traverse(o => { if (o.isMesh) o.material = MAT_GLB[o.material.name] ?? o.material; });
+  const u = mob.uzol, telo = u('telo');
+  mob.g.remove(telo);                                           // hrac.js si pripina priamo panvu (ako doteraz)
+  u('hlava').scale.setScalar(1.25);
+  return { telo, chrbat: u('chrbat'), hlava: u('hlava'), sL: u('stehno_L'), sP: u('stehno_P'), kL: u('koleno_L'), kP: u('koleno_P'),
+    rL: u('rameno_L'), rP: u('rameno_P'), lL: u('laket_L'), lP: u('laket_P'), drziak: u('drziak_P') };
+}
+
 export function postavModel() {
+  const glb = postavZGLB();
+  if (glb) return glb;
   const nohy = [-1, 1].map(postavNohu);
   const ruky = [-1, 1].map(postavRuku);
   const hlava = postavHlavu();
