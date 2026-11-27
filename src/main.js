@@ -23,6 +23,7 @@ import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykr
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti, vypustNaklad } from './more.js';
 import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor, nastavPocasie, nastavFazu, menoFazy, fazaMesiaca, tmaNoci, sekundDoHodiny } from './pocasie.js';
 import { initNastavenia } from './nastavenia.js';
+import { initPauza, jePauza, otacajKameru, vratKameru, pocitaj, ulozStaty, nacitajStaty } from './pauza.js';
 import { initBledi, aktualizujBledych, stavBledych, bledi as zoznamBledych, nastavenia as bledyNast, bledySem, vykukniSem } from './bledi.js';
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
@@ -60,7 +61,7 @@ initZivocichy(scena);
 initNepriatelia(scena);
 initBledi(scena, g.renderer, kamera);
 initMajaky(scena, { oznam: t => oznam(t), nastavPostel: p => { postel = p; } });   // majaky, strazca, flase so spravami (src/majak.js)
-nepUdalosti.priZabiti = (id, def) => { hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); if (def.boss) setTimeout(() => oznam('🏆 Z trofejí strážcu sa dá vyrobiť niečo výnimočné…'), 600); };
+nepUdalosti.priZabiti = (id, def) => { pocitaj('porazeni'); hlasUlohy('zabi', id); oznam(`☠ ${def.meno} porazený`); if (def.boss) setTimeout(() => oznam('🏆 Z trofejí strážcu sa dá vyrobiť niečo výnimočné…'), 600); };
 udalosti.priSplachu = (x, y, z, s) => {
   zvuky.splach(Math.min(s, 1) * 0.6);
   for (let i = 0; i < 10 * s + 4; i++) pena.vypust(x, y + 0.1, z, (Math.random() - 0.5) * 3 * s, 2 + Math.random() * 3 * s, (Math.random() - 0.5) * 3 * s, 0xffffff, 0.8);
@@ -113,6 +114,7 @@ try {
     nacitajUlohy(u.ulohy);
     nacitajMajaky(u.majaky);
     nacitajZnacky(u.znacky);
+    nacitajStaty(u.staty);
     if (Array.isArray(u.postel)) postel = u.postel;
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
@@ -123,8 +125,9 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
-  } catch (e) { /* ukladanie nedostupne */ }
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel, staty: ulozStaty() }));
+    return true;
+  } catch (e) { return false; /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
 addEventListener('beforeunload', uloz);
@@ -210,6 +213,7 @@ hrac.priUdere = info => {
   const vynos = poskod(u, fx, fz, dmg);
   if (!vynos) { if (zdroj.nastroj && !nastroj?.nastroj) oznam('Rukami to pôjde pomaly – vyrob si nástroj (Tab)'); return; }
   zobrate.add(u.id);
+  if (material === 'drevo' && u.rKolizia > 0.2) pocitaj('stromy');
   if (material === 'drevo' && u.rKolizia > 0.2) setTimeout(() => { zvuky.pad(); kam.zatras(0.05); }, 1100);
   for (const [id, n] of vynos) {
     const navyse = pridaj(id, n);
@@ -267,7 +271,9 @@ initHororovaZona(scena, oznam);
 initDev({ platno, hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
   mesiac: i => { nastavFazu(i, cas); return menoFazy(); }, pocasie: nastavPocasie, start: start.hrac, uloz, kluc: KLUC });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
-$('start').addEventListener('click', () => { initZvuk(); zamkni(); });
+$('start').addEventListener('click', initZvuk);      // zvuk smie zacat az po kliknuti
+initPauza({ platno, uloz, info: () => ({ den: Math.floor((9 + cas / 60) / 24) + 1, ostrovy: objavene.size, spolu: majaky.length,
+  strazcovia: majaky.filter(x => x.porazeny || x.lit).length, majaky: majaky.filter(x => x.lit).length, ulohy: stavUloh().hotove.length }) });
 initBoj({ scena, kamera, kam, hrac });
 initVystroj(hrac, t => oznam(t), kam, triesky);
 let napovedaZbrane = false;
@@ -413,7 +419,7 @@ function aktualizuj(dt) {
         else { hrac.zdvihni(); zvuky.uder('list'); oznam('Fakľa zapichnutá – <kbd>E</kbd> ju zoberieš späť'); }
       }
     } else if (d?.jedlo) {
-      if (zjedz(d)) { hlasUlohy('zjedz'); odober(d.id, 1); vykresliInventar(); zvuky.zober(); oznam(`Zjedol si: ${d.ikona} ${d.meno}`); }
+      if (zjedz(d)) { pocitaj('jedla'); hlasUlohy('zjedz'); odober(d.id, 1); vykresliInventar(); zvuky.zober(); oznam(`Zjedol si: ${d.ikona} ${d.meno}`); }
       else oznam('Nie si hladný ani smädný');
     } else if (d?.polozit === 'taborak') {                // polozit taborak pred postavu
       const x = hrac.poz.x - Math.sin(hrac.smer) * 1.9, z = hrac.poz.z - Math.cos(hrac.smer) * 1.9;
@@ -497,7 +503,7 @@ function aktualizuj(dt) {
     else if (zber) napoveda = `<kbd>E</kbd> ${zber.text}`;
     else if (more) napoveda = `<kbd>E</kbd> ${more.text}`;
     if (obs?.akcia && stlacene('KeyE')) { obs.akcia(); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.zober(); }
-    if ((ulovok || zber || more) && stlacene('KeyE')) { zoberVsetko((ulovok || zber || more).akcia()); hrac.zdvihni(); }
+    if ((ulovok || zber || more) && stlacene('KeyE')) { if (ulovok) pocitaj('kraby'); zoberVsetko((ulovok || zber || more).akcia()); hrac.zdvihni(); }
     if (stojaca && stlacene('KeyE')) { if (zoberFaklu(stojaca)) { hrac.zdvihni(); zvuky.zober(); } else oznam('Batoh je plný'); }
     if (blizko && stlacene('KeyE')) nastup();
     else if (lodUk && stlacene('KeyE')) otvorOkno('lodenica');
@@ -562,12 +568,24 @@ function aktualizuj(dt) {
 }
 
 const hodiny = new THREE.Clock();
+const stredPauzy = new THREE.Vector3();
 function snimok() {
   requestAnimationFrame(snimok);
-  aktualizuj(Math.min(hodiny.getDelta(), 0.05));
+  const dt = Math.min(hodiny.getDelta(), 0.05);
+  if (jePauza()) {                                    // pauza: hra stoji, len sa pomaly otaca kamera
+    const s = vKanoe ? kanoe.model.position : hrac.poz;
+    stredPauzy.set(s.x, s.y + 1.3, s.z);
+    $('nacitanie').textContent = aktualizujSvet(s.x, s.z) ? '' : 'Načítavam ostrovy…';
+    otacajKameru(dt, kamera, stredPauzy, uzlyPri(s.x, s.z));
+  } else {
+    vratKameru(kamera);
+    pocitaj('hrane', dt);
+    aktualizuj(dt);
+  }
   g.vykresli();
   koniecSnimku();
 }
+aktualizuj(1 / 60);                                   // prvy krok vzdy (kamera, pocasie, HUD), aj keby uz bola pauza
 snimok();
 
 // ---------- ladenie z konzoly: hra.sim(sekundy, ['KeyW'], ['Mys0']) odohra cas bez cakania na snimky ----------
