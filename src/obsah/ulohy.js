@@ -20,7 +20,7 @@ export const KAPITOLY = [
     { id: 'k1_kamen', text: 'Pozbieraj 5 kameňov zo zeme alebo z balvanov', typ: 'mat', ciel: 'kamen', pocet: 5, odmena: [['palica', 2]] },
     { id: 'k1_sekera', text: 'Vyrob si kamennú sekeru (Tab → Nástroje)', typ: 'vyrob', ciel: 'kamenna_sekera', pocet: 1, odmena: [['drevo', 4]] },
     { id: 'k1_ohen', text: 'Vyrob a polož táborák (vyber ho z lišty a stlač F)', typ: 'ohen', pocet: 1, odmena: [['drevo', 4]] },
-    { id: 'k1_upec', text: 'Upeč niečo na táboráku (surové jedlo polož na oheň – E)', typ: 'upec', pocet: 1, odmena: [['kokos', 2]] },
+    { id: 'k1_upec', text: 'Upeč niečo na táboráku (surové jedlo polož na oheň – E, upečené zober tiež E)', typ: 'upec', pocet: 1, odmena: [['kokos', 2]] },
     { id: 'k1_zjedz', text: 'Zjedz alebo vypi niečo (vyber jedlo a stlač F)', typ: 'zjedz', pocet: 1, odmena: [['banan', 2]] },
     { id: 'k1_podlaha', text: 'Postav podlahu (stavebné menu B)', typ: 'postav', ciel: 'podlaha', pocet: 1, odmena: [['list', 6]] },
     { id: 'k1_bambus', text: 'Doplávaj na Šumivý háj (severovýchod) a nazbieraj 10 bambusu – inde nerastie', typ: 'mat', ciel: 'bambus', pocet: 10, odmena: [['vlakno', 4]] },

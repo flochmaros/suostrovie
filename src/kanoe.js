@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 import { klavesy } from './vstup.js';
+import { maEfekt } from './preziti.js';
 import { vyskaTerenu, uzlyPri, pasmoPlynule } from './svet.js';
 import { vyskaVody, stopaLode, porucha, lodeMasky } from './ocean.js';
 import { postavDruh } from './lode_modely.js';
@@ -490,7 +491,8 @@ export function vytvorKanoe(scena, x, z, { pena, zvuky }, druh = 'kanoe') {
       let vr = k.rych.x * rx + k.rych.y * rz;
       // zaber padla: tah pulzuje v rytme padla (priemer ostava rovnaky) - lod "skace" dopredu po kazdom zabere
       const pulz = k.padlo ? 0.45 + 1.1 * Math.sin(k.faza) ** 2 : 1;
-      vf += (tah * S.pad * pulz + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
+      const sytyZaber = ovladane && maEfekt('veslo') ? 1.5 : 1;   // jedlo z hrnca: silnejsi zaber (asi +20 % rychlost)
+      vf += (tah * S.pad * pulz * sytyZaber + S.plachta * vietor.sila * k.ucinnost * k.plachtaV) * dt;
       // tazka lod (voda v nej) a poskodeny trup = vacsi odpor
       const zataz = 1 + 1.2 * k.voda + 0.35 * (1 - k.trup / maxTrup(k));
       vf -= (vf * Math.abs(vf) * 0.055 * S.odpor * zataz + vf * 0.08) * dt;   // strop: ~9 m/s padlom (ur. 1), ~16 m/s s plachtou po vetre (ur. 4)

@@ -32,6 +32,7 @@ recept({ id: 'fakla', skupina: N, vysledok: ['fakla', 1], suroviny: [['palica', 
 
 // tabor: taborak (polozi sa klavesou F)
 recept({ id: 'taborak', skupina: 'Tábor', vysledok: ['taborak', 1], suroviny: [['kamen', 5], ['drevo', 2], ['palica', 2]] });
+recept({ id: 'hrniec', skupina: 'Tábor', vysledok: ['hrniec', 1], suroviny: [['hlina', 4], ['palica', 1]] });
 
 // stavba: zakladne diely sa stavaju z menu B na mriezku 2 m (stavba.js), nevyrabaju sa do batohu
 recept({ id: 'podlaha', stavba: 'podlaha', skupina: 'Stavba', meno: 'Podlaha', ikona: ik('packed-planks', '#b88a56'), popis: 'Drevená plošina 2×2 m na nohách.', suroviny: [['drevo', 3], ['palica', 4], ['vlakno', 2]] });

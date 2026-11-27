@@ -11,6 +11,7 @@ import { vyskaStrechy, odtlacOdJaskyne } from './horor_zona.js';
 import { odtlacOdMajaka } from './majak.js';
 import { drzNaPalube, naLokalne } from './kanoe.js';
 import { UTOKY, KOMBO_OKNO, typZbrane } from './boj.js';
+import { maEfekt } from './preziti.js';
 
 const tlm = THREE.MathUtils.damp;
 export function tlmUhol(a, b, lambda, dt) {
@@ -264,7 +265,7 @@ export function vytvorHraca(scena) {
       const strecha = vyskaStrechy(h.poz.x, h.poz.z, h.poz.y);          // po streche jaskyne sa chodi ako po zemi
       const zem = Math.max(vyskaTerenu(h.poz.x, h.poz.z), vyskaPodlahy(h.poz.x, h.poz.z, h.poz.y), strecha);
       h.potapa = h.plava && klavesy.has('KeyC') && h.dych > 0;
-      h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / (20 * (h.dychNasobok ?? 1)) : dt / 4), 0, 1);
+      h.dych = THREE.MathUtils.clamp(h.dych + (h.potapa ? -dt / (20 * (h.dychNasobok ?? 1) * (maEfekt('dych') ? 2 : 1)) : dt / 4), 0, 1);
       if (h.plava && zem < voda - 1.15) {
         const ciel = h.potapa ? Math.max(zem + 0.8, voda - 40) : voda - 1.2;
         h.poz.y = tlm(h.poz.y, ciel, h.potapa ? 1.5 : 5, dt);

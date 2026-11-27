@@ -2,6 +2,9 @@
 // hlad/smad: 100 = sity/napity, 0 = prazdne. zdravie: 100 = plne.
 
 export const stav = { hlad: 90, smad: 90, zdravie: 100, mrtvy: false };
+// docasne ucinky jedal: { veslo|dych|regen|odvaha: zostavajuce sekundy } (zoznam v obsah/jedlo.js)
+export const efekty = {};
+export const maEfekt = k => efekty[k] > 0;
 
 // callbacky, ktore nastavi main.js
 export const udalosti = { priSmrti: null, priVarovani: null, priZobudeni: null };
@@ -9,6 +12,7 @@ export const udalosti = { priSmrti: null, priVarovani: null, priZobudeni: null }
 const HLAD_ZA_S = 100 / (25 * 60);   // prazdny za ~25 min
 const SMAD_ZA_S = 100 / (15 * 60);   // prazdny za ~15 min
 const UBYTOK_ZDRAVIA = 0.5;          // za sekundu pri hlade/smade 0 (kazde zvlast)
+const REGEN_JEDLA = 1.2;             // ucinok 'regen': za sekundu navyse (aj ked si hladny)
 const OBNOVA_ZDRAVIA = 0.6;          // za sekundu pri hlade aj smade > 60
 const TEPLO_OHNA = 0.5;              // za sekundu navyse pri horiacom ohni (ak nie si hladny/smadny)
 
@@ -39,6 +43,8 @@ export function aktualizujPreziti(dt, { beh = false, plava = false, vKanoe = fal
   if (!stav.mrtvy && stav.hlad > 60 && stav.smad > 60 && stav.zdravie < 100) {
     stav.zdravie = clamp(stav.zdravie + OBNOVA_ZDRAVIA * dt);
   }
+  if (!stav.mrtvy && maEfekt('regen')) stav.zdravie = clamp(stav.zdravie + REGEN_JEDLA * dt);
+  for (const k in efekty) if ((efekty[k] -= dt) <= 0) delete efekty[k];
   // teplo ohna: pomale hojenie, ak nie si hladny ani smadny
   if (!stav.mrtvy && priOhni && stav.hlad > 25 && stav.smad > 25 && stav.zdravie < 100) {
     stav.zdravie = clamp(stav.zdravie + TEPLO_OHNA * dt);
@@ -85,18 +91,19 @@ export function zran(n, pricina = 'zranenie') {
 export function zjedz(def) {
   if (stav.mrtvy || !def || !def.jedlo) return false;
   const j = def.jedlo;
-  const surove = (def.id === 'krab' || def.id === 'ryba') && !def.vareny;
+  const surove = ((def.id === 'krab' || def.id === 'ryba') && !def.vareny) || !!def.rizikove;   // rizikove = spalene
   const ef = surove ? 0.7 : 1;
   const hladnyCo = (j.sytost || 0) > 0 && stav.hlad < 100;
   const smadnyCo = (j.voda || 0) > 0 && stav.smad < 100;
   const lieci = (j.zdravie || 0) > 0 && stav.zdravie < 100;
-  if (!hladnyCo && !smadnyCo && !lieci) return false; // nic by to nezmenilo
+  if (!hladnyCo && !smadnyCo && !lieci && !j.efekt) return false; // nic by to nezmenilo
   stav.hlad = clamp(stav.hlad + (j.sytost || 0) * ef);
   stav.smad = clamp(stav.smad + (j.voda || 0) * ef);
   if (j.zdravie) stav.zdravie = clamp(stav.zdravie + j.zdravie);
+  if (j.efekt) efekty[j.efekt] = Math.max(efekty[j.efekt] || 0, j.trvanie);
   if (surove && Math.random() < 0.2) {
     zran(6, 'surove jedlo');
-    if (udalosti.priVarovani) udalosti.priVarovani('Surové jedlo ti nerobí dobre');
+    if (udalosti.priVarovani) udalosti.priVarovani(def.rizikove ? 'Spálené jedlo ti nerobí dobre' : 'Surové jedlo ti nerobí dobre');
   }
   return true;
 }
@@ -119,11 +126,12 @@ export function rozmazanie() {
 // po smrti: bezpecne hodnoty (inventar sa nemeni)
 export function oziv() {
   stav.hlad = 50; stav.smad = 50; stav.zdravie = 60; stav.mrtvy = false;
+  for (const k in efekty) delete efekty[k];
   blesk = 0; casVarovania = 5; posHlad = 50; posSmad = 50;
 }
 
 export function ulozPreziti() {
-  return { hlad: stav.hlad, smad: stav.smad, zdravie: stav.zdravie };
+  return { hlad: stav.hlad, smad: stav.smad, zdravie: stav.zdravie, efekty: { ...efekty } };
 }
 
 export function nacitajPreziti(o) {
@@ -134,6 +142,8 @@ export function nacitajPreziti(o) {
   stav.zdravie = c(o.zdravie, stav.zdravie);
   if (stav.zdravie <= 0) stav.zdravie = 30;
   stav.mrtvy = false;
+  for (const k in efekty) delete efekty[k];
+  for (const k in o.efekty || {}) if (o.efekty[k] > 0) efekty[k] = +o.efekty[k];
   posHlad = stav.hlad; posSmad = stav.smad;
 }
 

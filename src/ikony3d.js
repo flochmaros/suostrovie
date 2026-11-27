@@ -86,7 +86,7 @@ export function naplnIkony() {
     try {
       p.ikona3d = vyrenderuj(renderer, s, kam, p);
       p.ikonaSvg = p.ikona;
-      p.ikona = `<img class="ik3" src="${p.ikona3d}" alt="">`;
+      p.ikona = `<img class="ik3" src="${p.ikona3d}" alt="">${p.znacka ?? ''}`;   // znacka = napr. hviezdicka dokonaleho jedla
     } catch (e) { console.warn('Ikona z modelu zlyhala:', p.id, e); }
   }
   renderer.dispose();

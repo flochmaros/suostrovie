@@ -7,6 +7,7 @@
 //   hororZvuk(druh, pozicia?, sila?)   druhy: sepot kroky konar klopanie srdce vykrik dych dron svitanie
 import * as THREE from 'three';
 import { initZvuk, zvukovyKontext, tlmProstredie } from './zvuk.js';
+import { maEfekt } from './preziti.js';
 import { ZVUKY_HOROR, vytvorProstredie, vytvorDron, pocitadlo } from './strach_zvuky.js';
 
 export const DRUHY_ZVUKOV = Object.keys(ZVUKY_HOROR);
@@ -120,7 +121,7 @@ export function aktualizujStrach(dt, { hracPoz, kamera, hrac, noc = 0, zona = 0,
   const nocnyCiel = (s.zona * tmaK * 0.4 + s.zona * medzi(jaskyna) * 0.3 * tmaK) * (1 - medzi(svetlo));
   s.nocny += (nocnyCiel - s.nocny) * Math.min(1, dt / 4);
   if (nocnyCiel === 0 && s.nocny < 0.004) s.nocny = 0;
-  const ciel = medzi(s.zaklad + s.sok + s.nocny);
+  const ciel = medzi(s.zaklad + s.sok + s.nocny) * (maEfekt('odvaha') ? 0.4 : 1);   // jedlo z hrnca tlmi strach
   s.strach += (ciel - s.strach) * Math.min(1, dt / (ciel > s.strach ? 0.7 : 3.5));
   if (ciel === 0 && s.strach < 0.004) s.strach = 0;
   const cielZony = Math.max(s.zonaCiel, medzi(zona));

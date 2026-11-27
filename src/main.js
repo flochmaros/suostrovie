@@ -27,7 +27,8 @@ import { initBledi, aktualizujBledych, stavBledych, bledi as zoznamBledych, nast
 import { dev, initDev, aktualizujDev } from './dev.js';
 import { jeBujny } from './vegetacia.js';
 import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
-import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne, zapalFaklou } from './ohen.js';
+import { initOhen, polozOhen, najblizsiOhen, aktualizujOhne, ulozOhne, nacitajOhne } from './ohen.js';
+import { initVarenie, obsluhaOhna, aktualizujVarenie, uvarene, jeHrniec, zavriHrniec, ulozVarenie, nacitajVarenie } from './varenie.js';
 import { initFakla, aktualizujFaklu, skusZapalit, zapichni, najblizsiaFakla, zoberFaklu, horiVRuke, horiaceFakle, minHorenie, ulozFakle, nacitajFakle } from './fakla.js';
 import { aktualizujStrach, nastavStrach, pridajStrach, nastavZonu, hororZvuk, skusZvuk, stavStrachu, diagnostika as strachStav } from './strach.js';
 import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
@@ -71,6 +72,7 @@ moreUdalosti.priSplachu = udalosti.priSplachu;
 moreUdalosti.priZraneni = (dmg, pricina) => zran(dmg, pricina);
 initPocasie(g);
 initOhen(scena);
+initVarenie({ hrac, oznam: t => oznam(t), zavrete: () => zamkni() });
 initFakla(scena, { oznam: t => oznam(t) });
 initLodenice(scena);
 initStavba(scena, { oznam: t => oznam(t), pad: () => zvuky.pad(),   // stavanie: taborak a lodenicu polozi ich vlastny kod
@@ -108,6 +110,7 @@ try {
     nacitajPreziti(u.preziti);
     nacitajPocasie(u.pocasie);
     nacitajOhne(u.ohne);
+    nacitajVarenie(u.varenie);
     nacitajFakle(u.fakle);
     nacitajStavby(u.stavby);
     nacitajUlohy(u.ulohy);
@@ -123,7 +126,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), varenie: ulozVarenie(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -253,7 +256,7 @@ function otvorOkno(rezim, pole, nazov) { prepniBatoh(true, rezim, pole, nazov); 
 
 const platno = g.renderer.domElement;
 const zamkni = () => platno.requestPointerLock()?.catch?.(() => {});
-initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || jeDennik() || dialogOtvoreny() || dev.zapnuty || stavPreziti.mrtvy ? 'none' : 'flex'; });
+initVstup(platno, zamknuta => { $('start').style.display = zamknuta || jeOtvoreny() || jeDennik() || jeHrniec() || dialogOtvoreny() || dev.zapnuty || stavPreziti.mrtvy ? 'none' : 'flex'; });
 udalostiPreziti.priVarovani = t => oznam(t);
 udalostiPreziti.priSmrti = () => document.exitPointerLock();
 udalostiPreziti.priZobudeni = () => {
@@ -385,6 +388,11 @@ function aktualizuj(dt) {
   for (const l of lode) if (!(vKanoe && l === kanoe) && Math.hypot(l.poz.x - lx, l.poz.y - lz) < 250) l.aktualizuj(dt, cas, false);
   kolizieLodi(lode);
   const dosahLode = 4.5 + kanoe.stat.dlzka * 0.12;
+  if (jeHrniec() && ['Tab', 'KeyB', 'KeyJ', 'Escape', 'KeyE'].some(stlacene)) {   // okno hrnca
+    zavriHrniec(); zamkni();
+    if (stlacene('Escape')) $('start').style.display = 'flex';                    // po Esc prehliadac mys nezamkne hned
+    return;
+  }
   if (stlacene('Tab')) { if (prepniBatoh(!jeOtvoreny() || rezimOkna() === 'stavba', 'batoh')) document.exitPointerLock(); else zamkni(); }
   if (stlacene('KeyJ') && !stavPreziti.mrtvy) { if (prepniDennik()) { if (jeOtvoreny()) prepniBatoh(false); document.exitPointerLock(); } else zamkni(); }   // dennik uloh
   if (stlacene('KeyM')) oznam(menu.prepniTicho() ? '🔇 Zvuk vypnutý (M)' : '🔊 Zvuk zapnutý (M)');
@@ -473,18 +481,10 @@ function aktualizuj(dt) {
     const ulovok = !blizko && !predmet && !ohen && !stojaca && !funk && najdiUlovok(hrac.poz.x, hrac.poz.z);
     const zber = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && najdiZber(hrac.poz.x, hrac.poz.z, -Math.sin(hrac.smer), -Math.cos(hrac.smer));
     const more = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && !zber && najdiMorskyZber(hrac.poz.x, hrac.poz.y, hrac.poz.z);
-    if (ohen) {                                            // taborak: upiect vybrane jedlo, inak prilozit drevo
-      const d = vybranyPredmet(), mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-      const peci = hori(ohen) && d && daSaUpiect(d.id);
-      const faklou = !hori(ohen) && !pocet('drevo') && horiVRuke();          // pahrebu rozfuka aj horiaca fakla
-      napoveda = faklou ? '<kbd>E</kbd> zapáliť pahrebu fakľou' : peci ? `<kbd>E</kbd> upiecť: ${d.ikona} ${d.meno}`
-        : pocet('drevo') ? `<kbd>E</kbd> ${hori(ohen) ? 'priložiť drevo' : 'zapáliť (drevo)'}` : hori(ohen) ? `Na priloženie treba ${UI.drevo} drevo` : 'Pahreba – zapáliš ju drevom';
-      if (hori(ohen)) napoveda += ` · ${UI.ohen} ${mmss(ohen.palivo)}${ohen.pecie.length ? ` · pečie sa ${ohen.pecie.length}×` : ''}`;
-      if (stlacene('KeyE')) {
-        if (faklou) { zapalFaklou(ohen); minHorenie(20); zvuky.faklaZapal(); hrac.zdvihni(); }
-        else if (peci) { if (pec(ohen, d.id)) { odober(d.id, 1); vykresliInventar(); zvuky.syc(); } else oznam('Na ohni už nie je miesto'); }
-        else if (pocet('drevo')) { if (prilozDrevo(ohen)) { odober('drevo', 1); vykresliInventar(); zvuky.uder('drevo'); hrac.zdvihni(); } else oznam('Oheň je plný dreva'); }
-      }
+    if (ohen) {                                            // taborak: pecenie, hrniec, drevo (varenie.js)
+      const ob = obsluhaOhna(ohen);
+      napoveda = ob.text;
+      if (stlacene('KeyE')) ob.akcia();
     } else if (vybranyPredmet()?.polozit === 'taborak') napoveda = '<kbd>F</kbd> položiť táborák';
     const lodUk = !blizko && !predmet && !ohen && !stojaca && !funk && !ulovok && !zber && !more && najblizsiaLodenica(hrac.poz.x, hrac.poz.z, 7);
     if (blizko) napoveda = `<kbd>E</kbd> nastúpiť: ${kanoe.stat.nazov} · <kbd>R</kbd> sklad`;
@@ -539,12 +539,8 @@ function aktualizuj(dt) {
   aktualizujFunkcne(dt, { dazd: poc.dazd, svetlo: poc.svetlo });
   dymPece.aktualizuj(dt);
   aktualizujUlohy(dt);
-  for (const id of ohne.upecene) {
-    hlasUlohy('upec');
-    const navyse = pridaj(id, 1);
-    oznam(navyse ? 'Batoh je plný' : `Upečené: ${PREDMETY[id].ikona} ${PREDMETY[id].meno}`);
-    zvuky.zober(); vykresliInventar();
-  }
+  ohne.uvarene.forEach(uvarene);
+  aktualizujVarenie({ ohen: !vKanoe && !naPalube && !jeOtvoreny() && najblizsiOhen(hrac.poz.x, hrac.poz.z, 5), kamera });
   if (zivy) aktualizujPreziti(dt, { priOhni: ohne.priOhni && !vKanoe, beh: !vKanoe && klavesy.has('ShiftLeft') && hrac.rych.length() > 5, plava: hrac.plava && !vKanoe,
     vKanoe, padluje: vKanoe && (klavesy.has('KeyW') || klavesy.has('KeyS')), teplo: 0.6 + 0.8 * poc.svetlo });
   vykresliPreziti();

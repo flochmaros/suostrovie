@@ -83,6 +83,35 @@ export function ohen(sila) {
   }
 }
 
+// pecenie: sycanie podla stavu najpokrocilejsieho kusu (0 surove .. 3 spalene), sila 0..1 podla vzdialenosti
+let sycG = null, sycF = null, dalsiSyk = 0;
+const SYC = [[5200, 0.014, 0.35], [3800, 0.03, 0.22], [5000, 0.036, 0.18], [1700, 0.05, 0.07]];   // [frekvencia, hlasitost, medzery praskania]
+export function sycanie(stav, sila) {
+  if (!ctx) return;
+  const n = ctx.currentTime;
+  if (!sycG) {
+    if (!sila) return;
+    sycG = ctx.createGain(); sycG.gain.value = 0;
+    sycF = filter('bandpass', 4000, 0.9);
+    smycka().connect(sycF).connect(sycG).connect(bEfekty);
+  }
+  const [f, h, medzera] = SYC[stav] ?? SYC[0];
+  sycG.gain.setTargetAtTime(sila * h * (0.7 + Math.random() * 0.6), n, 0.06);
+  sycF.frequency.setTargetAtTime(f * (0.9 + Math.random() * 0.2), n, 0.15);
+  if (sila > 0.05 && n > dalsiSyk) {                       // prsknutie tuku / praskanie spaleneho
+    burst(0.015 + Math.random() * 0.03, stav === 3 ? 'bandpass' : 'highpass', stav === 3 ? 900 + Math.random() * 900 : 4500 + Math.random() * 2500, sila * (stav === 3 ? 0.16 : 0.07), 2);
+    dalsiSyk = n + medzera * (0.3 + Math.random() * 1.4);
+  }
+}
+// bublanie v hrnci (volat kazdy snimok, kym sa vari)
+let dalsiaBublina = 0;
+export function bublanie(sila) {
+  if (!ctx || sila <= 0.02 || ctx.currentTime < dalsiaBublina) return;
+  const f = 180 + Math.random() * 260;
+  ton(f, 0.07, 0.07 * sila, f * 2.1);
+  dalsiaBublina = ctx.currentTime + 0.05 + Math.random() * 0.2;
+}
+
 // pocasie: sila dazda 0..1, sila nocnej atmosfery 0..1 (vola pocasie.js kazdy snimok)
 export function dazd(sila, podVodou = false) {
   if (!ctx) return;
@@ -193,6 +222,9 @@ export const zvuky = {
   nabite: () => { ton(440, 0.25, 0.08, 880); setTimeout(() => ton(880, 0.3, 0.06, 1320), 80); },
   utokNepr: () => { burst(0.12, 'bandpass', 700, 0.3, 1.5); ton(260, 0.12, 0.2, 120); },
   smrtNepr: () => { burst(0.3, 'lowpass', 600, 0.3); ton(300, 0.35, 0.2, 60); },
+  cink: () => { ton(1568, 0.5, 0.09); setTimeout(() => ton(2093, 0.8, 0.08), 90); },
+  uvarene: () => { [523, 659, 784].forEach((f, i) => setTimeout(() => ton(f, 0.5, 0.08), i * 110)); },
+  zhorelo: () => { burst(0.8, 'highpass', 2500, 0.1); ton(180, 0.5, 0.07, 90); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
 };
 
