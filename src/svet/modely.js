@@ -7,6 +7,7 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
 import { uCas, uNoc } from '../ocean.js';
 import { rng } from '../nahoda.js';
+import { nacitajGLB } from './glb.js';
 
 const perlin = new ImprovedNoise();
 const V3 = THREE.Vector3;
@@ -840,3 +841,6 @@ export const DRUHY = {
   sira: D('kamen', true, [261, 262].map(siraVyver)),
   gumovnik: D('strom', true, [271, 272].map(gumovnik)),
 };
+
+// modely z Blenderu (modely/rastliny/*.glb) prepisu varianty vyssie; top-level await = hra pocka, kym sa nacitaju
+await nacitajGLB(DRUHY);

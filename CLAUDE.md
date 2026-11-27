@@ -36,6 +36,7 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `nastroje/ostrov.html` | náhľad ostrova zhora bez hry (`?id=<id>`, `?id=vsetky`); zadanie pre tvorcu ostrova `nastroje/ZADANIE_OSTROVA.md` |
 | `src/vegetacia.js` | rozmiestnenie rastlín podľa biómu, uzly (hitbox, životy, pád), zber plodov + dorastanie (`najdiZber`, `stavRastlin`) |
 | `src/svet/modely.js` | modely rastlín kódom + materiály s vetrom |
+| `src/svet/glb.js`, `modely/rastliny/`, `nastroje/blender/` | **modely z Blenderu**: `.glb` (objekt `zaklad` + `plody`, farby vo vrcholoch) nahradia varianty v `DRUHY` (zoznam `GLB`); skripty pre Blender 4.5 (`blender -b --python nastroje/blender/palma.py`); `?bezglb` = pôvodné modely; strážiť počet trojuholníkov |
 | `src/zivocichy.js` | kraby, ryby, vtáky, motýle, korytnačka, delfín (`najdiUlovok`) |
 | `src/postava.js` | model postavy (kĺby `J` používa `hrac.js`) |
 | `src/nastroje.js` | poškodenie podľa nástroja, opotrebenie |
