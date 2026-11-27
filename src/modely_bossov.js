@@ -16,6 +16,13 @@ const kamen = (r, m, x, y, z, sx = 1, sy = 1, sz = 1) => mesh(new THREE.Dodecahe
 
 // ================= PRADAVNY LAVOVY JASTER =================
 export function modelLavovyObr() {
+  const mob = mobGLB('lavovy_obr');                          // model z Blenderu (nastroje/blender/moby_lavovy_obr.py)
+  if (mob) {
+    const trup = mob.uzol('trup');
+    return { g: mob.g, tela: [mob.mat('telo'), mob.mat('brucho')], trup,
+      nohy: NOHY4.map(([m, s, i]) => ({ n: mob.uzol(m), s, i })),
+      anim: animacia(trup, mob.uzol('hlava'), mob.uzol('celust'), [0, 1, 2].map(i => mob.uzol('chvost_' + i)), mob.mat('lava')) };
+  }
   const g = new THREE.Group();
   const telo = M(0x2e1a16, { roughness: 0.6 }), brucho = M(0x5a2e22), roh = M(0x1a1412, { roughness: 0.4, metalness: 0.2 });
   const lava = M(0x301008, { emissive: 0xff5410, emissiveIntensity: 2.4, roughness: 0.4 });
@@ -56,7 +63,8 @@ export function modelLavovyObr() {
     for (let k = -1; k <= 1; k++) n.add(kuzel(0.03, 0.12, roh, x * 0.08 + k * 0.07, -0.52, 0.25, Math.PI / 2));
     g.add(n); nohy.push({ n, s: x, i: z });
   }
-  function anim(e, dt, cas, wk, sk, pohyb) {
+  return { g, tela: [telo, brucho], trup, nohy, anim: animacia(trup, hlava, celust, chv, lava) };
+  function animacia(trup, hlava, celust, chv, lava) { return (e, dt, cas, wk, sk, pohyb) => {
     const dup = e.typ === 'dupot', vrh = e.typ === 'vrh';
     trup.rotation.x = dup ? wk * 0.35 - sk * 0.2 : -wk * 0.15;
     trup.position.y = 0.62 + (dup ? wk * 0.25 : 0);
@@ -64,12 +72,18 @@ export function modelLavovyObr() {
     celust.rotation.x = Math.max(wk * (vrh ? 0.9 : 0.6), sk * 0.7) + Math.sin(cas * 2) * 0.03;
     chv.forEach((c, i) => { c.rotation.y = Math.sin(e.ph * 0.8 - i * 0.9) * (0.2 + 0.15 * pohyb) * (1 + i * 0.3); });
     lava.emissiveIntensity = 2.4 + wk * 7 + (e.faza2 ? 2 + Math.sin(cas * 12) : Math.sin(cas * 3) * 0.4);
-  }
-  return { g, tela: [telo, brucho], trup, nohy, anim };
+  }; }
 }
 
 // ================= PRASTARY KROKODIL =================
 export function modelKrokodil() {
+  const mob = mobGLB('krokodil');                            // model z Blenderu (nastroje/blender/moby_krokodil.py)
+  if (mob) {
+    const trup = mob.uzol('trup');
+    return { g: mob.g, tela: [mob.mat('telo'), mob.mat('brucho')], trup,
+      nohy: NOHY4.map(([m, s, i]) => ({ n: mob.uzol(m), s, i })),
+      anim: animacia(trup, mob.uzol('hlava'), mob.uzol('horna'), mob.uzol('dolna'), [0, 1, 2, 3].map(i => mob.uzol('chvost_' + i))) };
+  }
   const g = new THREE.Group();
   const telo = M(0x4d4a30, { roughness: 0.85 }), tmave = M(0x23251a), brucho = M(0xb8a877), zub = M(0xf3ecd6, { roughness: 0.4 });
   const oko = M(0x221a00, { emissive: 0xd8c020, emissiveIntensity: 1.8 }), mach = M(0x5d7a32);
@@ -103,7 +117,8 @@ export function modelKrokodil() {
     n.add(kvader(0.36, 0.18, 0.2, telo, x * 0.18, -0.06, 0), kvader(0.17, 0.42, 0.17, telo, x * 0.34, -0.26, 0), kvader(0.24, 0.07, 0.3, tmave, x * 0.36, -0.47, 0.06));
     g.add(n); nohy.push({ n, s: x, i: z });
   }
-  function anim(e, dt, cas, wk, sk, pohyb) {
+  return { g, tela: [telo, brucho], trup, nohy, anim: animacia(trup, hlava, horna, dolna, chv) };
+  function animacia(trup, hlava, horna, dolna, chv) { return (e, dt, cas, wk, sk, pohyb) => {
     const vyp = e.typ === 'vypad', dup = e.typ === 'dupot';
     const otvor = vyp ? Math.max(wk * 0.9, sk * (0.8 + Math.sin(cas * 25) * 0.3)) : e.typ === 'klepeto' ? Math.max(wk * 1.0, sk * 0.2) : 0.05 + Math.sin(cas * 0.7) * 0.04;
     horna.rotation.x = -otvor * 0.7; dolna.rotation.x = otvor * 0.25;
@@ -113,8 +128,7 @@ export function modelKrokodil() {
       const sw = dup ? (sk ? -1.1 : wk * 1.0) : Math.sin(e.ph * 0.9 - i * 0.8) * (0.15 + 0.25 * pohyb + (vyp && sk ? 0.4 : 0));
       c.rotation.y = sw * (i ? 0.7 : 1);
     });
-  }
-  return { g, tela: [telo, brucho], trup, nohy, anim };
+  }; }
 }
 
 // ================= KRAKEN (sedi vo vode pri brehu) =================
