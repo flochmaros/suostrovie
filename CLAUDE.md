@@ -55,6 +55,8 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/stavba.js` | stavanie: podlaha/stena/strecha na mriežke 2 m (F), náhľad, kolízie (`odtlacOdStien`, `vyskaPodlahy` v hrac.js), rozobratie úderom, ukladanie |
 | `src/vystroj.js`, `src/modely_vystroja.js`, `src/obsah/vystroj.js` | **výstroj**: panel Postava v batohu (3D náhľad + 6 slotov hlava/telo/nohy/čižmy/plášť/amulet), 5 sád brnenia × 4 kusy (`SADY` v obsah/vystroj.js, modely v modely_vystroja.js), obrana sa sčíta (`vystroj.obrana` → `zran`), kompas hmly |
 | `src/castice.js`, `src/zvuk.js` | častice; zvuky generované Web Audio (bez súborov) |
+| `src/vyroba.js`, `src/podlozka.js` | manuálna výroba: suroviny → 3D rohož → rozpoznanie receptu, kniha receptov, animácia; `podlozka.js` je len 3D scéna; recept s `objav: true` sa odomkne len experimentom |
+| `src/ui/` | štýl „tyrkysové more“: `tema.css` (farby, písmo Baloo 2) + CSS po častiach (`vyroba`, `pauza`, `mapa`, `varenie`) |
 | `src/ikony.js` | ikony: `ik(tvar, farba, ...vrstvy)` → SVG (game-icons.net CC BY 3.0 + vlastné), `UI` ikony HUD, `data-ik` v HTML |
 | `src/inventar.js` | batoh 32 políčok (prvých 8 = lišta), ťahanie, Shift+klik, delenie stohu, zoradenie; výroba so záložkami (Tab); stavebné menu (B) |
 | `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js`, `jedlo.js`, `more.js` |

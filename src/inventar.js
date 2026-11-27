@@ -1,18 +1,17 @@
 // Inventar (batoh) + vyroba. Data: 32 policok, prvych 8 = spodna lista (klavesy 1-8).
 // Predmety su v obsah/predmety.js, recepty v obsah/recepty.js.
 // Batoh (Tab): karty Batoh | Vyroba | Postava (Q/E). Predmety sa daju presuvat mysou (tahaj a pusti).
-// Vyroba = kniha receptov (kategorie, zoznam, karta); vyraba sa podrzanim tlacidla. Odomykanie: recepty_odomknute.js.
+// Vyroba = 3D podlozka + kniha receptov (vyroba.js, podlozka.js). Odomykanie: recepty_odomknute.js.
 // Stavebne menu (B): samostatne okno s kartami stavebnych dielov a taboru (skupiny z STAVBA_SKUPINY).
-const STAVBA_SKUPINY = ['Stavba', 'Nábytok', 'Tábor', 'Prístav'];
+export const STAVBA_SKUPINY = ['Stavba', 'Nábytok', 'Tábor', 'Prístav'];
 const zalozka = {};                                // rezim -> zvolena skupina receptov
-const vybranyRecept = {};                          // rezim -> index receptu na karte
-let karta = 'batoh', nasobok = 1;                  // karta batohu; kolko naraz vyrobit (1 | 5 | 'max')
+let karta = 'batoh';                               // karta batohu
 import { PREDMETY } from './obsah/predmety.js';
 import { RECEPTY } from './obsah/recepty.js';
 import './ikony3d.js';   // ikony predmetov z 3D modelov (importuje aj obsah/nastroje, jedlo, more...)
 import './obsah/nastroje.js';   // registracia nastrojov (aby existovali pred nacitanim/recept)
 import { jeOdomknuty, skontrolujRecepty, jeStanicaBlizko, menoReceptu, ikonaReceptu, napovedaReceptu, STANICE } from './recepty_odomknute.js';
-import { zvuky } from './zvuk.js';
+import { initVyroba, vykresliVyrobu, zavriVyrobu } from './vyroba.js';
 
 export const sloty = Array(32).fill(null);       // policko = null alebo { typ, pocet } (nastroj navyse trv = zostavajuca trvanlivost)
 let vybrany = 0, otvoreny = false, rezim = 'batoh', sklad = null, skladNazov = '';   // rezim: 'batoh' | 'stavba' | 'lodenica' | 'sklad'
@@ -141,38 +140,6 @@ function zalozkyHtml(skupiny) {
   return [...skupiny].map(([k, z]) => `<span class="zalozka${k === zalozka[rezim] ? ' aktivna' : ''}" data-zalozka="${k}">${k}<small>${z.filter(i => jeOdomknuty(RECEPTY[i])).length}/${z.length}</small></span>`).join('');
 }
 
-// ---------- kniha receptov: zoznam + velka karta ----------
-function zoznamHtml(zoznam) {
-  return zoznam.map(i => {
-    const r = RECEPTY[i], vyb = i === vybranyRecept[rezim] ? ' vybraty' : '';
-    if (!jeOdomknuty(r)) return `<div class="recept zamknuty${vyb}" data-r="${i}"><span class="ikona">${ikonaReceptu(r)}</span><b>???</b><span class="znak">${r.nacrt ? '📜' : '🔒'}</span></div>`;
-    const ok = mozeVyrobit(r), n = r.vysledok?.[1] ?? 1;
-    return `<div class="recept${ok ? ' moze' : ' nedostupny'}${vyb}" data-r="${i}"><span class="ikona">${ikonaReceptu(r)}</span><b>${menoReceptu(r)}${n > 1 ? ` ×${n}` : ''}</b><span class="znak">${ok ? '✔' : ''}</span></div>`;
-  }).join('');
-}
-const surovinyKarta = r => '<div class="suroviny">' + r.suroviny.map(([id, c]) => {
-  const m = pocet(id);
-  return `<div class="${m >= c ? 'ma' : 'chyba'}"><span class="ikona">${ikonaPredmetu(id)}</span><b>${menoPredmetu(id)}</b><span>mám ${m} / treba ${c}</span><i>${m >= c ? '✔' : '✘'}</i></div>`;
-}).join('') + '</div>';
-function kdeHtml(r) {
-  if (r.lodenica) return '<div class="kde ma">Vyrába sa v lodenici</div>';
-  if (!r.stanica) return '<div class="kde">Vyrobíš kdekoľvek v ruke</div>';
-  const ok = jeStanicaBlizko(r.stanica);
-  return `<div class="kde ${ok ? 'ma' : 'chyba'}">Treba: ${STANICE[r.stanica]} (blízko) ${ok ? '✔' : '✘'}${ok ? '' : '<small>Postavíš v stavebnom menu <kbd>B</kbd> → Tábor</small>'}</div>`;
-}
-const kolkoDaSa = r => (mozeVyrobit(r) ? (r.akcia ? 1 : Math.min(99, ...r.suroviny.map(([id, c]) => Math.floor(pocet(id) / c)))) : 0);
-const kolkoVyrobit = r => Math.min(kolkoDaSa(r), nasobok === 'max' ? 99 : nasobok);
-function kartaHtml(r) {
-  if (!jeOdomknuty(r)) return `<div class="kr-ikona zamknuta"><span class="ikona">${ikonaReceptu(r)}</span></div><h3 class="tema-nadpis">???</h3><p class="popis">Tento recept ešte nepoznáš.</p><div class="kde napoveda-receptu">💡 ${napovedaReceptu(r)}</div>`;
-  const p = r.vysledok ? PREDMETY[r.vysledok[0]] : null, n = r.vysledok?.[1] ?? 1, k = kolkoVyrobit(r);
-  return `<div class="kr-ikona"><span class="ikona">${ikonaReceptu(r)}</span></div><h3 class="tema-nadpis">${menoReceptu(r)}${n > 1 ? ` ×${n}` : ''}</h3>`
-    + `<p class="popis">${r.popis ?? p?.popis ?? ''}</p>` + surovinyKarta(r) + kdeHtml(r)
-    + (p ? `<div class="mas">V batohu: ${pocet(p.id)}</div>` : '')
-    + '<div class="kr-dole">'
-    + (r.akcia ? '' : `<div class="nasobky">${[1, 5, 'max'].map(x => `<span class="nasobok${x === nasobok ? ' aktivny' : ''}" data-n="${x}">${x === 'max' ? 'max' : '×' + x}</span>`).join('')}</div>`)
-    + `<button id="drz" data-r="${RECEPTY.indexOf(r)}"${k ? '' : ' disabled'}><span class="kruh"><span>⚒</span></span><b>${k ? `Podrž a vyrob${k > 1 ? ` ${k}×` : ''}` : 'Nedá sa vyrobiť'}</b></button></div>`;
-}
-
 // ---------- stavebne menu (B): karty ----------
 const surovinyHtml = r => `<div class="suroviny">` + r.suroviny.map(([id, c]) => `<span class="${pocet(id) >= c ? 'ma' : 'chyba'}">${ikonaPredmetu(id)} ${Math.min(pocet(id), c)}/${c}</span>`).join('') + '</div>';
 const stavHtml = r => {
@@ -202,7 +169,9 @@ export function vykresli() {
   $('stavba').style.zoom = Math.min(1, innerWidth / 1200, innerHeight / 780);   // male okno = zmensi menu
   $('batoh').style.zoom = Math.min(1, innerWidth / 1100, innerHeight / 780);
   ukazTip(null);
-  if (!otvoreny) { zrusDrzanie(); return; }
+  document.body.classList.toggle('v-okne', otvoreny);   // minimapa sa pod oknom schova
+  if (!otvoreny || rezim === 'stavba' || (rezim === 'batoh' && karta !== 'vyroba') || rezim === 'sklad') zavriVyrobu();
+  if (!otvoreny) return;
   if (rezim === 'stavba') {
     const sk = receptySkupiny();
     $('stavba-tabs').innerHTML = zalozkyHtml(sk);
@@ -220,48 +189,14 @@ export function vykresli() {
     poslStanice = stavStanic();
     const sk = receptySkupiny();
     $('vyroba-tabs').innerHTML = zalozkyHtml(sk);
-    const z = sk.get(zalozka[rezim]) ?? [];
-    if (!z.includes(vybranyRecept[rezim])) vybranyRecept[rezim] = z.find(i => mozeVyrobit(RECEPTY[i])) ?? z[0];
-    $('vyroba').innerHTML = z.length ? zoznamHtml(z) : '<p class="prazdne">Zatiaľ žiadne recepty.</p>';
-    $('karta-receptu').innerHTML = z.length ? kartaHtml(RECEPTY[vybranyRecept[rezim]]) : '';
+    vykresliVyrobu(pohlad, sk.get(zalozka[rezim]) ?? []);
   }
 }
 
 // otvori batoh rovno na karte Vyroba (E pri ponku / dielni)
 export function otvorVyrobu() { karta = 'vyroba'; prepniBatoh(true, 'batoh'); }
 const KARTY = ['batoh', 'vyroba', 'postava'];
-function prepniKartu(k) { karta = k; zrusDrzanie(); vykresli(); }
-
-// ---------- vyroba podrzanim tlacidla ----------
-const DRZANIE = 600;                             // ms
-let drzanie = null;                              // { i, od, tuk }
-function zrusDrzanie() {
-  if (!drzanie) return;
-  clearTimeout(drzanie.casovac);
-  drzanie = null;
-  $('drz')?.style.removeProperty('--k');
-}
-function zacniDrzanie(i) {
-  zrusDrzanie();
-  drzanie = { i, od: performance.now(), tuk: 0, casovac: setTimeout(dokonciDrzanie, DRZANIE) };   // casovac: vyrobi aj pri nizkych FPS
-  requestAnimationFrame(tikDrzania);
-}
-function tikDrzania() {                          // len plniaci sa kruh a tukanie
-  if (!drzanie) return;
-  const k = Math.min(1, (performance.now() - drzanie.od) / DRZANIE);
-  $('drz')?.style.setProperty('--k', k);
-  if (k >= drzanie.tuk) { zvuky.drzanie(k); drzanie.tuk += 0.2; }
-  if (k < 1) requestAnimationFrame(tikDrzania);
-}
-function dokonciDrzanie() {
-  const r = RECEPTY[drzanie.i], n = kolkoVyrobit(r);
-  drzanie = null;
-  let hotovo = 0;
-  while (hotovo < n && vyrob(r)) hotovo++;
-  if (hotovo) zvuky.vyroba();
-  zmena();
-  if (hotovo) $('karta-receptu').querySelector('.kr-ikona')?.classList.add('hotovo');
-}
+function prepniKartu(k) { karta = k; vykresli(); }
 
 // ---------- tooltip predmetu ----------
 const maxJedla = k => Math.max(1, ...Object.values(PREDMETY).map(p => p.jedlo?.[k] ?? 0));
@@ -296,6 +231,7 @@ function polohaTipu(x, y) {
 
 export function initInventar(onZmena) {
   priZmene = onZmena;
+  initVyroba();
   let tahany = null;
   const duch = $('duch');
   addEventListener('contextmenu', e => { if (e.target.closest('#batoh')) e.preventDefault(); });
@@ -305,11 +241,8 @@ export function initInventar(onZmena) {
     e.stopImmediatePropagation();
     if (!e.repeat) prepniKartu(KARTY[(KARTY.indexOf(karta) + (e.code === 'KeyE' ? 1 : 2)) % 3]);
   }, true);
-  addEventListener('blur', zrusDrzanie);
   addEventListener('pointerdown', e => {
     if (e.target.closest('#zorad')) { zorad(); zmena(); return; }
-    const d = e.target.closest('#drz');
-    if (d && !d.disabled && e.button === 0) { zacniDrzanie(+d.dataset.r); return; }
     const s = e.target.closest('#batoh .slot');
     const P = s && (s.dataset.z === 's' ? sklad : sloty);
     if (!s || !P?.[+s.dataset.i]) return;
@@ -330,12 +263,10 @@ export function initInventar(onZmena) {
     duch.style.left = e.clientX + 'px'; duch.style.top = e.clientY + 'px';
   });
   addEventListener('pointermove', e => {
-    if (drzanie && !e.target.closest?.('#drz')) zrusDrzanie();       // mys zisla z tlacidla
     if (tahany !== null) { duch.style.left = e.clientX + 'px'; duch.style.top = e.clientY + 'px'; }
     else if ($('tip')?.style.display === 'block') polohaTipu(e.clientX, e.clientY);
   });
   addEventListener('pointerup', e => {
-    zrusDrzanie();
     if (tahany === null) return;
     const pod = document.elementFromPoint(e.clientX, e.clientY);
     const ek = pod?.closest('[data-ekv], #postava-plat');
@@ -349,11 +280,7 @@ export function initInventar(onZmena) {
     const k = e.target.closest('#batoh-karty [data-karta]');
     if (k) { prepniKartu(k.dataset.karta); return; }
     const z = e.target.closest('.zalozka[data-zalozka]');
-    if (z) { zalozka[rezim] = z.dataset.zalozka; zrusDrzanie(); vykresli(); return; }
-    const nas = e.target.closest('.nasobok');
-    if (nas) { nasobok = nas.dataset.n === 'max' ? 'max' : +nas.dataset.n; vykresli(); return; }
-    const riadok = e.target.closest('.recept');                      // klik v zozname len ukaze kartu receptu
-    if (riadok) { vybranyRecept[rezim] = +riadok.dataset.r; zrusDrzanie(); vykresli(); return; }
+    if (z) { zalozka[rezim] = z.dataset.zalozka; vykresli(); return; }
     const r = e.target.closest('.karta[data-r]');
     if (!r || rezim !== 'stavba') return;
     const rec = RECEPTY[+r.dataset.r];

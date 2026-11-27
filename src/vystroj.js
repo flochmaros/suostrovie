@@ -108,7 +108,7 @@ export function initVystroj(hrac, oznam, kam, iskry) {
 
   // HUD: znacka obrany vedla listy
   const hud = document.createElement('div');
-  hud.style.cssText = 'position:fixed;left:calc(50% + 165px);bottom:68px;height:34px;display:none;padding:0 10px;border-radius:8px;background:#0008;border:1px solid #fff5;pointer-events:none;z-index:4;color:#fff;font:600 14px/32px sans-serif';
+  hud.style.cssText = 'position:fixed;left:calc(50% + 165px);bottom:68px;height:34px;display:none;padding:0 10px;border-radius:17px;background:var(--sklo);border:1px solid var(--okraj-skla);pointer-events:none;z-index:4;color:#fff;font:700 14px/32px var(--font-text)';
   document.body.appendChild(hud);
 
   const obrana = () => {
