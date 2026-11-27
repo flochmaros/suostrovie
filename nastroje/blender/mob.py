@@ -46,11 +46,48 @@ def material(meno, farba, drsnost=0.7, kov=0.0, ziara=None, sila=1.0):
     return m
 
 
-def pivot(meno, poz=(0, 0, 0), rodic=None):
+def pivot(meno, poz=(0, 0, 0), rodic=None, rot=(0, 0, 0)):
     o = bpy.data.objects.new(meno, None)
     bpy.context.collection.objects.link(o)
     o.parent = rodic
     o.location = G(*poz)
+    o.rotation_mode = 'YZX'                                  # rot ako v Three.js (pozri diel)
+    o.rotation_euler = (rot[0], -rot[2], rot[1])
+    return o
+
+
+def trubica(body, mat, rodic=None, K=8, hladky=1, meno=None):
+    """Ohybna rurka cez body [(x, y, z, polomer), ...] v lokalnych suradniciach pivotu (hra).
+    Na koncatiny, prsty, rebra, rohy: polomer sa moze menit (slachy, kostnate klby)."""
+    bm = bmesh.new()
+    P = [G(x, y, z) for x, y, z, _ in body]
+    kruhy = []
+    for i, (p, b) in enumerate(zip(P, body)):
+        t = (P[min(i + 1, len(P) - 1)] - P[max(i - 1, 0)]).normalized()
+        ref = Vector((0, 0, 1)) if abs(t.z) < 0.9 else Vector((1, 0, 0))
+        n1 = t.cross(ref).normalized()
+        n2 = t.cross(n1).normalized()
+        kruhy.append([bm.verts.new(p + (n1 * math.cos(j / K * math.tau) + n2 * math.sin(j / K * math.tau)) * b[3]) for j in range(K)])
+    for a, b in zip(kruhy, kruhy[1:]):
+        for j in range(K):
+            bm.faces.new((a[j], a[(j + 1) % K], b[(j + 1) % K], b[j]))
+    for kruh, p in ((kruhy[0], P[0]), (kruhy[-1], P[-1])):     # konce zavriet do spicky (vejar)
+        c = bm.verts.new(p)
+        for j in range(K):
+            bm.faces.new((kruh[j], kruh[(j + 1) % K], c))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(meno or mat.name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(meno or mat.name, me)
+    bpy.context.collection.objects.link(o)
+    me.materials.append(mat)
+    o.parent = rodic
+    for p in me.polygons:
+        p.use_smooth = True
+    if hladky:
+        m = o.modifiers.new('sub', 'SUBSURF')
+        m.levels = m.render_levels = hladky
     return o
 
 

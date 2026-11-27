@@ -5,6 +5,7 @@
 // Kladne rotation.x hodi visiacu koncatinu DOZADU (model hlada na +z), preto "dopredu" = zaporne; pomocou animuj() sa o to netreba starat.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mobGLB } from './moby_glb.js';
 
 const koza = (c, e) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.82, emissive: e, emissiveIntensity: 0.55 });
 const MAT = {
@@ -52,6 +53,17 @@ function postavNohu(strana, M) {
 
 // typ: 'bledy' | 'matka' (Matka z jaskyne: tmavsia, s kostenym vencom rohov)
 export function modelBledeho(typ = 'bledy') {
+  const sc = typ === 'matka' ? 1.28 : 1;
+  const mob = mobGLB(typ === 'matka' ? 'matka' : 'bledy');   // model z Blenderu (nastroje/blender/moby_bledy.py), kostra rovnaka ako nizsie
+  if (mob) {
+    const u = mob.uzol, prsty = s => [0, 1, 2, 3, 4].map(i => ({ a: u(`prst_${s}${i}`), b: u(`prst_${s}${i}b`) }));
+    mob.g.scale.setScalar(sc);
+    mob.g.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    return { g: mob.g, telo: u('telo'), chrbat: u('chrbat'), krk: u('krk'), hlava: u('hlava'),
+      sL: u('stehno_L'), sP: u('stehno_P'), kL: u('koleno_L'), kP: u('koleno_P'), rL: u('rameno_L'), rP: u('rameno_P'),
+      lL: u('laket_L'), lP: u('laket_P'), zL: u('zap_L'), zP: u('zap_P'), prstyL: prsty('L'), prstyP: prsty('P'),
+      vyska: 2.9 * sc, scale: sc, tw: { y: 0, z: 0, ciel: 0 } };
+  }
   const M = MAT[typ] || MAT.bledy;
   const ruky = [postavRuku(-1, M), postavRuku(1, M)], nohy = [postavNohu(-1, M), postavNohu(1, M)];
 
@@ -87,7 +99,6 @@ export function modelBledeho(typ = 'bledy') {
   const panva = mesh(merge([elipsa(0.15, 0.09, 0.1)]), M);
   const telo = klb(0, 1.46, 0, panva, chrbat, nohy[0].stehno, nohy[1].stehno);
   const g = new THREE.Group(); g.add(telo);
-  const sc = typ === 'matka' ? 1.28 : 1;
   g.scale.setScalar(sc);
   g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = true; } });
   return { g, telo, chrbat, krk, hlava, sL: nohy[0].stehno, sP: nohy[1].stehno, kL: nohy[0].koleno, kP: nohy[1].koleno,
