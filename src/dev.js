@@ -286,8 +286,8 @@ export function initDev(c) {
 // ---------- pomocne akcie (tlacidla aj konzola) ----------
 const hracPoz = () => (ctx.jeVKanoe() ? { x: ctx.kanoe.poz.x, z: ctx.kanoe.poz.y } : ctx.hrac.poz);
 function predHracom(d) { const p = hracPoz(), y = ctx.kam.yaw; return [p.x - Math.sin(y) * d, p.z - Math.cos(y) * d]; }
-function teleport(x, z) {
-  if (ctx.jeVKanoe()) ctx.vystup([x, z]);
+export function teleport(x, z) {
+  if (ctx.jeVKanoe() || ctx.jeNaPalube()) ctx.vystup([x, z]);
   ctx.hrac.poz.set(x, Math.max(vyskaTerenu(x, z), 0) + 1, z); ctx.hrac.vy = 0;
   ctx.oznam(`Teleport: ${x.toFixed(0)}, ${z.toFixed(0)}`);
 }
