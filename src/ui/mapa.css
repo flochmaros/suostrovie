@@ -1,1 +1,55 @@
 /* UI: mapa – styly tejto casti (tema premenne v tema.css) */
+
+/* ---------- minimapa (kruh vlavo dole, rozmer = MINI_PX v mapa.js) ---------- */
+#minimapa { position: absolute; left: 18px; bottom: 34px; width: 180px; height: 180px; }
+#minimapa canvas { width: 100%; height: 100%; border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--pergamen), 0 0 0 8px var(--drevo-svetle), 0 0 0 10px var(--drevo), 0 5px 18px 8px rgba(0,0,0,.35); }
+#minimapa .sever { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); width: 24px; height: 24px; border-radius: 50%;
+  background: var(--pergamen); color: #8c2f1c; font: 17px/25px var(--font-nadpis); text-align: center; text-shadow: none; box-shadow: 0 0 0 2px var(--drevo-svetle), 0 2px 5px rgba(0,0,0,.4); }
+#minimapa .sipka { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -9px 0 0 -6px; border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-bottom: 16px solid #fff8e6; filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000); transform-origin: 6px 10px; }
+#minimapa .popis { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 13px; text-align: center; font-size: 12px; line-height: 1.3; white-space: nowrap; }
+#minimapa .popis b { font: 16px var(--font-nadpis); letter-spacing: .4px; }
+#minimapa .klaves { position: absolute; right: -6px; bottom: 0; font-size: 11px; opacity: .85; }
+#minimapa .navi { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 50px; text-align: center; font-size: 12px; white-space: nowrap; color: #ffe9a8; text-shadow: 0 1px 3px #000; }
+
+/* ---------- velka mapa: pergamen v drevenom rame s lanom ---------- */
+#mapa-okno { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(12,16,18,.66); pointer-events: auto; user-select: none; font-family: var(--font-text); }
+#mapa-ram { position: absolute; inset: 3.5vh 3.5vw; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, var(--drevo-svetle), var(--drevo));
+  box-shadow: var(--tien), inset 0 0 0 2px var(--drevo-okraj); padding: 14px; box-sizing: border-box; }
+#mapa-ram::after { content: ''; position: absolute; inset: 5px; border-radius: 9px; border: 3px dashed #b89a62; opacity: .75; pointer-events: none; }  /* lano */
+#mapa-ram canvas { width: 100%; height: 100%; display: block; cursor: grab; border-radius: 4px; }
+#mapa-ram canvas.dev { cursor: crosshair; }
+#mapa-ram canvas.tahanie { cursor: grabbing; }
+#mapa-ram .vineta { position: absolute; inset: 14px; pointer-events: none; border-radius: 4px;
+  box-shadow: inset 0 0 130px 24px rgba(88,52,14,.6), inset 0 0 30px rgba(60,34,8,.55), inset 0 0 0 1px var(--atrament); }
+#mapa-titul { position: absolute; top: calc(3.5vh + 22px); left: 50%; transform: translateX(-50%); padding: 2px 34px 4px; background: var(--pergamen);
+  font-size: 30px; color: var(--atrament); border-radius: 3px; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 3px 10px rgba(0,0,0,.35), inset 0 0 18px rgba(120,80,30,.45), inset 0 0 0 3px var(--pergamen), inset 0 0 0 4px var(--drevo-okraj); }
+#mapa-legenda { position: absolute; left: calc(3.5vw + 28px); bottom: calc(3.5vh + 28px); padding: 10px 14px; font-size: 13px; line-height: 1.45; }
+#mapa-legenda i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; border: 1.5px solid var(--atrament); }
+#mapa-legenda small { opacity: .7; }
+#mapa-legenda hr { border: 0; border-top: 1px solid rgba(58,39,22,.3); margin: 6px 0; }
+#mapa-info { position: absolute; right: calc(3.5vw + 28px); bottom: calc(3.5vh + 28px); padding: 8px 14px; font-size: 13px; line-height: 1.5; text-align: right; }
+#mapa-legenda, #mapa-info { box-shadow: 0 3px 10px rgba(0,0,0,.35), inset 0 0 22px rgba(120,80,30,.35); }
+
+/* dev rezim: popis v rohu + prepinac hmly, bublina pri kurzore */
+#mapa-dev { display: none; position: absolute; left: calc(3.5vw + 28px); top: calc(3.5vh + 28px); flex-direction: column; gap: 4px; padding: 8px 14px; font-size: 13px; }
+#mapa-dev b { color: var(--zlata); font-size: 15px; }
+#mapa-dev label { cursor: pointer; }
+#mapa-tip { display: none; position: absolute; z-index: 4; pointer-events: none; padding: 6px 11px; font-size: 12px; line-height: 1.45; white-space: nowrap; }
+#mapa-tip b { color: var(--zlata); font-size: 14px; }
+
+/* kontextove menu na mape */
+#mapa-menu { display: none; position: absolute; z-index: 5; min-width: 190px; padding: 5px; border-radius: 8px; background: var(--pergamen); color: var(--atrament);
+  font-size: 14px; box-shadow: var(--tien), 0 0 0 2px var(--drevo-okraj), inset 0 0 20px rgba(120,80,30,.3); }
+#mapa-menu div { padding: 7px 12px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+#mapa-menu div:hover { background: rgba(181,100,31,.28); }
+#mapa-menu .hlava { cursor: default; font: 18px var(--font-nadpis); padding: 3px 12px 5px; border-bottom: 1px solid rgba(58,39,22,.3); margin-bottom: 3px; }
+#mapa-menu .hlava:hover { background: none; }
+
+/* znacka cielu navigacie vo svete */
+#navi-svet { display: none; position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -50%); text-align: center; color: #fff; text-shadow: 0 1px 4px #000, 0 0 8px #000a;
+  font: 700 13px/1.25 var(--font-text); }
+#navi-svet svg { width: 34px; height: 34px; display: block; margin: 0 auto 1px; filter: drop-shadow(0 2px 4px #000a); }
+#navi-svet small { display: block; font-size: 12px; opacity: .9; font-weight: 600; }

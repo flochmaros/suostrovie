@@ -768,9 +768,10 @@ const AKCIE = {
     const v = [['zlata_minca', 4 + Math.floor(Math.random() * 8)]];
     if (Math.random() < 0.5) v.push(['stary_kompas', 1]);
     if (Math.random() < 0.6) v.push(['perla', 1 + Math.floor(Math.random() * 2)]);
+    if (Math.random() < 0.7) v.push(['utrzok_mapy', 1]);       // utrzok mapy (obsah/mapy.js)
     return v;
   },
-  barel: () => [['lano', 1 + Math.floor(Math.random() * 2)], ['drevo', 1]],
+  barel: () => [['lano', 1 + Math.floor(Math.random() * 2)], ['drevo', 1], ...(Math.random() < 0.15 ? [['utrzok_mapy', 1]] : [])],
   drevo: () => (Math.random() < 0.5 ? [['drevo', 2], ['vlakno', 1]] : [['drevo', 2]]),
 };
 

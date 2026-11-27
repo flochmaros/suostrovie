@@ -19,6 +19,8 @@ import { nastavLodenicu } from './obsah/vylepsenia.js';
 import { initLodenice, polozLodenicu, najblizsiaLodenica, miestoSpustenia, ulozLodenice, nacitajLodenice } from './lodenica.js';
 import { initZivocichy, aktualizujZivocichy, najdiUlovok, udalosti } from './zivocichy.js';
 import './obsah/jedlo.js';
+import './obsah/mapy.js';
+import { aktualizujHmlu, pouziUtrzok, ulozHmlu, nacitajHmlu } from './hmla.js';
 import { aktualizujPreziti, zjedz, zran, oziv, ulozPreziti, nacitajPreziti, vykresliPreziti, udalosti as udalostiPreziti, rychlostNasobok, stav as stavPreziti } from './preziti.js';
 import { initMore, aktualizujMore, najdiMorskyZber, udalosti as moreUdalosti, vypustNaklad } from './more.js';
 import { initPocasie, aktualizujPocasie, casText, ulozPocasie, nacitajPocasie, MLHA, POD_VODOU, pasmoVietor, nastavPocasie, nastavFazu, menoFazy, fazaMesiaca, tmaNoci, sekundDoHodiny } from './pocasie.js';
@@ -115,6 +117,7 @@ try {
     nacitajMajaky(u.majaky);
     nacitajZnacky(u.znacky);
     nacitajStaty(u.staty);
+    nacitajHmlu(u);
     if (Array.isArray(u.postel)) postel = u.postel;
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
@@ -125,7 +128,7 @@ function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel, staty: ulozStaty() }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), hmla: ulozHmlu(), postel, staty: ulozStaty() }));
     return true;
   } catch (e) { return false; /* ukladanie nedostupne */ }
 }
@@ -268,7 +271,7 @@ udalostiPreziti.priZobudeni = () => {
   zamkni();
 };
 initHororovaZona(scena, oznam);
-initDev({ platno, hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
+initDev({ platno, hrac, get kanoe() { return kanoe; }, spawnLod, kam, jeVKanoe: () => vKanoe, jeNaPalube: () => naPalube, vystup, oznam, posunCas: s => { cas += s; }, skokNaHodinu: h => { cas += sekundDoHodiny(cas, h); },
   mesiac: i => { nastavFazu(i, cas); return menoFazy(); }, pocasie: nastavPocasie, start: start.hrac, uloz, kluc: KLUC });
 const menu = initNastavenia(g, $('start'), { kluc: KLUC, uloz, menu: () => { uloz(); removeEventListener('beforeunload', uloz); location.reload(); } });
 $('start').addEventListener('click', initZvuk);      // zvuk smie zacat az po kliknuti
@@ -418,6 +421,10 @@ function aktualizuj(dt) {
         if (r !== true) oznam(r);
         else { hrac.zdvihni(); zvuky.uder('list'); oznam('Fakľa zapichnutá – <kbd>E</kbd> ju zoberieš späť'); }
       }
+    } else if (d?.id === 'utrzok_mapy') {
+      const u = pouziUtrzok(hrac.poz.x, hrac.poz.z);
+      if (!u) oznam('Na útržku je len to, čo už poznáš');
+      else { odober(d.id, 1); vykresliInventar(); hrac.drz(vybranyPredmet()); zvuky.zober(); oznam(`🗺 Útržok ukazuje ostrov: ${u.smer}, asi ${u.vzd} m – pozri mapu (<kbd>N</kbd>)`); }
     } else if (d?.jedlo) {
       if (zjedz(d)) { pocitaj('jedla'); hlasUlohy('zjedz'); odober(d.id, 1); vykresliInventar(); zvuky.zober(); oznam(`Zjedol si: ${d.ikona} ${d.meno}`); }
       else oznam('Nie si hladný ani smädný');
@@ -564,6 +571,7 @@ function aktualizuj(dt) {
   const svetlo = (horiVRuke() ? 0.4 : 0) + (najblizsiOhen(stred.x, stred.z) ? 0.3 : 0);
   const ob = aktualizujStrach(dt, { hracPoz: stred, kamera, hrac, noc: uNoc.value, zona: hororovaZona(stred.x, stred.z), jaskyna: stavZony.jaskyna, svetlo });
   g.nastavStrachObrazu(ob.strach, ob.pulz);
+  aktualizujHmlu(stred.x, stred.z, { naLodi: vKanoe || naPalube, suchy: zivy && !vKanoe && !naPalube && !hrac.plava });
   hud(dt, stred);
 }
 
