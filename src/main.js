@@ -30,14 +30,15 @@ import { initZvuk, aktualizujZvuk, zvuky } from './zvuk.js';
 import { initOhen, polozOhen, najblizsiOhen, prilozDrevo, pec, daSaUpiect, hori, aktualizujOhne, ulozOhne, nacitajOhne, zapalFaklou } from './ohen.js';
 import { initFakla, aktualizujFaklu, skusZapalit, zapichni, najblizsiaFakla, zoberFaklu, horiVRuke, horiaceFakle, minHorenie, ulozFakle, nacitajFakle } from './fakla.js';
 import { aktualizujStrach, nastavStrach, pridajStrach, nastavZonu, hororZvuk, skusZvuk, stavStrachu, diagnostika as strachStav } from './strach.js';
-import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby } from './stavba.js';
-import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex } from './inventar.js';
+import { initStavba, aktualizujStavby, zacniStavat, zrusStavanie, stavim, najdiDiel, uderDiel, ulozStavby, nacitajStavby, diely as postaveneDiely } from './stavba.js';
+import { sloty, pocet, pridaj, odober, nacitaj, vyber, prepniBatoh, jeOtvoreny, rezimOkna, vykresli as vykresliInventar, initInventar, vybranyPredmet, vybranyIndex, otvorVyrobu } from './inventar.js';
+import { nacitajRecepty, ulozRecepty, nastavStanice } from './recepty_odomknute.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { UI } from './ikony.js';
 import { initVystroj } from './vystroj.js';
 import { aktualizujFunkcne, najdiFunkcnu, obsluha, nastavDym } from './funkcne.js';
 import { ZDROJE } from './obsah/zdroje.js';
-import { aktivnySlot, klucSlotu } from './sloty.js';
+import { aktivnySlot, klucSlotu, klucVystroje } from './sloty.js';
 import { initUlohy, hlas as hlasUlohy, aktualizujUlohy, prepniOkno as prepniDennik, jeOknoOtvorene as jeDennik, ulozUlohy, nacitajUlohy, stavUloh } from './ulohy.js';
 
 const $ = id => document.getElementById(id);
@@ -84,9 +85,11 @@ let vKanoe = false, naPalube = false, cas = 0;   // vKanoe = sedi pri kormidle/p
 const objavene = new Set();
 let postel = null;                                  // [x, z] hamaky, kde si naposledy spal (miesto prebudenia)
 const KLUC = klucSlotu(aktivnySlot());
+let ulozene = null;                                   // surove ulozenie (kvoli receptom)
 try {
   const u = JSON.parse(localStorage.getItem(KLUC));
   if (u) {
+    ulozene = u;
     hrac.poz.fromArray(u.hrac);
     // lode (stary format ulozenia: jedno kanoe v u.kanoe)
     const popisy = Array.isArray(u.lode) ? u.lode : [{ d: 'kanoe', x: u.kanoe[0], z: u.kanoe[1], s: u.kanoe[2], u: u.kanoeUroven, v: u.kanoeVyl }];
@@ -117,13 +120,17 @@ try {
     if ((u.vKanoe || u.naPalube) && kanoe) nastup();
   }
 } catch (e) { /* nova hra */ }
+// odomknute recepty; stare ulozenie bez zoznamu: odomkni podla toho, co hrac uz ma
+nacitajRecepty(ulozene?.recepty, ulozene && { veci: new Set([...sloty, ...lode.flatMap(l => l.sklad), ...postaveneDiely.flatMap(d => d.st?.sk ?? [])].filter(Boolean).map(s => s.typ).concat(vystrojUlozena())),
+  stavby: new Set(postaveneDiely.map(d => d.typ).concat(ulozene.lodenice?.length ? ['lodenica'] : [])), lode });
+function vystrojUlozena() { try { return Object.values(JSON.parse(localStorage.getItem(klucVystroje(aktivnySlot()))).n).filter(Boolean); } catch (e) { return []; } }
 if (!lode.length) novaLod('kanoe', start.kanoe.x, start.kanoe.z);
 if (!kanoe) kanoe = lode[0];
 function uloz() {
   try {
     localStorage.setItem(KLUC, JSON.stringify({ hrac: hrac.poz.toArray(),
       lode: lode.map(l => ({ d: l.druh, x: +l.poz.x.toFixed(1), z: +l.poz.y.toFixed(1), s: +l.smer.toFixed(3), u: l.uroven, v: l.vyl, sk: l.sklad, tr: Math.round(l.trup), vo: +l.voda.toFixed(2) })), aktivna: lode.indexOf(kanoe), lodenice: ulozLodenice(),
-      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel }));
+      ts: Date.now(), vKanoe, naPalube, objavene: [...objavene], zobrate: [...zobrate], inventar: sloty, cas, rastliny: stavRastlin(), preziti: ulozPreziti(), pocasie: ulozPocasie(), ohne: ulozOhne(), fakle: ulozFakle(), stavby: ulozStavby(), ulohy: ulozUlohy(), majaky: ulozMajaky(), znacky: ulozZnacky(), postel, recepty: ulozRecepty() }));
   } catch (e) { /* ukladanie nedostupne */ }
 }
 setInterval(uloz, 5000);
@@ -278,11 +285,14 @@ addEventListener('stavaj', e => { if (stavPreziti.mrtvy || vKanoe) return; prepn
 vykresliInventar();
 hrac.drz(vybranyPredmet());
 
+// pracovne stanice: hrac musi stat do 5 m od ponku / kamennej dielne
+nastavStanice(typ => postaveneDiely.some(d => d.typ === typ && Math.hypot(d.x - hrac.poz.x, d.z - hrac.poz.z) < 5 && Math.abs(d.y - hrac.poz.y) < 3));
+
 // ---------- funkcne stavby: sluzby pre funkcne.js + spanok v hamake ----------
 const hodinaHry = () => ((9 + cas / (24 * 60) * 24) % 24 + 24) % 24;   // 9 = START_HODINA v pocasie.js, den = 24 min
 function sluzbyStavieb() {
   return { vybrany: vybranyPredmet(), pocet, odober, pridaj, zjedz, smad: stavPreziti.smad, hodina: hodinaHry(), oznam,
-    otvorSklad: (pole, nazov) => otvorOkno('sklad', pole, nazov), spi };
+    otvorSklad: (pole, nazov) => otvorOkno('sklad', pole, nazov), spi, otvorVyrobu: () => { otvorVyrobu(); document.exitPointerLock(); } };
 }
 let spim = false;
 function spi(d, noc) {

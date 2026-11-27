@@ -202,9 +202,12 @@
   </div>
   <div id="lista" class="panel"></div>
   <div id="batoh" class="panel">
-    <div><h2>Batoh <small>ťahaj · <kbd>Shift</kbd>+klik presun · pravý klik delí stoh / nasadí výstroj</small><span id="zorad" class="zalozka" style="margin-left:auto">Zoradiť</span></h2><div id="batoh-mriezka"></div><div id="detail"></div></div>
-    <div id="sklad-box" style="display:none; border-left: 1px solid var(--okraj); padding-left: 26px"><h2 id="sklad-nazov">Sklad lode</h2><div id="sklad-mriezka"></div></div>
-    <div id="stlpec2" class="stlpec2"><h2><span id="vyroba-nazov">Výroba</span><span class="okno-zatvor"><kbd>Tab</kbd> zavrieť · <kbd>B</kbd> stavba</span></h2><div id="vyroba-tabs" class="zalozky"></div><div id="vyroba"></div></div>
+    <div id="batoh-hlava"><div id="batoh-karty"><span data-karta="batoh">Batoh</span><span data-karta="vyroba">Výroba</span><span data-karta="postava">Postava</span></div><h2 id="batoh-nadpis" class="tema-nadpis"></h2><span class="okno-zatvor"><kbd>Q</kbd><kbd>E</kbd> karty · <kbd>Tab</kbd> zavrieť · <kbd>B</kbd> stavba</span></div>
+    <div id="batoh-telo">
+      <div id="inv-box"><div class="inv-hlava"><small>ťahaj · <kbd>Shift</kbd>+klik presun · pravý klik delí stoh / nasadí výstroj</small><span id="zorad" class="zalozka">Zoradiť</span></div><div id="batoh-mriezka"></div></div>
+      <div id="sklad-box"><h2 id="sklad-nazov" class="tema-nadpis">Sklad lode</h2><div id="sklad-mriezka"></div></div>
+      <div id="kniha"><div id="vyroba-tabs"></div><div id="vyroba"></div><div id="karta-receptu" class="tema-papier"></div></div>
+    </div>
   </div>
   <div id="stavba" class="panel">
     <h2>Stavba <small>vyber stavbu, mier kam a klikni</small><span class="okno-zatvor"><kbd>B</kbd> zavrieť · <kbd>Tab</kbd> batoh</span></h2>
@@ -216,6 +219,7 @@
 <div id="zranenie"></div>
 <div id="smrt"><div>Omdlel si…</div><button id="smrt-znova">Zobudiť sa na pláži</button></div>
 <div id="duch"></div>
+<div id="tip" class="tema-papier"></div>
 <div id="start" style="display:none">
   <h1>Súostrovie</h1>
   <div class="hrat">▶ Klikni a hraj</div>
