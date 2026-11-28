@@ -226,6 +226,14 @@ export const zvuky = {
   uvarene: () => { [523, 659, 784].forEach((f, i) => setTimeout(() => ton(f, 0.5, 0.08), i * 110)); },
   zhorelo: () => { burst(0.8, 'highpass', 2500, 0.1); ton(180, 0.5, 0.07, 90); },
   vyroba: () => { ton(520, 0.1, 0.07, 780); setTimeout(() => ton(780, 0.15, 0.07, 1040), 90); },
+  // vyrobna podlozka: dopad kusu (podla materialu), vratenie, udery pri vyrobe, zablesk, objav receptu
+  polozit: id => /kamen|obsidian|musla|sira|perla/.test(id) ? (burst(0.07, 'bandpass', 2600 + Math.random() * 500, 0.16, 3), ton(330, 0.06, 0.07, 240))
+    : /vlakno|list|kvet|aloe/.test(id) ? burst(0.11, 'bandpass', 1700 + Math.random() * 400, 0.09, 0.7)
+    : (burst(0.06, 'bandpass', 800 + Math.random() * 200, 0.2, 2), ton(170 + Math.random() * 30, 0.08, 0.12, 110)),
+  vratit: () => ton(520, 0.09, 0.05, 330),
+  tuk: i => { burst(0.09, 'bandpass', 1100 + i * 250, 0.4, 2.5); ton(190 + i * 40, 0.12, 0.28, 90); setTimeout(() => ton(1400 + i * 300, 0.12, 0.03, 1100), 15); },
+  zablesk: () => { burst(0.7, 'highpass', 2500, 0.09); [659, 988, 1319].forEach((f, i) => setTimeout(() => ton(f, 0.6, 0.07), i * 60)); },
+  objav: () => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => setTimeout(() => ton(f, 0.5, 0.08), i * 95)); burst(1.1, 'highpass', 3500, 0.05); },
   recept: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => ton(f, 0.35, 0.07), i * 90)),
   drzanie: k => { ton(260 + 360 * k, 0.07, 0.04, 300 + 400 * k); burst(0.05, 'bandpass', 900 + 900 * k, 0.07, 2); },   // tukanie pri vyrobe (k = 0..1)
 };

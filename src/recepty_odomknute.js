@@ -5,6 +5,7 @@
 //   (bez kluc aj nacrt)   znamy od zaciatku (podmienka funguje ako doteraz)
 //   stanica: 'ponk'       da sa vyrobit len pri tejto stavbe (STANICE)
 //   napoveda: '...'       vlastny text pri zamknutom recepte (inak sa zlozi sam)
+//   objav: true           (spolu s kluc) neodomkne sa sam – hrac ho objavi spravnou kombinaciou na podlozke (vyroba.js)
 import { RECEPTY } from './obsah/recepty.js';
 import { PREDMETY } from './obsah/predmety.js';
 import { zvuky } from './zvuk.js';
@@ -30,6 +31,7 @@ export function ikonaReceptu(r) { return r.ikona ?? PREDMETY[r.vysledok?.[0]]?.i
 export function napovedaReceptu(r) {
   if (r.napoveda) return r.napoveda;
   if (r.nacrt) return 'Nájdi náčrt – v truhle vo vraku na dne mora alebo u strážcu majáka.';
+  if (r.objav) return `Objav ho na podložke: skús niečo poskladať z predmetu ${PREDMETY[r.kluc]?.meno ?? r.kluc} (spolu ${r.suroviny.reduce((a, x) => a + x[1], 0)} kusov).`;
   return `Získaj predmet: ${PREDMETY[r.kluc]?.meno ?? r.kluc}`;
 }
 
@@ -38,6 +40,12 @@ function odomkni(r) {
   odomknute.add(r.id);
   if (!cakajuce.length) setTimeout(ukazToast, 60);        // viac receptov naraz = jeden toast
   cakajuce.push(r);
+  return true;
+}
+// objav experimentom na podlozke: bez toastu (oslavu kresli vyroba.js); naucit sa z nacrtu sa takto neda
+export function objavRecept(r) {
+  if (!r.kluc || r.nacrt || jeOdomknuty(r)) return false;
+  odomknute.add(r.id);
   return true;
 }
 export function odomkniVsetky() { let n = 0; for (const r of RECEPTY) if (odomkni(r)) n++; return n; }
@@ -63,7 +71,7 @@ export function skontrolujRecepty(sloty) {
   const mam = new Set();
   for (const s of sloty) if (s) mam.add(s.typ);
   let zmena = false;
-  for (const r of RECEPTY) if (r.kluc && mam.has(r.kluc) && odomkni(r)) zmena = true;
+  for (const r of RECEPTY) if (r.kluc && !r.objav && mam.has(r.kluc) && odomkni(r)) zmena = true;
   return precitajNacrty(sloty) || zmena;
 }
 

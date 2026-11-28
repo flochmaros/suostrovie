@@ -1,131 +1,189 @@
 /* UI: vyroba a batoh – styly tejto casti (tema premenne v tema.css).
    index.html ma stare styly az za tymto suborom, preto su selektory s #hud (silnejsie). */
 
-/* ---------- okno: tmave drevo s lanovym okrajom ---------- */
-#hud #batoh, #hud #stavba { color: var(--text-svetly); font-family: var(--font-text); text-shadow: 0 1px 2px #0008; backdrop-filter: none;
-  background: repeating-linear-gradient(0deg, transparent 0 62px, rgba(0,0,0,.22) 62px 64px), repeating-linear-gradient(92deg, rgba(255,255,255,.022) 0 3px, transparent 3px 11px), linear-gradient(180deg, var(--drevo-svetle), var(--drevo));
-  border: 3px solid var(--drevo-okraj); border-radius: 14px; box-shadow: 0 0 0 3px #1b120b, var(--tien), inset 0 1px 0 rgba(255,255,255,.1); }
-#hud #batoh::before, #hud #stavba::before { content: ''; position: absolute; inset: 4px; border: 2px dashed rgba(214,182,130,.35); border-radius: 9px; pointer-events: none; }   /* lano */
-#hud #batoh { flex-direction: column; gap: 12px; padding: 16px 20px 20px; top: 47%; max-height: none; }
+/* ---------- okno: morske sklo ---------- */
+#hud #batoh, #hud #stavba { color: var(--text-svetly); font-family: var(--font-text); text-shadow: 0 1px 3px rgba(0,20,40,.45); backdrop-filter: var(--rozmaz);
+  background: radial-gradient(120% 70% at 50% 0%, rgba(143,227,220,.20), transparent 60%), radial-gradient(90% 45% at 50% 105%, rgba(246,227,180,.20), transparent 70%), var(--sklo);
+  border: 1px solid var(--okraj-skla); border-radius: 28px; box-shadow: var(--tien), inset 0 1px 0 rgba(255,255,255,.22); }
+#hud #batoh, #hud #stavba { z-index: 8; }
+body.v-okne #minimapa { visibility: hidden; }
+#hud #batoh { flex-direction: column; gap: 12px; padding: 14px 20px 20px; top: 47%; max-height: none; }
 
-#batoh-hlava { display: flex; align-items: flex-end; gap: 16px; border-bottom: 3px solid var(--drevo-okraj); padding: 0 4px; }
-#batoh-karty { display: flex; gap: 4px; }
-#batoh-karty span { position: relative; padding: 5px 26px 3px; border-radius: 12px 12px 0 0; background: rgba(0,0,0,.28); font: 24px var(--font-nadpis); cursor: pointer; opacity: .75; }
-#batoh-karty span:hover { opacity: 1; background: rgba(0,0,0,.14); }
-#batoh-karty span.aktivna { opacity: 1; background: var(--pergamen); color: var(--atrament); text-shadow: none; }
-#hud #batoh-nadpis { margin: 0; font-size: 28px; }
-#hud #batoh-hlava .okno-zatvor { margin: 0 0 8px auto; padding-left: 30px; }
+#batoh-hlava { display: flex; align-items: center; gap: 16px; }
+#batoh-karty { display: flex; gap: 4px; padding: 4px; border-radius: 26px; background: var(--sklo-jemne); }
+#batoh-karty span { padding: 3px 26px; border-radius: 22px; font: 600 18px var(--font-nadpis); cursor: pointer; opacity: .78; transition: background .12s; }
+#batoh-karty span:hover { opacity: 1; background: var(--sklo-svetle); }
+#batoh-karty span.aktivna { opacity: 1; background: var(--piesok); color: var(--atrament); text-shadow: none; }
+#hud #batoh-nadpis { margin: 0; font-size: 24px; }
+#hud #batoh-hlava .okno-zatvor { margin: 0 0 0 auto; padding-left: 30px; }
 #hud #batoh[data-pohlad="sklad"] #batoh-karty, #hud #batoh[data-pohlad="lodenica"] #batoh-karty { display: none; }
 
 #batoh-telo { display: flex; gap: 22px; align-items: flex-start; }
 #inv-box, #sklad-box, #kniha, #hud #postava-box { display: none; }
 #batoh[data-pohlad="batoh"] #inv-box, #batoh[data-pohlad="postava"] #inv-box, #batoh[data-pohlad="sklad"] #inv-box { display: block; }
-#batoh[data-pohlad="sklad"] #sklad-box { display: block; border-left: 3px solid var(--drevo-okraj); padding-left: 22px; }
-#batoh[data-pohlad="vyroba"] #kniha, #batoh[data-pohlad="lodenica"] #kniha { display: grid; }
-#hud #batoh[data-pohlad="postava"] #postava-box { display: flex; margin: 0; padding-right: 22px; border-right: 3px solid var(--drevo-okraj); }
+#batoh[data-pohlad="sklad"] #sklad-box { display: block; border-left: 1px solid var(--okraj-skla); padding-left: 22px; }
+#batoh[data-pohlad="vyroba"] #kniha, #batoh[data-pohlad="lodenica"] #kniha { display: flex; }
+#hud #batoh[data-pohlad="postava"] #postava-box { display: flex; margin: 0; padding-right: 22px; border-right: 1px solid var(--okraj-skla); }
 #hud #postava-box h2 { display: none; }
 #hud #batoh[data-pohlad="postava"] #batoh-mriezka { grid-template-columns: repeat(6, 64px); }
 
 .inv-hlava { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 8px; }
 .inv-hlava small { font-size: 12px; opacity: .75; max-width: 440px; }
-#sklad-box h2 { margin: 0 0 8px; font-size: 26px; }
+#sklad-box h2 { margin: 0 0 8px; font-size: 22px; }
 
 /* ---------- policka ---------- */
-#hud #batoh-mriezka, #hud #sklad-mriezka { gap: 6px; padding: 10px; border-radius: 10px; background: rgba(0,0,0,.34); box-shadow: inset 0 3px 12px rgba(0,0,0,.45); }
+#hud #batoh-mriezka, #hud #sklad-mriezka { gap: 6px; padding: 10px; border-radius: 20px; background: var(--sklo-jemne); }
 #hud #batoh-mriezka { grid-template-columns: repeat(8, 64px); }
 #hud #sklad-mriezka { grid-template-columns: repeat(5, 64px) !important; }
-#hud #batoh .slot, #hud #batoh .ekv { width: 64px; height: 64px; border-radius: 9px; background: radial-gradient(ellipse at 50% 35%, #6d5236, #3b2a1b); border: 2px solid #7a5b3b; box-shadow: inset 0 0 10px rgba(0,0,0,.45); }
-#hud #batoh-mriezka .slot:nth-child(-n+8) { border-color: #b08a45; margin-bottom: 8px; }       /* spodna lista */
-#hud #batoh .slot:hover, #hud #batoh .ekv:hover { border-color: var(--pergamen); filter: brightness(1.18); }
-#hud #batoh .slot.vybrany, #hud #batoh .ekv.ciel { border-color: var(--zlata); box-shadow: 0 0 10px rgba(226,176,74,.7), inset 0 0 10px rgba(0,0,0,.35); }
-
-/* ---------- kniha receptov ---------- */
-#kniha { grid-template-columns: 150px 290px 390px; gap: 14px; height: 540px; }
-#hud #vyroba-tabs { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
-#hud #batoh .zalozka, #hud #stavba .zalozka { background: rgba(0,0,0,.28); border: 2px solid var(--drevo-okraj); border-radius: 9px; color: var(--text-svetly); }
-#hud #vyroba-tabs .zalozka { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 10px; font: 20px var(--font-nadpis); }
-#hud .zalozka small { margin-left: 8px; font: 700 11px var(--font-text); opacity: .7; }
-#hud #batoh .zalozka.aktivna, #hud #stavba .zalozka.aktivna { background: var(--zlata); border-color: #f4d58c; color: var(--atrament); text-shadow: none; }
+#hud #batoh .slot, #hud #batoh .ekv { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(180deg, rgba(220,252,248,.18), rgba(220,252,248,.07)); border: 1px solid rgba(196,248,242,.26); }
+#hud #batoh-mriezka .slot:nth-child(-n+8) { background: linear-gradient(180deg, rgba(246,227,180,.30), rgba(246,227,180,.14)); border-color: rgba(246,227,180,.55); margin-bottom: 8px; }   /* spodna lista */
+#hud #batoh .slot:hover, #hud #batoh .ekv:hover { border-color: #fff; filter: brightness(1.15); }
+#hud #batoh .slot.vybrany, #hud #batoh .ekv.ciel { border: 2px solid var(--koral); box-shadow: 0 0 12px rgba(255,138,107,.75); }
+#hud .zalozka small { margin-left: 6px; font: 700 10.5px var(--font-text); opacity: .7; }
+#hud #batoh .zalozka, #hud #stavba .zalozka { background: var(--sklo-svetle); border: 1px solid var(--okraj-skla); border-radius: 18px; color: var(--text-svetly); }
+#hud #batoh .zalozka:hover, #hud #stavba .zalozka:hover { background: rgba(210,250,246,.24); }
+#hud #batoh .zalozka.aktivna, #hud #stavba .zalozka.aktivna { background: var(--piesok); border-color: #fff; color: var(--atrament); text-shadow: none; }
 #hud #zorad { flex: none; }
 
-#hud #vyroba { max-height: none; height: 100%; overflow-y: auto; padding: 8px; box-sizing: border-box; border-radius: 10px; background: rgba(0,0,0,.3); scrollbar-width: thin; scrollbar-color: var(--drevo-okraj) transparent; }
-#hud .recept { gap: 10px; padding: 5px 10px; margin-bottom: 5px; border-radius: 9px; background: rgba(236,220,184,.1); border: 2px solid transparent; }
-#hud .recept:hover { background: rgba(236,220,184,.22); transform: none; cursor: pointer; }
-#hud .recept b { flex: 1; min-width: 0; line-height: 1.25; }
-#hud .recept .ikona { width: 38px; font-size: 30px; }
-#hud .recept.nedostupny .ikona, #hud .recept.nedostupny b { opacity: .55; }
-#hud .recept .znak { color: var(--tyrkys); font-weight: 800; }
-#hud .recept.moze { background: rgba(63,184,168,.16); }
-#hud .recept.vybraty { border-color: var(--zlata); background: rgba(226,176,74,.22); }
-.zamknuty .ikona, .zamknuty .velka, .kr-ikona.zamknuta .ikona { filter: brightness(0) opacity(.55); }
-#hud .recept.zamknuty b { opacity: .65; letter-spacing: 2px; }
+/* ---------- vyroba: vlavo podlozka a suroviny, vpravo kniha receptov ---------- */
+#kniha { gap: 16px; align-items: stretch; }
+#vy-stol { width: 620px; display: flex; flex-direction: column; gap: 8px; }
+#vy-stanice { display: flex; gap: 8px; justify-content: center; font-size: 12px; font-weight: 800; }
+.vy-stanica { padding: 2px 12px; border-radius: 14px; background: var(--sklo-jemne); border: 1px solid transparent; opacity: .7; }
+.vy-stanica.pri { opacity: 1; background: rgba(53,214,195,.28); }
+.vy-stanica.treba { opacity: 1; border-color: var(--zlata); }
+.vy-stanica.treba.chyba { border-color: var(--cervena); background: rgba(255,111,92,.34); animation: vy-blika 1.2s infinite; }
+@keyframes vy-blika { 50% { box-shadow: 0 0 10px 2px rgba(255,111,92,.7); } }
+#vy-scena { position: relative; width: 620px; height: 350px; border-radius: 22px; overflow: hidden; border: 1px solid var(--okraj-skla);
+  background: radial-gradient(90% 80% at 50% 62%, #f7e6bb 0%, #e3cc92 48%, #4fb3b4 78%, #1b6f86 100%); box-shadow: inset 0 4px 24px rgba(2,40,60,.35); }
+#vy-scena.ciel { border-color: var(--zlata); box-shadow: 0 0 16px rgba(255,212,94,.8), inset 0 4px 24px rgba(2,40,60,.35); }
+#vy-platno { display: block; width: 620px; height: 350px; touch-action: none; }
+#vy-stitky { position: absolute; inset: 0; pointer-events: none; }
+#vy-stitky span { position: absolute; transform: translate(-50%, 0); padding: 0 9px; border-radius: 12px; background: rgba(6,46,68,.72); font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+#vy-stitky i { font-style: normal; color: var(--zlata); }
+#vy-nazov { position: absolute; top: 8px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+#hud #vy-nazov b { padding: 1px 22px 3px; border-radius: 20px; background: rgba(6,52,76,.78); font-size: 22px; }
+#hud #vy-nazov b.vy-hotovo { color: var(--zlata); font-size: 30px; animation: vy-vyskoc .5s cubic-bezier(.2,.9,.3,1.6); }
+.vy-duch-ikona { margin-top: 16px; font-size: 76px; opacity: .45; animation: vy-vznasa 2.2s ease-in-out infinite; }
+.vy-hotova-ikona { margin-top: 40px; font-size: 110px; animation: vy-vyskoc .6s cubic-bezier(.2,.9,.3,1.6); }
+@keyframes vy-vznasa { 50% { transform: translateY(-8px); } }
+@keyframes vy-vyskoc { from { transform: scale(.2); opacity: 0; } }
+#vy-blesk { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 55%, #fff 0%, rgba(255,236,170,.75) 30%, rgba(255,236,170,0) 68%); }
+#vy-blesk.zapnuty { animation: vy-blesk .7s ease-out; }
+@keyframes vy-blesk { 8% { opacity: 1; } 100% { opacity: 0; } }
 
-/* karta receptu (pergamen) */
-#karta-receptu { display: flex; flex-direction: column; align-items: center; height: 100%; box-sizing: border-box; padding: 14px 20px; text-align: center; text-shadow: none; overflow-y: auto; scrollbar-width: thin; }
-.kr-ikona { flex: none; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: radial-gradient(circle, rgba(255,250,230,.9), rgba(255,250,230,0) 70%); }
-.kr-ikona .ikona { font-size: 76px; line-height: 1; }
-#hud .kr-ikona .ikona .ik, #hud .kr-ikona .ikona .ik3 { width: 108px; height: 108px; display: block; }
-.kr-ikona.zamknuta .ikona { background: none; }
-.kr-ikona.hotovo { animation: vyrobene .55s ease-out; }
-@keyframes vyrobene { 35% { transform: scale(1.3) rotate(-6deg); box-shadow: 0 0 36px 8px var(--zlata); } }
-#hud #karta-receptu h3 { margin: 2px 0; font-size: 30px; font-weight: 400; color: var(--atrament); line-height: 1.1; }
-#karta-receptu .popis { margin: 2px 0 10px; font-size: 13px; line-height: 1.4; }
-#karta-receptu .suroviny { align-self: stretch; display: flex; flex-direction: column; gap: 4px; }
-#karta-receptu .suroviny > div { display: flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 8px; background: rgba(63,140,110,.16); font-size: 13px; text-align: left; }
-#karta-receptu .suroviny .ikona { width: 30px; font-size: 24px; }
-#karta-receptu .suroviny b { flex: 1; }
-#karta-receptu .suroviny i { width: 14px; font-style: normal; font-weight: 800; color: #1f7a63; }
-#karta-receptu .suroviny > div.chyba { background: rgba(200,85,61,.18); }
-#karta-receptu .suroviny > div.chyba i, #karta-receptu .suroviny > div.chyba span:not(.ikona) { color: #9c2f1b; font-weight: 800; }
-.kde { align-self: stretch; margin-top: 8px; font-size: 13px; font-weight: 800; }
-.kde.ma { color: #1f7a63; }
-.kde.chyba { color: #9c2f1b; }
-.kde small { display: block; font-weight: 600; opacity: .85; }
-.kde.napoveda-receptu { margin-top: 18px; padding: 12px; border: 2px dashed var(--drevo-okraj); border-radius: 10px; }
-#karta-receptu .mas { margin-top: 4px; font-size: 12px; opacity: .75; }
-.kr-dole { margin-top: auto; padding-top: 10px; align-self: stretch; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+/* oslava objavu */
+#vy-oslava { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; }
+#vy-oslava.zapnuta { display: flex; animation: vy-oslava 3.2s forwards; }
+#vy-oslava::before { content: ''; position: absolute; width: 760px; height: 760px; border-radius: 50%; animation: vy-luce 9s linear infinite;
+  background: repeating-conic-gradient(rgba(255,226,130,.50) 0 9deg, rgba(255,226,130,0) 9deg 24deg); -webkit-mask: radial-gradient(circle, #000 8%, transparent 52%); mask: radial-gradient(circle, #000 8%, transparent 52%); }
+#vy-oslava > div { position: relative; display: flex; flex-direction: column; align-items: center; padding: 10px 34px 12px; border-radius: 26px; border: 2px solid var(--zlata);
+  background: rgba(6,52,76,.88); box-shadow: 0 0 34px rgba(255,212,94,.8); animation: vy-vyskoc .55s cubic-bezier(.2,.9,.3,1.6); }
+#vy-oslava small { font: 700 15px var(--font-nadpis); color: var(--zlata); }
+#vy-oslava .ikona { font-size: 70px; line-height: 1.15; }
+#hud #vy-oslava .ikona .ik, #hud #vy-oslava .ikona .ik3 { width: 96px; height: 96px; display: block; }
+#vy-oslava b { font: 700 26px var(--font-nadpis); }
+@keyframes vy-oslava { 0% { opacity: 0; } 6%, 82% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes vy-luce { to { transform: rotate(360deg); } }
+
+#vy-stav { min-height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 12px; border-radius: 16px; background: var(--sklo-jemne); font-size: 13px; text-align: center; }
+#vy-stav.dobre { background: rgba(53,214,195,.30); font-weight: 800; }
+#vy-stav.zle { background: rgba(255,111,92,.30); }
+#vy-stav.tip { background: rgba(255,212,94,.28); font-weight: 800; }
+#hud #vy-stav .ik, #hud #vy-stav .ik3 { display: inline-block; width: 20px; height: 20px; vertical-align: -5px; }
+#vy-stav .vy-vec { display: inline-block; margin-left: 6px; font-weight: 800; }
+#vy-stav .vy-vec .ikona { display: inline; }
+.vy-tip { color: var(--zlata); font-weight: 800; }
+.vy-volby { display: flex; gap: 6px; }
+.vy-volba { padding: 1px 12px; border-radius: 12px; border: 1px solid var(--okraj-skla); cursor: pointer; }
+.vy-volba.aktivna { background: var(--piesok); color: var(--atrament); text-shadow: none; }
+
+#vy-akcie { display: grid; grid-template-columns: 1fr 320px 1fr; align-items: center; gap: 12px; }
+#hud #vy-vycisti { justify-self: start; }
+#vy-nasobky { justify-self: end; }
 .nasobky { display: flex; gap: 6px; }
-.nasobok { min-width: 34px; padding: 3px 10px; border-radius: 14px; border: 2px solid var(--drevo-okraj); font-size: 13px; font-weight: 800; cursor: pointer; }
-.nasobok.aktivny { background: var(--drevo-svetle); color: var(--text-svetly); }
-#drz { --k: 0; display: flex; align-items: center; gap: 12px; align-self: stretch; justify-content: center; padding: 7px 16px; border: 0; border-radius: 40px; background: var(--zlata); color: var(--atrament); font: 800 16px var(--font-text); cursor: pointer; user-select: none; touch-action: none; box-shadow: 0 4px 0 #9a7128; }
+.nasobok { min-width: 30px; padding: 3px 9px; border-radius: 14px; border: 1px solid var(--okraj-skla); font-size: 13px; font-weight: 800; text-align: center; cursor: pointer; }
+.nasobok.aktivny { background: var(--piesok); color: var(--atrament); text-shadow: none; }
+#drz { --k: 0; display: flex; align-items: center; gap: 12px; justify-content: center; padding: 5px 16px; border: 0; border-radius: 40px; background: linear-gradient(180deg, #ffa98c, var(--koral)); color: #4a1608; font: 700 18px var(--font-nadpis); cursor: pointer; user-select: none; touch-action: none; box-shadow: 0 4px 0 #b8503a, 0 6px 18px rgba(255,138,107,.45); }
 #drz:hover:not(:disabled) { filter: brightness(1.07); }
-#drz:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #9a7128; }
-#drz:disabled { background: var(--pergamen-tmavy); box-shadow: none; opacity: .65; cursor: default; }
-#drz .kruh { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--tyrkys) calc(var(--k) * 360deg), rgba(58,39,22,.35) 0); }
-#drz .kruh span { width: 29px; height: 29px; border-radius: 50%; background: var(--pergamen); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+#drz:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #b8503a; }
+#drz:disabled { background: rgba(210,250,246,.18); color: var(--text-svetly); box-shadow: none; opacity: .6; cursor: default; }
+#drz .kruh { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--zlata) calc(var(--k) * 360deg), rgba(13,59,79,.35) 0); }
+#drz .kruh span { width: 29px; height: 29px; border-radius: 50%; background: #fff8ec; color: var(--atrament); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+
+/* suroviny z batohu pod podlozkou */
+#vy-suroviny { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; height: 136px; overflow-y: auto; padding: 8px; box-sizing: border-box; border-radius: 18px; background: var(--sklo-jemne); scrollbar-width: thin; scrollbar-color: var(--okraj-skla) transparent; }
+.vy-sur { position: relative; width: 66px; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 14px; background: var(--sklo-svetle); border: 1px solid rgba(196,248,242,.26); cursor: grab; transition: transform .1s, background .1s; }
+.vy-sur:hover { background: rgba(210,250,246,.28); transform: translateY(-2px); border-color: #fff; }
+.vy-sur:active { transform: scale(.94); }
+.vy-sur .ikona { font-size: 28px; line-height: 1; pointer-events: none; }
+#hud .vy-sur .ik, #hud .vy-sur .ik3 { width: 38px; height: 38px; display: block; }
+.vy-sur i { position: absolute; top: 1px; right: 6px; font-style: normal; font-size: 13px; font-weight: 800; }
+.vy-sur b { max-width: 62px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; font-weight: 700; opacity: .9; }
+.vy-sur.minuta { opacity: .4; cursor: default; }
+
+/* kniha receptov (bocny panel) */
+#vy-kniha { width: 340px; height: 612px; display: flex; flex-direction: column; gap: 8px; }
+#hud #vy-kniha h2 { margin: 0; font-size: 21px; text-align: center; }
+#hud #vyroba-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+#hud #vyroba-tabs .zalozka { padding: 2px 11px; font: 600 13px var(--font-nadpis); }
+#hud #vyroba { flex: 1; min-height: 0; max-height: none; overflow-y: auto; padding: 7px; box-sizing: border-box; border-radius: 18px; background: var(--sklo-jemne); scrollbar-width: thin; scrollbar-color: var(--okraj-skla) transparent; }
+#hud .recept { gap: 10px; padding: 3px 10px; margin-bottom: 4px; border-radius: 14px; background: var(--sklo-svetle); border: 1px solid transparent; }
+#hud .recept:hover { background: rgba(210,250,246,.24); transform: none; cursor: pointer; }
+#hud .recept b { flex: 1; min-width: 0; line-height: 1.25; font-size: 13.5px; }
+#hud .recept .ikona { width: 34px; font-size: 27px; }
+#hud .recept.nedostupny .ikona, #hud .recept.nedostupny b { opacity: .55; }
+#hud .recept .znak { color: #8ffff0; font-weight: 800; }
+#hud .recept.moze { background: rgba(53,214,195,.28); }
+#hud .recept.vybraty { border-color: var(--piesok); background: rgba(246,227,180,.28); }
+.zamknuty .ikona, .zamknuty .velka { filter: brightness(0) opacity(.55); }
+#hud .recept.zamknuty b { opacity: .7; letter-spacing: 2px; }
+
+/* detail vybraneho receptu (svetla karta) */
+#karta-receptu { flex: none; height: 230px; box-sizing: border-box; padding: 9px 14px; text-align: center; text-shadow: none; overflow-y: auto; scrollbar-width: thin; }
+#hud #karta-receptu h3 { margin: 0; font-size: 20px; color: var(--atrament); line-height: 1.15; }
+#karta-receptu .popis { margin: 2px 0 6px; font-size: 12px; line-height: 1.35; }
+#karta-receptu .suroviny { display: flex; flex-direction: column; gap: 3px; }
+#karta-receptu .suroviny > div { display: flex; align-items: center; gap: 8px; padding: 1px 10px; border-radius: 10px; background: rgba(20,128,140,.12); font-size: 12.5px; text-align: left; }
+#karta-receptu .suroviny .ikona { width: 24px; font-size: 19px; }
+#karta-receptu .suroviny b { flex: 1; }
+#karta-receptu .suroviny > div.chyba { background: rgba(255,111,92,.2); color: #9c2f1b; font-weight: 800; }
+.kde { margin-top: 5px; font-size: 12px; font-weight: 800; color: #12705f; }
+.kde.chyba { color: #9c2f1b; }
+.napoveda-receptu { margin-top: 10px; padding: 12px; border: 2px dashed var(--drevo-okraj); border-radius: 14px; font-size: 13px; font-weight: 800; }
 
 /* ---------- stavebne menu ---------- */
-#hud #stavba h2 { font: 30px var(--font-nadpis); color: var(--zlata); }
+#hud #stavba h2 { font: 700 24px var(--font-nadpis); color: var(--piesok); }
 #hud #stavba h2 small, #hud #stavba .okno-zatvor { font-family: var(--font-text); color: var(--text-svetly); }
 #hud #stavba .zalozky { gap: 6px; }
-#hud #stavba .zalozka { font: 19px var(--font-nadpis); padding: 3px 14px; }
-#hud .karta { background: var(--pergamen); color: var(--atrament); text-shadow: none; border: 3px solid var(--pergamen-tmavy); box-shadow: inset 0 0 22px rgba(120,80,30,.3); }
-#hud .karta b { font: 22px var(--font-nadpis); }
-#hud .karta.moze { border-color: var(--zlata); background: #f4e7c8; }
-#hud .karta.moze:hover { background: #fbf1d8; }
+#hud #stavba .zalozka { font: 600 15px var(--font-nadpis); padding: 2px 16px; }
+#hud .karta { background: linear-gradient(170deg, #fdfaf0, var(--pergamen)); color: var(--atrament); text-shadow: none; border: 2px solid transparent; border-radius: 18px; }
+#hud .karta b { font: 700 17px var(--font-nadpis); }
+#hud .karta.moze { border-color: var(--koral); box-shadow: 0 4px 14px rgba(255,138,107,.35); }
+#hud .karta.moze:hover { background: #fffdf6; }
 #hud .karta.nedostupny { filter: saturate(.7) brightness(.9); }
-#hud .karta.zamknuty { filter: brightness(.72); cursor: default; }
+#hud .karta.zamknuty { filter: brightness(.74); cursor: default; }
 #hud .karta .chyba, #hud .karta .stav.chybaj { color: #9c2f1b; }
-#hud .karta .stav { color: #1f6f5c; }
+#hud .karta .stav { color: #12705f; }
 
 /* ---------- tooltip predmetu ---------- */
-#tip { display: none; position: fixed; z-index: 40; width: 270px; padding: 10px 14px 12px; box-sizing: border-box; pointer-events: none; border: 3px solid var(--drevo-okraj); font: 500 13px/1.4 var(--font-text); }
+#tip { display: none; position: fixed; z-index: 40; width: 270px; padding: 10px 14px 12px; box-sizing: border-box; pointer-events: none; box-shadow: var(--tien); font: 500 13px/1.4 var(--font-text); }
 .tip-hlava { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
 .tip-hlava .ikona { font-size: 48px; line-height: 1; }
 #tip .tip-hlava .ik, #tip .tip-hlava .ik3 { width: 62px; height: 62px; display: block; }
-#tip .tema-nadpis { display: block; color: var(--atrament); font-size: 23px; font-weight: 400; line-height: 1.05; }
+#tip .tema-nadpis { display: block; color: var(--atrament); font-size: 18px; line-height: 1.1; }
 #tip small { opacity: .75; }
 #tip p { margin: 6px 0 0; }
 #tip kbd { background: var(--drevo); color: var(--text-svetly); }
 .tip-pas { display: grid; grid-template-columns: 76px 1fr auto; gap: 8px; align-items: center; margin-top: 4px; font-size: 12px; }
-.tip-pas i { height: 8px; border-radius: 4px; background: rgba(58,39,22,.22); overflow: hidden; }
+.tip-pas i { height: 8px; border-radius: 4px; background: rgba(13,59,79,.18); overflow: hidden; }
 .tip-pas u { display: block; height: 100%; border-radius: 4px; }
 .tip-rada { display: block; margin-top: 6px; }
 
 /* ---------- toast "Novy recept!" ---------- */
 #recept-toasty { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
 .recept-toast { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 220px; max-width: 420px; padding: 8px 22px 10px; text-align: center; animation: recept-toast 4.5s forwards; }
-.recept-toast b { font-size: 28px; font-weight: 400; }
+.recept-toast b { font-size: 22px; }
 .rt-ikony { display: flex; gap: 8px; align-items: center; }
 .rt-ikony .ikona { font-size: 34px; }
 .rt-ikony .ik, .rt-ikony .ik3 { width: 46px; height: 46px; display: block; }

@@ -187,7 +187,7 @@ function modelFlase() {
 
 // ---------- UI ----------
 const CSS = `
-#majak-panel{position:fixed;left:24px;top:34%;width:270px;padding:12px 14px;border-radius:12px;background:rgba(18,14,10,.78);color:#f3e7c8;font:600 14px system-ui,sans-serif;display:none;z-index:6;pointer-events:none;box-shadow:0 4px 16px #0008}
+#majak-panel{position:fixed;left:24px;top:34%;width:270px;padding:12px 14px;border-radius:18px;background:var(--sklo);border:1px solid var(--okraj-skla);color:var(--text-svetly);font:600 14px var(--font-text);display:none;z-index:6;pointer-events:none;box-shadow:0 4px 16px #0008}
 #majak-panel h4{margin:0 0 6px;font-size:16px;color:#ffd24a}#majak-panel div{display:flex;gap:6px;align-items:center;padding:2px 0}
 #majak-panel .ok{color:#8fe08a}#majak-panel .nie{color:#f3a89b}#majak-panel svg,#majak-sprava svg{width:1.2em;height:1.2em}#majak-panel small{display:block;margin-top:6px;opacity:.75;font-weight:500}
 #majak-boss{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);width:min(520px,60vw);display:none;z-index:6;text-align:center;color:#f3e7c8;font:700 17px Georgia,serif;text-shadow:0 2px 4px #000}
