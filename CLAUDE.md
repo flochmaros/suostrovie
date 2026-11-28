@@ -58,6 +58,11 @@ Vlastná 3D hra v prehliadači (PC): **open world tropické súostrovie** – ne
 | `src/vyroba.js`, `src/podlozka.js` | manuálna výroba: suroviny → 3D rohož → rozpoznanie receptu, kniha receptov, animácia; `podlozka.js` je len 3D scéna; recept s `objav: true` sa odomkne len experimentom |
 | `src/ui/` | štýl „tyrkysové more“: `tema.css` (farby, písmo Baloo 2) + CSS po častiach (`vyroba`, `pauza`, `mapa`, `varenie`) |
 | `src/ikony.js` | ikony: `ik(tvar, farba, ...vrstvy)` → SVG (game-icons.net CC BY 3.0 + vlastné), `UI` ikony HUD, `data-ik` v HTML |
+| `src/ui/` | **téma UI „tyrkysové more“** (`tema.css` premenné; staré mená --drevo/--pergamen sú aliasy) + CSS po častiach (`vyroba.css`, `mapa.css`, `pauza.css`, `varenie.css`) – nové štýly sem, nie do index.html |
+| `src/vyroba.js`, `src/podlozka.js`, `src/recepty_odomknute.js` | výroba na 3D podložke (suroviny sa kladú, rozpoznanie receptu, animácia), odomykanie receptov (kľúčová surovina, náčrty, objavenie experimentom), stanice ponk/dielňa |
+| `src/hmla.js` | hmla na mape (odkrývanie, ukladanie), útržky máp; dev: klik na mapu = teleport |
+| `src/pauza.js` | pauzové menu (Esc), Denník výpravy (štatistiky `pocitaj`) |
+| `src/varenie.js` | prepečenie na ražni, hrniec + kuchárska kniha, účinky jedál |
 | `src/inventar.js` | batoh 32 políčok (prvých 8 = lišta), ťahanie, Shift+klik, delenie stohu, zoradenie; výroba so záložkami (Tab); stavebné menu (B) |
 | `src/obsah/` | **obsah hry**: `predmety.js`, `zdroje.js` (čo dáva/čo treba), `recepty.js`, `nastroje.js` (nástroje), `vylepsenia.js` (kanoe), `zivocichy.js`, `jedlo.js`, `more.js` |
 | `server.py` | lokálny server bez cache |
