@@ -40,6 +40,9 @@ export function stlac(kod) { jednorazove.add(kod); }
 // true len v snimku, ked bola klavesa stlacena (mys: 'Mys0' = lave tlacidlo)
 export function stlacene(kod) { return jednorazove.has(kod); }
 
+// stlacenie uz niekto pouzil (napr. zavretie spravy) -> zvysok snimku ho nevidi
+export function spotrebuj(kod) { jednorazove.delete(kod); }
+
 // volat na konci kazdeho snimku
 export function koniecSnimku() {
   jednorazove.clear();

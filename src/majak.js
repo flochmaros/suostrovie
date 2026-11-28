@@ -207,6 +207,12 @@ export function textSpravy(i) {
   const dx = m ? [m.x - START.x, m.z - START.z] : [0, 0];
   return s.text.replace('{{smer1}}', 'na ' + smerText(dx)).replace('{{vzd1}}', String(Math.round(Math.hypot(dx[0], dx[1]) / 50) * 50));
 }
+// zavrie otvoreny list; vrati true, ak nejaky bol otvoreny
+export function zavriSpravu() {
+  if (spravaCas <= 0) return false;
+  spravaCas = 0; spravaOkno.style.display = 'none';
+  return true;
+}
 function ukazSpravu(i) {
   const s = SPRAVY[i];
   spravaOkno.innerHTML = `<b>✉ ${s.nadpis} <span style="opacity:.5">(${precitane.size}/${SPRAVY.length})</span></b>${textSpravy(i)}<small>E zavrie · všetky správy nájdeš v Denníku (J)</small>`;

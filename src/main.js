@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { vytvorGrafiku, FARBA_HMLY } from './grafika.js';
 import { zasahni, aktualizujBoj, initBoj, stav as bojStav } from './boj.js';
-import { initVstup, klavesy, mys, stlacene, stlac, koniecSnimku } from './vstup.js';
+import { initVstup, klavesy, mys, stlacene, stlac, spotrebuj, koniecSnimku } from './vstup.js';
 import { initSvet, aktualizujSvet, vyskaTerenu, ostrovPri, startovaciaPozicia, najblizsiPredmet, zober, zobrate, uzlyPri, BIOM_MENO, pasmo, PASMA, MENOVANE_OSTROVY } from './svet.js';
 import { vytvorOcean, vyskaVody, priliv, uNoc } from './ocean.js';
 import { initHororovaZona, aktualizujOdliv, aktualizujHororovuZonu, naznakTicha, hororovaZona, stavZony } from './horor_zona.js';
@@ -13,7 +13,7 @@ import { vytvorCastice } from './castice.js';
 import { najdiCiel, poskod, aktualizujUzly, najdiZber, stavRastlin, nacitajStavRastlin } from './vegetacia.js';
 import { poskodenie, opotrebuj } from './nastroje.js';
 import { menoOstrova, jePomenovany, pomenujOstrov, dialogOtvoreny, ulozZnacky, nacitajZnacky } from './znacky.js';
-import { initMajaky, aktualizujMajak, ulozMajaky, nacitajMajaky, majaky } from './majak.js';
+import { initMajaky, aktualizujMajak, ulozMajaky, nacitajMajaky, majaky, zavriSpravu } from './majak.js';
 import { initNepriatelia, aktualizujNepriatelov, udalosti as nepUdalosti, zoznamNepriatelov, spawnPriHracovi } from './nepriatelia.js';
 import { nastavLodenicu } from './obsah/vylepsenia.js';
 import { initLodenice, polozLodenicu, najblizsiaLodenica, miestoSpustenia, ulozLodenice, nacitajLodenice } from './lodenica.js';
@@ -407,6 +407,7 @@ function aktualizuj(dt) {
   for (const l of lode) if (!(vKanoe && l === kanoe) && Math.hypot(l.poz.x - lx, l.poz.y - lz) < 250) l.aktualizuj(dt, cas, false);
   kolizieLodi(lode);
   const dosahLode = 4.5 + kanoe.stat.dlzka * 0.12;
+  if (stlacene('KeyE') && zavriSpravu()) spotrebuj('KeyE');   // otvoreny list: E ho len zavrie, nic ine neurobi
   if (jeHrniec() && ['Tab', 'KeyB', 'KeyJ', 'Escape', 'KeyE'].some(stlacene)) {   // okno hrnca
     zavriHrniec();
     if (stlacene('Escape')) $('start').style.display = 'flex'; else zamkni();     // po Esc prehliadac mys nezamkne hned -> pauza
